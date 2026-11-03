@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #eef0f4;
+  --border: #dde1e7;
+  --text: #0f1419;
+  --muted: #5b6573;
+  --accent: #c25e00;
+  --accent-contrast: #ffffff;
+  --up: #0a7d43;
+  --down: #c62828;
+  --warn: #9a6700;
+  --info: #3b5bdb;
+  --up-bg: #e3f6ec;
+  --down-bg: #fdecec;
+  --warn-bg: #fff4d6;
+  --info-bg: #e8edff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a0b0d;
+    --panel: #121417;
+    --panel-2: #1a1d22;
+    --border: #262a31;
+    --text: #e8eaed;
+    --muted: #98a1ad;
+    --accent: #ff9f1a;
+    --accent-contrast: #111111;
+    --up: #2ecc71;
+    --down: #ff5c5c;
+    --warn: #f5c542;
+    --info: #7c9cff;
+    --up-bg: #0f2a1c;
+    --down-bg: #2e1214;
+    --warn-bg: #2d2610;
+    --info-bg: #161d36;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0a0b0d;
+  --panel: #121417;
+  --panel-2: #1a1d22;
+  --border: #262a31;
+  --text: #e8eaed;
+  --muted: #98a1ad;
+  --accent: #ff9f1a;
+  --accent-contrast: #111111;
+  --up: #2ecc71;
+  --down: #ff5c5c;
+  --warn: #f5c542;
+  --info: #7c9cff;
+  --up-bg: #0f2a1c;
+  --down-bg: #2e1214;
+  --warn-bg: #2d2610;
+  --info-bg: #161d36;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--border);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-contrast);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-up-bg: var(--up-bg);
+  --color-down-bg: var(--down-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-info-bg: var(--info-bg);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hide native disclosure marker for <details> explainers */
+summary::-webkit-details-marker { display: none; }
+summary { list-style: none; }
