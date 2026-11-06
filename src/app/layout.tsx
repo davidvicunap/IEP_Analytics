@@ -3,9 +3,7 @@ import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import type { Lang } from "@/lib/format";
-import Header from "@/components/Header";
-import BottomNav from "@/components/BottomNav";
-import Footer from "@/components/Footer";
+import AppChrome from "@/components/AppChrome";
 import { isDemo } from "@/lib/data";
 
 export const metadata: Metadata = {
@@ -44,10 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-dvh flex flex-col">
         <I18nProvider initialLang={lang}>
-          <Header demo={isDemo()} />
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24 md:pb-10">{children}</main>
-          <Footer />
-          <BottomNav />
+          <AppChrome demo={isDemo()}>{children}</AppChrome>
         </I18nProvider>
       </body>
     </html>

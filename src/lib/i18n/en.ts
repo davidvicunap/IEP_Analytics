@@ -131,6 +131,17 @@ const en: Dict = {
     remove: "Remove",
     note: "Your list is saved only in this browser.",
   },
+  beta: {
+    title: "Private beta",
+    text: "IEP Analytics is in private beta. Enter your invite code to get in.",
+    label: "Invite code",
+    submit: "Enter",
+    checking: "Checking…",
+    invalid: "That code isn't valid or is no longer active.",
+    closed: "The beta isn't open right now.",
+    error: "We couldn't check the code. Please try again.",
+    noCode: "No code? Ask the person who shared the link with you.",
+  },
 };
 
 export default en;

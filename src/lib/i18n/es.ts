@@ -129,6 +129,17 @@ const es = {
     remove: "Quitar",
     note: "Tu lista se guarda solo en este navegador.",
   },
+  beta: {
+    title: "Beta privada",
+    text: "IEP Analytics está en beta privada. Ingresa tu código de invitación para entrar.",
+    label: "Código de invitación",
+    submit: "Entrar",
+    checking: "Verificando…",
+    invalid: "Ese código no es válido o ya no está activo.",
+    closed: "La beta no está abierta en este momento.",
+    error: "No pudimos verificar el código. Intenta de nuevo.",
+    noCode: "¿No tienes código? Pídelo a la persona que te compartió el enlace.",
+  },
 };
 
 export default es;
