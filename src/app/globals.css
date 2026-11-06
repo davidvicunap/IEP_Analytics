@@ -9,11 +9,12 @@
   --border: #dde1e7;
   --text: #0f1419;
   --muted: #5b6573;
-  --accent: #c25e00;
+  /* Light tokens meet WCAG AA (>= 4.5:1) on bg, panel and panel-2. */
+  --accent: #a84d06;
   --accent-contrast: #ffffff;
   --up: #0a7d43;
   --down: #c62828;
-  --warn: #9a6700;
+  --warn: #8a5c00;
   --info: #3b5bdb;
   --up-bg: #e3f6ec;
   --down-bg: #fdecec;
