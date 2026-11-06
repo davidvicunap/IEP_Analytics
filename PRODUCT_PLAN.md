@@ -1,6 +1,6 @@
 # IEP Analytics — Plan de producto (Fases 1–4)
 
-> **Estado:** borrador para aprobación · **Fecha:** 2026-11-06 · **Alcance:** auditoría, benchmark, visión/roadmap y arquitectura. Este documento **no** cambia código.
+> **Estado:** aprobado con cambios (ver [sección 5](#5-decisiones-aprobadas-2026-11-06)) · **Fecha:** 2026-11-06 · **Alcance:** auditoría, benchmark, visión/roadmap y arquitectura. Este documento **no** cambia código.
 >
 > **Evidencia usada:** revisión completa del repositorio (`main` @ `f8100c2`, 2.549 líneas en `src/`), pruebas contra producción (https://iepanalytics.vercel.app), auditoría local con Playwright + axe-core 4.14 (WCAG 2.2 AA) y precios/licencias consultados el 2026-11-06 (fuentes al final).
 
@@ -18,13 +18,13 @@
 
 **Segmento a dominar:** inversionistas minoristas hispanohablantes que operan acciones de EE. UU. con una tesis y horizonte de 2 semanas a 6 meses (swing/position).
 
-**Propuesta:** *el copiloto de tesis*. Una ficha que decide en 60 segundos (dato → contexto → interpretación → plan de riesgo), análisis con IA que cita cada número con su fuente, y **tesis vivas** que se vigilan solas y avisan cuando se rompen.
+**Propuesta:** *el copiloto de tesis*. Una ficha que decide en 60 segundos (dato → contexto → interpretación → plan de riesgo), **tesis vivas** que se vigilan solas y avisan cuando se rompen y, desde v1, análisis con IA que cita cada número con su fuente.
 
-**Roadmap:** MVP-0 *Cimientos confiables* → MVP *Ficha que decide* → v1 *Tesis vivas y radar* → v2 *Portafolio y tiempo real*.
+**Roadmap:** MVP-0 *Cimientos confiables y beta privada* → MVP *Ficha que decide y tesis vivas* → v1 *Radar, IA y lanzamiento público* → v2 *Portafolio*.
 
-**Arquitectura:** mantener Next.js 16 en Vercel (no migrar). Añadir Postgres + Redis + ingesta nocturna, usar **SEC EDGAR** (información pública) como fuente principal de estados financieros y la API de Claude para el análisis interpretado.
+**Arquitectura:** mantener Next.js 16 en Vercel (no migrar). Añadir Postgres + Redis + ingesta nocturna, usar **SEC EDGAR** (información pública) como fuente principal de estados financieros y, desde v1, la API de Claude para el análisis interpretado.
 
-**Necesito tu aprobación** en las 7 decisiones de la [sección 5](#5-decisiones-que-necesito-que-apruebes).
+**Decisiones aprobadas** el 2026-11-06, con cambios: beta privada, sin IA en el MVP y Pro a US$ 19,99/mes ([sección 5](#5-decisiones-aprobadas-2026-11-06)).
 
 ---
 
@@ -262,11 +262,12 @@ Falta medir en producción con usuarios reales (Speed Insights). El objetivo "< 
 - Porcentaje de alertas abiertas.
 - Conversión a Pro.
 
-**Modelo de negocio (hipótesis):** freemium sin anuncios.
+**Modelo de negocio (aprobado):** freemium sin anuncios.
 - **Gratis:** ficha completa, 3 tesis, watchlist y alertas básicas.
-- **Pro (≈ 8–12 US$/mes):** tesis y alertas ilimitadas, IA ilimitada, screener guardado y portafolio.
-- **Ancla de precio:** Seeking Alpha cobra 299 US$/año, Yahoo Gold 49,95 US$/mes y Koyfin desde 39 US$/mes.
-- **Ojo:** el costo de la licencia de datos puede definir el precio.
+- **Pro (US$ 19,99/mes):** tesis y alertas ilimitadas, IA (desde v1), screener guardado y portafolio.
+- **Ancla de precio:** por debajo de Yahoo Silver (24,95 US$/mes), del equivalente mensual de Seeking Alpha (≈ 24,90 US$) y de Koyfin Plus (39–49 US$/mes); similar a Simply Wall St Unlimited (≈ 21,50 US$/mes).
+- **Cobro:** empieza con el lanzamiento público (v1); la beta privada es gratuita.
+- **Ojo:** el costo de la licencia de datos puede obligar a revisar el precio.
 
 ---
 
@@ -287,10 +288,12 @@ Las duraciones son estimaciones para 1 desarrollador con Claude; se recalibran a
 
 | Fase | Objetivo | Módulos | Criterio de salida |
 |---|---|---|---|
-| **MVP-0 · Cimientos confiables** (2–3 semanas) | Que nada falle en silencio y que el costo de datos no crezca con los usuarios | M0 Plataforma de datos, estados de error, procedencia, rate limiting, CI, observabilidad, Postgres + ingesta SEC | 0 errores silenciosos; cuota vigilada con alerta al 80 %; los P0 y P1 de la Fase 1 cerrados |
-| **MVP · Ficha que decide** (4–6 semanas) | Que un usuario decida sobre una acción en < 60 s | M1 Página de acción 2.0, M2a IA bull/bear con citas, M3 Comparador, M4 Paleta de comandos | Prueba con 10 usuarios del segmento: ≥ 8 explican la tesis de una acción en < 60 s |
-| **v1 · Tesis vivas y radar** (6–8 semanas) | Retención: volver por las alertas | M5 Cuentas y watchlists, M6 Tesis vivas y alertas, M7 Screener, M8 Calendarios, M9 Noticias, M2b Resultados trimestrales, M2c Riesgos | Retención a 30 días ≥ 25 % en la cohorte beta |
-| **v2 · Portafolio y tiempo real** (8–12 semanas) | Ser la herramienta principal | M10 Portafolio y diario de trades, M1h Institucionales, M11 Tiempo real, M12 Opciones, PWA con push | Al menos 30 % de los usuarios activos registra operaciones |
+| **MVP-0 · Cimientos confiables** (2–3 semanas) | Cerrar el sitio en beta privada, que nada falle en silencio y que el costo de datos no crezca con los usuarios | Beta privada por invitación, M0 Plataforma de datos (errores tipados, procedencia, rate limiting, caché y cuotas), Postgres + ingesta SEC, CI, observabilidad, correcciones de accesibilidad | Sitio cerrado al público y sin indexar; 0 errores silenciosos; cuota vigilada con alerta al 80 %; los P0 y P1 de la Fase 1 cerrados |
+| **MVP · Ficha que decide y tesis vivas** (5–7 semanas) | Que un usuario decida sobre una acción en < 60 s y deje su tesis vigilada | M1 Página de acción 2.0 (resumen por reglas con citas, sin IA), M4 Paleta de comandos, M5 Cuentas por invitación y watchlists, M6 Tesis vivas y alertas por email | Con 10 usuarios beta: ≥ 8 explican la tesis de una acción en < 60 s y ≥ 5 crean una tesis vigilada |
+| **v1 · Radar, IA y lanzamiento** (6–8 semanas) | Lanzamiento público con la licencia firmada y cobro de Pro | M2 IA con citas (bull/bear, resultados, riesgos), M3 Comparador, M7 Screener, M8 Calendarios, M9 Noticias, cobro Pro (US$ 19,99/mes) | Licencia de display firmada; retención a 30 días ≥ 25 %; primeros suscriptores Pro |
+| **v2 · Portafolio** (8–12 semanas) | Ser la herramienta principal | M10 Portafolio y diario de trades, M1h Institucionales, PWA con push | Al menos 30 % de los usuarios activos registra operaciones |
+
+Fuera de alcance por ahora: M11 tiempo real por websocket y M12 opciones. Las tesis vivas pasan al MVP porque son el diferenciador principal y conviene validarlas con la beta antes de invertir en lo demás.
 
 ### 3.3 Página de acción objetivo (escritorio)
 
@@ -323,6 +326,7 @@ pNN = percentil frente al sector. En móvil: cabecera compacta fija → veredict
 - **Complejidad:** L.
 - **Datos:** FMP (plan de pago), SEC EDGAR (`company_tickers.json`, `submissions`, `companyfacts`, `frames`).
 - **Criterios de aceptación:**
+  - Beta privada: sin un código de invitación válido no se ve ninguna página ni API con datos, y el sitio no se indexa en buscadores.
   - Toda respuesta del proveedor se valida con un esquema; cada tipo de error tiene su estado en pantalla, y los tickers inexistentes devuelven HTTP 404 real.
   - Cada valor mostrado lleva `{fuente, asOf, fetchedAt}`; la interfaz muestra "Actualizado HH:MM ET · Fuente".
   - Si la fuente falla, se muestra el último dato bueno con la etiqueta "retrasado" durante una ventana máxima configurable.
@@ -350,16 +354,17 @@ pNN = percentil frente al sector. En móvil: cabecera compacta fija → veredict
 
 - **Metodología (revisión CFA):**
   - Las puntuaciones son descriptivas (0–100 por percentil), nunca recomendaciones.
+  - En el MVP, el resumen "En pocas palabras" se genera con reglas (sin IA) y cada frase cita la métrica, la fuente y la fecha en que se basa.
   - Se usa ROIC además de ROE: avisar cuando el patrimonio es pequeño o negativo por recompras.
   - El P/E con beneficios negativos se marca "n/a".
   - Bancos, aseguradoras y REITs usan sus propios conjuntos de métricas.
   - Todas las fórmulas se publican en `/metodologia`.
 
-#### M2 · Análisis interpretado con IA
+#### M2 · Análisis interpretado con IA — v1
 - **Valor para el usuario:** entender en 1 minuto, en español, los argumentos a favor y en contra, qué pasó en los resultados y qué riesgos importan, sin creer a ciegas: cada punto cita su dato.
 - **Complejidad:** M (2a), M (2b), M (2c).
 - **Datos:** hoja de hechos construida desde M0 y M1 (SEC y FMP); textos de los documentos de la SEC: 8-K con el comunicado de resultados (Ex. 99.1) y 10-K con los factores de riesgo (Item 1A).
-- **Fases:** 2a bull/bear (MVP) · 2b explicación de resultados trimestrales (v1) · 2c riesgos clave y "qué cambió en los riesgos declarados frente al año anterior" (v1).
+- **Fases:** todo en v1 (aprobado: el MVP no usa IA) · 2a bull/bear · 2b explicación de resultados trimestrales · 2c riesgos clave y "qué cambió en los riesgos declarados frente al año anterior".
 - **Criterios de aceptación:**
   - Cada afirmación cita al menos un hecho; todo número del texto coincide con su hecho (tolerancia de redondeo) o se rechaza y se regenera.
   - Sin lenguaje de recomendación ("compra", "vende", "precio objetivo propio"); disclaimer visible.
@@ -367,7 +372,7 @@ pNN = percentil frente al sector. En móvil: cabecera compacta fija → veredict
   - Se regenera cuando hay un 10-Q, 10-K u 8-K nuevo o cambia la versión del prompt; si no, se sirve desde caché en < 100 ms.
   - Pasa un set de evaluación de 30 tickers (fidelidad numérica 100 %; equilibrio a favor y en contra revisado a mano).
 
-#### M3 · Comparador — MVP
+#### M3 · Comparador — v1
 - **Valor para el usuario:** decidir entre alternativas (ej. AAPL vs MSFT vs GOOGL) en una pantalla.
 - **Complejidad:** M.
 - **Datos:** M1.
@@ -385,17 +390,17 @@ pNN = percentil frente al sector. En móvil: cabecera compacta fija → veredict
   - Resultados en < 50 ms sin llamadas a FMP.
   - Totalmente operable con teclado y lector de pantalla.
 
-#### M5 · Cuentas y watchlists sincronizadas — v1
+#### M5 · Cuentas y watchlists sincronizadas — MVP
 - **Valor para el usuario:** las listas en todos los dispositivos.
 - **Complejidad:** M.
 - **Datos:** Postgres.
 - **Criterios de aceptación:**
-  - Todo se puede usar sin cuenta; la cuenta solo hace falta para sincronizar, tesis y alertas.
+  - Durante la beta, las cuentas se crean solo por invitación. Tras el lanzamiento, todo se puede consultar sin cuenta y la cuenta solo hace falta para sincronizar, tesis y alertas.
   - Al registrarse, la watchlist local se migra sin pérdidas.
   - Inicio de sesión con enlace mágico por email y con Google.
   - Múltiples listas, orden manual, columnas configurables.
 
-#### M6 · Tesis vivas y alertas — v1 (diferenciador principal)
+#### M6 · Tesis vivas y alertas — MVP (diferenciador principal)
 - **Valor para el usuario:** disciplina. Saber cuándo la razón por la que compró dejó de ser cierta.
 - **Complejidad:** L.
 - **Datos:** M0, M1, M7 y evaluador periódico.
@@ -606,7 +611,7 @@ portfolios(id, user_id, name) · transactions(id, portfolio_id, security_id, typ
 - **v2 (websocket):** solo si el plan de FMP y la licencia de display lo permiten. Requiere un pequeño servicio persistente fuera de Vercel (las funciones serverless no mantienen conexiones largas con el proveedor) que reenvía por SSE o por un pub/sub gestionado.
 - **Costo/beneficio:** para swing de días a meses, 15 s de retraso es suficiente. Recomiendo no construir websocket hasta que las alertas intradía lo pidan.
 
-### 4.7 IA (API de Claude)
+### 4.7 IA (API de Claude) — desde v1, el MVP no usa IA
 
 - **Modelo:** `claude-opus-5-5` (4 US$ por millón de tokens de entrada, 20 US$ de salida, lecturas de caché 0,20 US$).
   - El razonamiento adaptativo siempre está activo en este modelo; el nivel de esfuerzo se fija explícitamente por ruta (`medium` para bull/bear, `high` para resultados), ajustado con el set de evaluación.
@@ -703,17 +708,26 @@ portfolios(id, user_id, name) · transactions(id, portfolio_id, security_id, typ
 
 ---
 
-## 5. Decisiones que necesito que apruebes
+## 5. Decisiones aprobadas (2026-11-06)
 
-1. **Segmento y posicionamiento:** "copiloto de tesis" para inversionistas hispanohablantes de swing/position en acciones de EE. UU.
-2. **Licencia y plan de datos:** contratar FMP Premium (u Ultimate, si FMP confirma que 13F y transcripciones solo están en ese plan, como dicen comparativas de terceros) y pedir el *Data Display and Licensing Agreement*. **Mientras llega:** ¿pasamos el sitio a beta privada por invitación o aceptas el riesgo de mantenerlo público?
-3. **Infraestructura nueva:** Neon Postgres + Drizzle, Upstash Redis, Better Auth, Sentry, Resend, GitHub Actions para la ingesta y Vercel Pro.
-4. **IA:** Claude Opus 5.5 por defecto, con salidas estructuradas y citas. ¿Quieres que además evalúe modelos más baratos (Sonnet 5.5 o Haiku 5.5) para rutas masivas?
-5. **Orden del roadmap:** MVP-0 → MVP → v1 → v2, con las tesis vivas en v1 (requieren cuentas).
-6. **Modelo de negocio:** freemium sin anuncios, Pro ≈ 8–12 US$/mes (hipótesis a validar).
-7. **Alcance excluido por ahora:** opciones y tiempo real por websocket (requieren proveedores y licencias adicionales).
+| # | Decisión | Resultado | Implicaciones |
+|---|---|---|---|
+| 1 | Segmento y diferenciadores | **Aprobado:** swing/position hispanohablante en acciones de EE. UU.; tesis vivas; IA que cita cada número y descarta lo que no cuadra con la fuente | Métrica norte: tesis vigiladas por usuario activo semanal |
+| 2 | Exposición mientras llega la licencia de FMP | **Beta privada por invitación** | Primer módulo de MVP-0; el sitio no se indexa; se abre al público en v1, con la licencia firmada |
+| 3 | Infraestructura | Delegada al equipo (ver abajo) | — |
+| 4 | IA | **Sin IA en el MVP** | El MVP usa resúmenes por reglas que también citan cada número; la IA (Claude) entra en v1 |
+| 5 | Orden del roadmap | Delegado al equipo | Las tesis vivas pasan al MVP para validar el diferenciador con la beta; el comparador pasa a v1 |
+| 6 | Modelo de negocio | **Freemium sin anuncios, Pro a US$ 19,99/mes** | El cobro empieza con el lanzamiento público (v1) |
+| 7 | Opciones y tiempo real | **Fuera de alcance por ahora** | — |
 
-Tras tu aprobación empiezo por **MVP-0**, en commits pequeños, y al cerrar cada módulo te entrego un resumen, cómo probarlo y el siguiente paso.
+**Infraestructura decidida (#3): gastar solo cuando haga falta.**
+- **Beta:** Vercel Hobby (la beta es cerrada y gratuita), y Neon, Upstash y Sentry en sus planes gratuitos.
+- **Vercel Pro (≈ 20 US$/mes):** cuando las alertas de tesis necesiten cron frecuente (MVP) y siempre antes de cobrar, porque Hobby es solo para uso no comercial.
+- **Cuentas:** Better Auth en el MVP, solo por invitación. Los emails de acceso y alertas van por Resend, que necesita un dominio propio (≈ 10–15 US$/año).
+- **FMP:** plan Starter (≈ 19–22 US$/mes) en cuanto la beta tenga más de 2–3 usuarios activos; Premium (≈ 59 US$/mes) si la ingesta nocturna lo requiere. La licencia de display se firma antes del lanzamiento público.
+- **IA:** sin costo hasta v1.
+
+**Construcción:** empieza por MVP-0, en commits pequeños. Al cerrar cada módulo: resumen, cómo probarlo y siguiente paso.
 
 > **Aviso:** IEP Analytics es una herramienta educativa. Nada en este documento ni en el producto constituye asesoría financiera.
 
