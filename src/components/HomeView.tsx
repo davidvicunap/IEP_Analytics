@@ -3,13 +3,50 @@
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { fmtPrice } from "@/lib/format";
-import type { Quote } from "@/lib/types";
+import type { DataSource, QuoteEntry } from "@/lib/types";
 import { useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
 import TickerSearch from "./TickerSearch";
-import { Change, Panel, QuoteTile } from "./ui";
+import { Change, MissingTile, Panel, Provenance, QuoteTile } from "./ui";
 
-export default function HomeView({ indexes, popular }: { indexes: Quote[]; popular: Quote[] }) {
+/** Latest trade time among the quotes, falling back to when they were fetched. */
+function latestAsOf(entries: QuoteEntry[]): string | undefined {
+  return entries
+    .map((e) => e.quote?.asOf ?? e.fetchedAt)
+    .filter((s): s is string => !!s)
+    .sort()
+    .at(-1);
+}
+
+/** Shown only when at least one quote loaded: a source line under empty tiles would mislead. */
+function ProvenanceIfAny({ source, entries }: { source: DataSource; entries: QuoteEntry[] }) {
+  const asOf = latestAsOf(entries.filter((e) => e.quote));
+  return asOf ? <Provenance source={source} asOf={asOf} className="mt-3" /> : null;
+}
+
+function Tiles({ entries, labels }: { entries: QuoteEntry[]; labels?: Record<string, string> }) {
+  return (
+    <>
+      {entries.map((e) =>
+        e.quote ? (
+          <QuoteTile key={e.symbol} q={e.quote} label={labels?.[e.symbol]} />
+        ) : (
+          <MissingTile key={e.symbol} symbol={e.symbol} label={labels?.[e.symbol]} issue={e.error ?? "upstream"} />
+        ),
+      )}
+    </>
+  );
+}
+
+export default function HomeView({
+  indexes,
+  popular,
+  source,
+}: {
+  indexes: QuoteEntry[];
+  popular: QuoteEntry[];
+  source: DataSource;
+}) {
   const { t } = useI18n();
   return (
     <div className="space-y-6">
@@ -21,23 +58,19 @@ export default function HomeView({ indexes, popular }: { indexes: Quote[]; popul
         </div>
       </section>
 
-      {indexes.length > 0 && (
-        <Panel title={t.home.markets}>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {indexes.map((q) => (
-              <QuoteTile key={q.symbol} q={q} label={t.home.indexNames[q.symbol]} />
-            ))}
-          </div>
-        </Panel>
-      )}
+      <Panel title={t.home.markets}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tiles entries={indexes} labels={t.home.indexNames} />
+        </div>
+        <ProvenanceIfAny source={source} entries={indexes} />
+      </Panel>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel title={t.home.popular} className="lg:col-span-2">
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-            {popular.map((q) => (
-              <QuoteTile key={q.symbol} q={q} />
-            ))}
+            <Tiles entries={popular} />
           </div>
+          <ProvenanceIfAny source={source} entries={popular} />
         </Panel>
         <div className="space-y-6">
           <MiniWatchlist />
@@ -57,7 +90,9 @@ export default function HomeView({ indexes, popular }: { indexes: Quote[]; popul
 function MiniWatchlist() {
   const { t, lang } = useI18n();
   const { list } = useWatchlist();
-  const quotes = useQuotes(list);
+  const state = useQuotes(list);
+  const bySymbol = new Map((state?.quotes ?? []).map((q) => [q.symbol, q]));
+  const missing = new Map((state?.missing ?? []).map((m) => [m.symbol, m.error]));
   return (
     <Panel
       title={t.watchlist.title}
@@ -65,18 +100,29 @@ function MiniWatchlist() {
     >
       {list.length === 0 ? (
         <p className="text-sm text-muted">{t.watchlist.empty}</p>
+      ) : state === null ? (
+        <p className="py-2 text-sm text-muted">…</p>
       ) : (
         <ul className="divide-y divide-line">
-          {(quotes ?? []).slice(0, 8).map((q) => (
-            <li key={q.symbol}>
-              <Link href={`/stock/${q.symbol}`} className="flex items-center justify-between py-2 min-h-11 gap-2">
-                <span className="num font-bold text-accent">{q.symbol}</span>
-                <span className="num text-sm ml-auto">{fmtPrice(q.price, lang)}</span>
-                <Change pct={q.changePercent} className="text-xs w-24 text-right" />
-              </Link>
-            </li>
-          ))}
-          {quotes === null && <li className="py-2 text-sm text-muted">…</li>}
+          {list.slice(0, 8).map((symbol) => {
+            const q = bySymbol.get(symbol);
+            const issue = missing.get(symbol);
+            return (
+              <li key={symbol}>
+                <Link href={`/stock/${symbol}`} className="flex items-center justify-between py-2 min-h-11 gap-2">
+                  <span className="num font-bold text-accent">{symbol}</span>
+                  {q ? (
+                    <>
+                      <span className="num text-sm ml-auto">{fmtPrice(q.price, lang)}</span>
+                      <Change pct={q.changePercent} className="text-xs w-24 text-right" />
+                    </>
+                  ) : (
+                    <span className="ml-auto text-xs text-muted">{issue ? t.data.issuesShort[issue] : "—"}</span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Panel>

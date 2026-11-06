@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
-import { fmtPct, fmtPrice } from "@/lib/format";
+import { fmtAsOf, fmtPct, fmtPrice } from "@/lib/format";
 import type { Level } from "@/lib/scoring";
-import type { Quote } from "@/lib/types";
+import type { DataIssue, DataSource, Quote } from "@/lib/types";
 import { useWatchlist } from "@/lib/watchlist";
 
 export function Panel({ title, children, className = "", action }: { title?: string; children: React.ReactNode; className?: string; action?: React.ReactNode }) {
@@ -47,6 +47,48 @@ export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
       <div className="num text-lg font-semibold mt-1">{fmtPrice(q.price, lang)}</div>
       <Change pct={q.changePercent} className="text-sm" />
     </Link>
+  );
+}
+
+/** A quote that could not be loaded keeps its slot and says why. */
+export function MissingTile({ symbol, label, issue }: { symbol: string; label?: string; issue: DataIssue }) {
+  const { t } = useI18n();
+  return (
+    <div className="rounded-lg border border-dashed border-line p-3 min-w-0" title={t.data.issues[issue]}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="num font-bold text-muted">{symbol}</span>
+        {label && <span className="text-[11px] text-muted truncate">{label}</span>}
+      </div>
+      <div className="num text-lg font-semibold mt-1 text-muted">—</div>
+      <span className="text-xs text-muted">{t.data.issuesShort[issue]}</span>
+    </div>
+  );
+}
+
+/** Explains why a section has no data. */
+export function IssueNote({ issue, className = "" }: { issue: DataIssue; className?: string }) {
+  const { t } = useI18n();
+  return (
+    <p role="status" className={`flex gap-2 text-sm text-muted ${className}`}>
+      <span aria-hidden="true">ⓘ</span>
+      <span>{t.data.issues[issue]}</span>
+    </p>
+  );
+}
+
+/** "Source: FMP · Updated 6 Nov, 16:00 ET" */
+export function Provenance({ source, asOf, className = "" }: { source: DataSource; asOf?: string; className?: string }) {
+  const { t, lang } = useI18n();
+  return (
+    <p className={`text-[11px] text-muted ${className}`}>
+      {t.data.source}: {source === "DEMO" ? t.data.demoSource : "Financial Modeling Prep"}
+      {asOf && (
+        <>
+          {" · "}
+          {t.data.updated} <time dateTime={asOf}>{fmtAsOf(asOf, lang)}</time>
+        </>
+      )}
+    </p>
   );
 }
 

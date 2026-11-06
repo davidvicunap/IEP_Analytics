@@ -1,10 +1,10 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { fmtBig, fmtNum, fmtPct } from "@/lib/format";
+import { fmtBig, fmtDate, fmtNum, fmtPct } from "@/lib/format";
 import type { MetricScore } from "@/lib/scoring";
-import type { AnnualIncome } from "@/lib/types";
-import { Explain, LevelBadge, Panel } from "./ui";
+import type { AnnualIncome, DataSource, Result } from "@/lib/types";
+import { Explain, IssueNote, LevelBadge, Panel, Provenance } from "./ui";
 
 export function MetricGrid({ scores }: { scores: MetricScore[] }) {
   const { t, lang } = useI18n();
@@ -30,9 +30,18 @@ export function MetricGrid({ scores }: { scores: MetricScore[] }) {
 }
 
 /** Simple paired bar chart: revenue vs net income per year. */
-export function IncomeBars({ income }: { income: AnnualIncome[] }) {
+export function IncomeBars({ income: result, source }: { income: Result<AnnualIncome[]>; source: DataSource }) {
   const { t, lang } = useI18n();
+  if (!result.ok) {
+    return (
+      <Panel title={t.stock.revenueTitle}>
+        <IssueNote issue={result.error} />
+      </Panel>
+    );
+  }
+  const income = result.data;
   if (income.length === 0) return null;
+  const lastFiling = income.at(-1)?.filingDate;
   const max = Math.max(...income.map((i) => Math.max(i.revenue, Math.abs(i.netIncome))), 1);
   return (
     <Panel title={t.stock.revenueTitle}>
@@ -64,6 +73,12 @@ export function IncomeBars({ income }: { income: AnnualIncome[] }) {
           </div>
         ))}
       </div>
+      <Provenance source={source} asOf={result.fetchedAt} className="mt-3" />
+      {lastFiling && (
+        <p className="text-[11px] text-muted">
+          {t.data.lastFiling}: <time dateTime={lastFiling}>{fmtDate(lastFiling, lang)}</time>
+        </p>
+      )}
     </Panel>
   );
 }

@@ -15,6 +15,7 @@ export default function TickerSearch({ autoFocus = false, large = false }: { aut
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   // "/" focuses the search (desktop keyboards). Only the header instance listens.
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function TickerSearch({ autoFocus = false, large = false }: { aut
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctrl.signal });
         const data: SearchResult[] = res.ok ? await res.json() : [];
+        setUnavailable(!res.ok);
         setResults(data);
         setActive(0);
       } catch {
@@ -128,7 +130,9 @@ export default function TickerSearch({ autoFocus = false, large = false }: { aut
           role="listbox"
           className="absolute z-40 mt-1 w-full max-h-80 overflow-auto rounded-lg border border-line bg-panel shadow-xl"
         >
-          {results.length === 0 && !loading && <li className="px-3 py-3 text-sm text-muted">{t.search.noResults}</li>}
+          {results.length === 0 && !loading && (
+            <li className="px-3 py-3 text-sm text-muted">{unavailable ? t.search.unavailable : t.search.noResults}</li>
+          )}
           {results.map((r, i) => (
             <li
               key={r.symbol}

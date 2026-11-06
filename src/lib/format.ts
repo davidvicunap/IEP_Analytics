@@ -25,6 +25,22 @@ export function fmtBig(v: number | undefined, _lang?: Lang): string {
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(v);
 }
 
+/** "6 nov, 16:00 ET": market time (New York), whatever the viewer's time zone. */
+export function fmtAsOf(iso: string | undefined, lang: Lang): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const s = new Intl.DateTimeFormat(locale(lang), {
+    timeZone: "America/New_York",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(d);
+  return `${s} ET`;
+}
+
 export function fmtDate(iso: string, lang: Lang): string {
   const d = new Date(iso.includes("T") || iso.includes(" ") ? iso.replace(" ", "T") : iso + "T00:00:00");
   if (Number.isNaN(d.getTime())) return iso;

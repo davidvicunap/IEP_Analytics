@@ -1,25 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Quote } from "./types";
+import type { DataIssue, Quote } from "./types";
 
-/** Fetches quotes for the given symbols and refreshes every 60s while the tab is visible. */
-export function useQuotes(symbols: string[]) {
+export interface QuotesState {
+  quotes: Quote[];
+  missing: { symbol: string; error: DataIssue }[];
+}
+
+/** Fetches quotes for the given symbols and refreshes every 60 s while the tab is visible. */
+export function useQuotes(symbols: string[]): QuotesState | null {
   const key = symbols.join(",");
-  const [quotes, setQuotes] = useState<Quote[] | null>(null);
+  const [state, setState] = useState<QuotesState | null>(null);
 
   useEffect(() => {
     if (!key) {
-      setQuotes([]);
+      setState({ quotes: [], missing: [] });
       return;
     }
     let alive = true;
     const load = async () => {
       try {
         const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(key)}`);
-        if (res.ok && alive) setQuotes(await res.json());
+        if (!alive) return;
+        if (res.ok) {
+          setState(await res.json());
+        } else {
+          // Keep the last good values; mark everything as unavailable only on first load.
+          setState((s) => s ?? { quotes: [], missing: key.split(",").map((symbol) => ({ symbol, error: "upstream" })) });
+        }
       } catch {
-        if (alive) setQuotes((q) => q ?? []);
+        if (alive) setState((s) => s ?? { quotes: [], missing: key.split(",").map((symbol) => ({ symbol, error: "upstream" })) });
       }
     };
     load();
@@ -30,5 +41,5 @@ export function useQuotes(symbols: string[]) {
     };
   }, [key]);
 
-  return quotes;
+  return state;
 }

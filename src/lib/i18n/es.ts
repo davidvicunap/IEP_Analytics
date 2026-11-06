@@ -1,3 +1,5 @@
+import type { DataIssue } from "../types";
+
 const es = {
   app: {
     tagline: "Análisis de acciones de EE.UU., explicado simple",
@@ -13,6 +15,7 @@ const es = {
     placeholder: "Busca una acción: Apple, TSLA…",
     noResults: "Sin resultados",
     hint: "Pulsa / para buscar",
+    unavailable: "La búsqueda no está disponible en este momento.",
   },
   home: {
     heroTitle: "Tu terminal financiero, sin complicaciones",
@@ -51,7 +54,6 @@ const es = {
     revenue: "Ingresos",
     netIncome: "Beneficio neto",
     noData: "Sin datos disponibles",
-    newsUnavailable: "Las noticias no están disponibles con el plan actual de datos.",
     noNews: "No hay noticias recientes.",
     notFound: "No encontramos esa acción",
     notFoundText: "Revisa el ticker (ej. AAPL, MSFT) o búscala por nombre.",
@@ -128,6 +130,35 @@ const es = {
     empty: "Aún no sigues ninguna acción. Búscala y toca «☆ Seguir».",
     remove: "Quitar",
     note: "Tu lista se guarda solo en este navegador.",
+  },
+  data: {
+    source: "Fuente",
+    updated: "Actualizado",
+    demoSource: "datos simulados (demo)",
+    lastFiling: "Último informe anual",
+    unavailableTitle: "Datos no disponibles",
+    issues: {
+      not_configured: "La fuente de datos no está configurada.",
+      not_found: "No hay datos para este símbolo.",
+      plan_restricted: "Este dato no está incluido en el plan de datos actual.",
+      rate_limited: "Alcanzamos el límite de consultas del proveedor de datos. Vuelve a intentarlo en unos minutos.",
+      unauthorized: "El proveedor de datos rechazó la credencial de acceso.",
+      upstream: "El proveedor de datos no responde. Vuelve a intentarlo en unos minutos.",
+    } as Record<DataIssue, string>,
+    issuesShort: {
+      not_configured: "Sin fuente de datos",
+      not_found: "Sin datos",
+      plan_restricted: "No incluido en el plan",
+      rate_limited: "Límite de consultas",
+      unauthorized: "Acceso rechazado",
+      upstream: "Sin respuesta",
+    } as Record<DataIssue, string>,
+  },
+  errors: {
+    title: "Algo salió mal",
+    text: "No pudimos mostrar esta página. Puedes reintentar o volver al inicio.",
+    retry: "Reintentar",
+    home: "Volver al inicio",
   },
   beta: {
     title: "Beta privada",
