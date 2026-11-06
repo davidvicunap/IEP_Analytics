@@ -9,7 +9,8 @@ export function LangToggle() {
   const { lang, setLang, t } = useI18n();
   const next = lang === "es" ? "en" : "es";
   return (
-    <button type="button" className={btn} onClick={() => setLang(next)} aria-label={`${t.app.lang}: ${next.toUpperCase()}`}>
+    // The accessible name starts with the visible text (WCAG 2.5.3 "label in name").
+    <button type="button" className={btn} onClick={() => setLang(next)} aria-label={`${lang.toUpperCase()}, ${t.app.switchLang}`}>
       {lang.toUpperCase()}
     </button>
   );

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtBig, fmtNum, fmtPrice } from "@/lib/format";
+import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { scoreFundamentals, summarize, technicalSignals } from "@/lib/scoring";
 import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
@@ -40,12 +40,21 @@ export default function StockView({ data }: { data: StockBundle }) {
     tabRefs.current[n]?.focus();
   };
 
+  const ago = (days?: number) =>
+    days === undefined ? "" : days === 0 ? t.ago.today : days === 1 ? t.ago.one : fill(t.ago.many, { n: days });
+
   const signalList = signals.length === 0 ? null : (
     <ul className="space-y-2.5">
       {signals.map((s) => (
         <li key={s.key} className="flex gap-2.5 text-sm">
           <Dot level={s.level} />
-          <span>{fill(t.signals[s.key], { v: s.value !== undefined ? fmtNum(s.value, lang, 0) : "" })}</span>
+          <span>
+            {fill(t.signals[s.key], {
+              v: s.value !== undefined ? fmtNum(s.value, lang, 0) : "",
+              ago: ago(s.days),
+              date: s.date ? fmtDate(s.date, lang) : "",
+            })}
+          </span>
         </li>
       ))}
     </ul>
