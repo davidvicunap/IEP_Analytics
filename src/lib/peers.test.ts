@@ -151,5 +151,8 @@ describe("assembleRatios with ambiguous revenue", () => {
     expect(net.sector).toBeNull();
     expect(net.own).not.toBeNull(); // its own history is still shown
     expect(r.ratios.find((x) => x.key === "roe")!.note).toBeNull();
+    const gross = r.ratios.find((x) => x.key === "grossMargin")!; // no cost data: nothing to explain
+    expect(gross.value).toBeNull();
+    expect(gross.note).toBeNull();
   });
 });

@@ -107,7 +107,9 @@ export async function assembleRatios(db: Db, fin: Pick<FinancialsPayload, "symbo
     const history = periods.map((p, i) => ({ label: p.label, value: applicable ? series[i][r.key] : null }));
     const value = applicable && last >= 0 ? series[last][r.key] : null;
     const own = history.map((h) => h.value).filter((v): v is number => v !== null);
-    const note = applicable && last >= 0 ? ratioNote(r.key, inputs[last], type) : null;
+    const raw = applicable && last >= 0 ? ratioNote(r.key, inputs[last], type) : null;
+    // The ambiguity note only explains a number that is shown; a missing value says so itself.
+    const note = raw === "revenueAmbiguous" && value === null ? null : raw;
     // With two competing revenue totals the company is left out of revenue-based sector
     // comparisons, exactly like ambiguous peers are.
     const comparable = applicable && value !== null && note !== "revenueAmbiguous";
