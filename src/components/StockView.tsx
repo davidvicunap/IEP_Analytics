@@ -9,6 +9,7 @@ import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
 import FinancialStatements from "./FinancialStatements";
 import NewsList from "./NewsList";
+import RatiosPanel from "./RatiosPanel";
 import { Change, Dot, IssueNote, Panel, Provenance, WatchButton } from "./ui";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
@@ -18,6 +19,8 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
 
 type Tab = "overview" | "chart" | "fundamentals" | "financials" | "news";
 const TABS: Tab[] = ["overview", "chart", "fundamentals", "financials", "news"];
+// Price-based metrics from FMP; the rest come from SEC filings in RatiosPanel.
+const MARKET_METRICS = new Set(["pe", "ps", "pb", "dividendYield", "currentRatio"]);
 
 export default function StockView({ data }: { data: StockBundle }) {
   const { t, lang } = useI18n();
@@ -184,9 +187,11 @@ export default function StockView({ data }: { data: StockBundle }) {
 
         {tab === "fundamentals" && (
           <div className="space-y-4">
+            <RatiosPanel symbol={q.symbol} />
             {data.fundamentals.ok ? (
               <div className="space-y-2">
-                <MetricGrid scores={scores} />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.ratios.marketTitle}</h2>
+                <MetricGrid scores={scores.filter((s) => MARKET_METRICS.has(s.key))} />
                 <Provenance source={data.source} asOf={data.fundamentals.fetchedAt} />
               </div>
             ) : (
