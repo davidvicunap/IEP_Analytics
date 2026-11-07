@@ -1,3 +1,17 @@
+/** Why a piece of data is missing. Every kind has its own message in the UI. */
+export type DataIssue =
+  | "not_configured" // no data provider configured on the server
+  | "not_found" // the provider has no data for this symbol
+  | "plan_restricted" // not included in the current data plan
+  | "rate_limited" // provider quota or rate limit reached
+  | "unauthorized" // provider rejected the API key
+  | "upstream"; // provider error, timeout or malformed response
+
+export type Result<T> = { ok: true; data: T; fetchedAt: string } | { ok: false; error: DataIssue };
+
+/** Where the numbers come from. DEMO is simulated data, never served in production by default. */
+export type DataSource = "FMP" | "DEMO";
+
 export interface Quote {
   symbol: string;
   name: string;
@@ -13,6 +27,14 @@ export interface Quote {
   open?: number;
   previousClose?: number;
   exchange?: string;
+  asOf?: string; // ISO time of the last trade reported by the provider
+}
+
+export interface QuoteEntry {
+  symbol: string;
+  quote?: Quote;
+  fetchedAt?: string;
+  error?: DataIssue;
 }
 
 export interface Profile {
@@ -45,6 +67,7 @@ export interface AnnualIncome {
   revenue: number;
   netIncome: number;
   eps?: number;
+  filingDate?: string; // date the annual report was filed (YYYY-MM-DD)
 }
 
 export interface Candle {
@@ -72,11 +95,12 @@ export interface SearchResult {
 }
 
 export interface StockBundle {
+  source: DataSource;
   quote: Quote;
-  profile: Profile | null;
-  fundamentals: Fundamentals;
-  income: AnnualIncome[]; // oldest -> newest
-  history: Candle[]; // oldest -> newest
-  news: NewsItem[] | null; // null = unavailable on current plan
-  demo: boolean;
+  quoteFetchedAt: string;
+  profile: Result<Profile>;
+  fundamentals: Result<Fundamentals>;
+  income: Result<AnnualIncome[]>; // oldest -> newest
+  history: Result<Candle[]>; // oldest -> newest
+  news: Result<NewsItem[]>;
 }

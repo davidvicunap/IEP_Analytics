@@ -1,4 +1,4 @@
-export default function Loading() {
+export default function StockSkeleton() {
   return (
     <div className="space-y-4 animate-pulse" aria-busy="true">
       <div className="h-12 w-2/3 rounded-lg bg-panel-2" />

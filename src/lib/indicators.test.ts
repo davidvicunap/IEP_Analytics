@@ -70,8 +70,37 @@ describe("scoring", () => {
       return { time: `d${i}`, open: c, high: c, low: c, close: c, volume: 1 };
     });
     const sig = technicalSignals(hist);
-    expect(sig.map((s) => s.key)).toEqual(expect.arrayContaining(["rsiOverbought", "aboveSma200", "goldenCross"]));
+    expect(sig.map((s) => s.key)).toEqual(expect.arrayContaining(["rsiOverbought", "aboveSma200", "sma50Above200"]));
     const sum = summarize([scoreMetric("pe", 12), scoreMetric("debtToEquity", 3)], sig);
     expect(sum.map((s) => s.key)).toEqual(["valCheap", "debtHigh", "trendUp"]);
+  });
+});
+
+describe("moving-average crosses", () => {
+  const day = (i: number) => new Date(Date.UTC(2025, 0, 1) + i * 86_400_000).toISOString().slice(0, 10);
+  const candles = (values: number[]): Candle[] =>
+    values.map((c, i) => ({ time: day(i), open: c, high: c, low: c, close: c, volume: 1 }));
+  /** Falls linearly from `start` to `low` over `down` sessions, then rises `slope` per session. */
+  const vShape = (down: number, up: number, start: number, low: number, slope: number) => [
+    ...Array.from({ length: down }, (_, i) => start - ((start - low) * i) / (down - 1)),
+    ...Array.from({ length: up }, (_, i) => low + slope * (i + 1)),
+  ];
+
+  it("reports a golden cross as a dated event", () => {
+    const h = candles(vShape(250, 40, 200, 100, 3));
+    const sig = technicalSignals(h).find((s) => s.key === "goldenCross");
+    expect(sig).toMatchObject({ level: "good", days: 6, date: h[283].time });
+  });
+
+  it("reports a death cross as a dated event", () => {
+    const h = candles(vShape(250, 40, 200, 100, 3).map((x) => 400 - x));
+    const sig = technicalSignals(h).find((s) => s.key === "deathCross");
+    expect(sig).toMatchObject({ level: "bad", days: 6, date: h[283].time });
+  });
+
+  it("reports the trend state when the cross is older than the lookback window", () => {
+    const keys = technicalSignals(candles(vShape(250, 70, 200, 100, 3))).map((s) => s.key);
+    expect(keys).toContain("sma50Above200");
+    expect(keys).not.toContain("goldenCross");
   });
 });

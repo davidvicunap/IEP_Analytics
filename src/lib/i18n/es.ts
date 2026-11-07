@@ -1,9 +1,12 @@
+import type { DataIssue } from "../types";
+
 const es = {
   app: {
     tagline: "Análisis de acciones de EE.UU., explicado simple",
     disclaimer: "Solo con fines educativos. No es asesoría financiera.",
     demo: "Modo demo: datos simulados. Añade FMP_API_KEY para datos reales.",
     lang: "Idioma",
+    switchLang: "cambiar idioma a inglés",
     theme: "Tema",
     themeDark: "Oscuro",
     themeLight: "Claro",
@@ -13,6 +16,7 @@ const es = {
     placeholder: "Busca una acción: Apple, TSLA…",
     noResults: "Sin resultados",
     hint: "Pulsa / para buscar",
+    unavailable: "La búsqueda no está disponible en este momento.",
   },
   home: {
     heroTitle: "Tu terminal financiero, sin complicaciones",
@@ -51,7 +55,6 @@ const es = {
     revenue: "Ingresos",
     netIncome: "Beneficio neto",
     noData: "Sin datos disponibles",
-    newsUnavailable: "Las noticias no están disponibles con el plan actual de datos.",
     noNews: "No hay noticias recientes.",
     notFound: "No encontramos esa acción",
     notFoundText: "Revisa el ticker (ej. AAPL, MSFT) o búscala por nombre.",
@@ -65,6 +68,7 @@ const es = {
     line: "Línea",
     indicators: "Indicadores",
     whatIs: "¿Qué es esto?",
+    a11ySummary: "Gráfico de precios {range}: variación {chg}; último cierre {last} el {date}; máximo {hi}; mínimo {lo}.",
     sma: {
       name: "Medias móviles 50/200",
       text: "Promedio del precio de los últimos 50 y 200 días. Si el precio está por encima de la media de 200, la tendencia de largo plazo es alcista.",
@@ -89,11 +93,14 @@ const es = {
     rsiNeutral: "RSI en {v}: ni muy caliente ni muy fría.",
     aboveSma200: "Precio por encima de su media de 200 días: tendencia de largo plazo alcista.",
     belowSma200: "Precio por debajo de su media de 200 días: tendencia de largo plazo bajista.",
-    goldenCross: "La media de 50 días está sobre la de 200 («cruce dorado»): señal positiva.",
-    deathCross: "La media de 50 días está bajo la de 200 («cruce de la muerte»): señal negativa.",
+    goldenCross: "Cruce dorado {ago} ({date}): la media de 50 días superó a la de 200. Señal positiva.",
+    deathCross: "Cruce de la muerte {ago} ({date}): la media de 50 días cayó por debajo de la de 200. Señal negativa.",
+    sma50Above200: "La media de 50 días está por encima de la de 200: tendencia de medio plazo alcista.",
+    sma50Below200: "La media de 50 días está por debajo de la de 200: tendencia de medio plazo bajista.",
     macdBull: "MACD positivo: el impulso reciente es alcista.",
     macdBear: "MACD negativo: el impulso reciente es bajista.",
   },
+  ago: { today: "hoy", one: "hace 1 sesión", many: "hace {n} sesiones" },
   summary: {
     valCheap: "Parece barata frente a sus ganancias.",
     valFair: "Tiene un precio razonable frente a sus ganancias.",
@@ -128,6 +135,46 @@ const es = {
     empty: "Aún no sigues ninguna acción. Búscala y toca «☆ Seguir».",
     remove: "Quitar",
     note: "Tu lista se guarda solo en este navegador.",
+  },
+  data: {
+    source: "Fuente",
+    updated: "Actualizado",
+    demoSource: "datos simulados (demo)",
+    lastFiling: "Último informe anual",
+    unavailableTitle: "Datos no disponibles",
+    issues: {
+      not_configured: "La fuente de datos no está configurada.",
+      not_found: "No hay datos para este símbolo.",
+      plan_restricted: "Este dato no está incluido en el plan de datos actual.",
+      rate_limited: "Alcanzamos el límite de consultas del proveedor de datos. Vuelve a intentarlo en unos minutos.",
+      unauthorized: "El proveedor de datos rechazó la credencial de acceso.",
+      upstream: "El proveedor de datos no responde. Vuelve a intentarlo en unos minutos.",
+    } as Record<DataIssue, string>,
+    issuesShort: {
+      not_configured: "Sin fuente de datos",
+      not_found: "Sin datos",
+      plan_restricted: "No incluido en el plan",
+      rate_limited: "Límite de consultas",
+      unauthorized: "Acceso rechazado",
+      upstream: "Sin respuesta",
+    } as Record<DataIssue, string>,
+  },
+  errors: {
+    title: "Algo salió mal",
+    text: "No pudimos mostrar esta página. Puedes reintentar o volver al inicio.",
+    retry: "Reintentar",
+    home: "Volver al inicio",
+  },
+  beta: {
+    title: "Beta privada",
+    text: "IEP Analytics está en beta privada. Ingresa tu código de invitación para entrar.",
+    label: "Código de invitación",
+    submit: "Entrar",
+    checking: "Verificando…",
+    invalid: "Ese código no es válido o ya no está activo.",
+    closed: "La beta no está abierta en este momento.",
+    error: "No pudimos verificar el código. Intenta de nuevo.",
+    noCode: "¿No tienes código? Pídelo a la persona que te compartió el enlace.",
   },
 };
 

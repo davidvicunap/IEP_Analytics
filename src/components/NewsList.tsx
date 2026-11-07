@@ -2,11 +2,13 @@
 
 import { useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
-import type { NewsItem } from "@/lib/types";
+import type { NewsItem, Result } from "@/lib/types";
+import { IssueNote } from "./ui";
 
-export default function NewsList({ news, limit }: { news: NewsItem[] | null; limit?: number }) {
+export default function NewsList({ news: result, limit }: { news: Result<NewsItem[]>; limit?: number }) {
   const { t, lang } = useI18n();
-  if (news === null) return <p className="text-sm text-muted">{t.stock.newsUnavailable}</p>;
+  if (!result.ok) return <IssueNote issue={result.error} />;
+  const news = result.data;
   if (news.length === 0) return <p className="text-sm text-muted">{t.stock.noNews}</p>;
   return (
     <ul className="divide-y divide-line">

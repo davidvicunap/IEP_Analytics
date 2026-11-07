@@ -3,12 +3,12 @@
 import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtBig, fmtNum, fmtPrice } from "@/lib/format";
+import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { scoreFundamentals, summarize, technicalSignals } from "@/lib/scoring";
 import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
 import NewsList from "./NewsList";
-import { Change, Dot, Panel, WatchButton } from "./ui";
+import { Change, Dot, IssueNote, Panel, Provenance, WatchButton } from "./ui";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
   ssr: false,
@@ -20,11 +20,15 @@ const TABS: Tab[] = ["overview", "chart", "fundamentals", "news"];
 
 export default function StockView({ data }: { data: StockBundle }) {
   const { t, lang } = useI18n();
-  const { quote: q, profile, fundamentals, income, history, news } = data;
+  const q = data.quote;
+  const profile = data.profile.ok ? data.profile.data : null;
+  const fundamentals = data.fundamentals.ok ? data.fundamentals.data : null;
+  const income = useMemo(() => (data.income.ok ? data.income.data : []), [data.income]);
+  const history = useMemo(() => (data.history.ok ? data.history.data : []), [data.history]);
   const [tab, setTab] = useState<Tab>("overview");
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const scores = useMemo(() => scoreFundamentals(fundamentals, income), [fundamentals, income]);
+  const scores = useMemo(() => (fundamentals ? scoreFundamentals(fundamentals, income) : []), [fundamentals, income]);
   const signals = useMemo(() => technicalSignals(history), [history]);
   const summary = useMemo(() => summarize(scores, signals), [scores, signals]);
 
@@ -36,15 +40,32 @@ export default function StockView({ data }: { data: StockBundle }) {
     tabRefs.current[n]?.focus();
   };
 
-  const signalList = (
+  const ago = (days?: number) =>
+    days === undefined ? "" : days === 0 ? t.ago.today : days === 1 ? t.ago.one : fill(t.ago.many, { n: days });
+
+  const signalList = signals.length === 0 ? null : (
     <ul className="space-y-2.5">
       {signals.map((s) => (
         <li key={s.key} className="flex gap-2.5 text-sm">
           <Dot level={s.level} />
-          <span>{fill(t.signals[s.key], { v: s.value !== undefined ? fmtNum(s.value, lang, 0) : "" })}</span>
+          <span>
+            {fill(t.signals[s.key], {
+              v: s.value !== undefined ? fmtNum(s.value, lang, 0) : "",
+              ago: ago(s.days),
+              date: s.date ? fmtDate(s.date, lang) : "",
+            })}
+          </span>
         </li>
       ))}
     </ul>
+  );
+
+  const chart = !data.history.ok ? (
+    <IssueNote issue={data.history.error} />
+  ) : history.length === 0 ? (
+    <IssueNote issue="not_found" />
+  ) : (
+    <PriceChart history={history} />
   );
 
   const summaryPanel =
@@ -83,6 +104,7 @@ export default function StockView({ data }: { data: StockBundle }) {
         <div className="w-full sm:w-auto sm:text-right">
           <p className="num text-3xl font-semibold">{fmtPrice(q.price, lang)}</p>
           <Change value={q.change} pct={q.changePercent} className="text-sm" />
+          <Provenance source={data.source} asOf={q.asOf ?? data.quoteFetchedAt} className="mt-1" />
         </div>
       </div>
 
@@ -115,14 +137,17 @@ export default function StockView({ data }: { data: StockBundle }) {
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-4 min-w-0">
               {summaryPanel && <div className="lg:hidden">{summaryPanel}</div>}
-              <Panel>
-                <PriceChart history={history} />
-              </Panel>
-              <Panel title={t.stock.signalsTitle}>{signalList}</Panel>
+              <Panel>{chart}</Panel>
+              {signalList && <Panel title={t.stock.signalsTitle}>{signalList}</Panel>}
             </div>
             <div className="space-y-4 min-w-0">
               {summaryPanel && <div className="hidden lg:block">{summaryPanel}</div>}
               <KeyStats data={data} />
+              {!data.profile.ok && (
+                <Panel title={t.stock.about}>
+                  <IssueNote issue={data.profile.error} />
+                </Panel>
+              )}
               {profile && (
                 <Panel title={t.stock.about}>
                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
@@ -143,7 +168,7 @@ export default function StockView({ data }: { data: StockBundle }) {
                 </Panel>
               )}
               <Panel title={t.stock.tabs.news}>
-                <NewsList news={news} limit={4} />
+                <NewsList news={data.news} limit={4} />
               </Panel>
             </div>
           </div>
@@ -151,21 +176,30 @@ export default function StockView({ data }: { data: StockBundle }) {
 
         {tab === "chart" && (
           <div className="space-y-4">
-            <Panel><PriceChart history={history} /></Panel>
-            <Panel title={t.stock.signalsTitle}>{signalList}</Panel>
+            <Panel>{chart}</Panel>
+            {signalList && <Panel title={t.stock.signalsTitle}>{signalList}</Panel>}
           </div>
         )}
 
         {tab === "fundamentals" && (
           <div className="space-y-4">
-            <MetricGrid scores={scores} />
-            <IncomeBars income={income} />
+            {data.fundamentals.ok ? (
+              <div className="space-y-2">
+                <MetricGrid scores={scores} />
+                <Provenance source={data.source} asOf={data.fundamentals.fetchedAt} />
+              </div>
+            ) : (
+              <Panel>
+                <IssueNote issue={data.fundamentals.error} />
+              </Panel>
+            )}
+            <IncomeBars income={data.income} source={data.source} />
           </div>
         )}
 
         {tab === "news" && (
           <Panel>
-            <NewsList news={news} />
+            <NewsList news={data.news} />
           </Panel>
         )}
       </div>

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getStockBundle, normalizeSymbol } from "@/lib/data";
+import { getQuote, getStockDetails, normalizeSymbol } from "@/lib/data";
+import type { Quote } from "@/lib/types";
 import StockView from "@/components/StockView";
+import StockSkeleton from "@/components/StockSkeleton";
+import DataUnavailable from "@/components/DataUnavailable";
 
 type Props = { params: Promise<{ ticker: string }> };
-
-export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const symbol = normalizeSymbol((await params).ticker);
@@ -15,7 +17,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StockPage({ params }: Props) {
   const symbol = normalizeSymbol((await params).ticker);
   if (!symbol) notFound();
-  const data = await getStockBundle(symbol);
-  if (!data) notFound();
-  return <StockView data={data} />;
+
+  // The quote is loaded before anything streams, so an unknown ticker gets a real
+  // HTTP 404 and a provider failure gets its own message instead of "not found".
+  const quote = await getQuote(symbol);
+  if (!quote.ok && quote.error === "not_found") notFound();
+  if (!quote.ok) return <DataUnavailable issue={quote.error} symbol={symbol} />;
+
+  return (
+    <Suspense fallback={<StockSkeleton />}>
+      <StockDetails symbol={symbol} quote={quote.data} quoteFetchedAt={quote.fetchedAt} />
+    </Suspense>
+  );
+}
+
+async function StockDetails({ symbol, quote, quoteFetchedAt }: { symbol: string; quote: Quote; quoteFetchedAt: string }) {
+  const details = await getStockDetails(symbol);
+  return <StockView data={{ ...details, quote, quoteFetchedAt }} />;
 }

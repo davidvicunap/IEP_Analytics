@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   CandlestickSeries,
   ColorType,
@@ -9,7 +9,8 @@ import {
   LineStyle,
   createChart,
 } from "lightweight-charts";
-import { useI18n } from "@/lib/i18n";
+import { fill, useI18n } from "@/lib/i18n";
+import { fmtDate, fmtPct, fmtPrice } from "@/lib/format";
 import { bollinger, macd, rsi, sma, type Series } from "@/lib/indicators";
 import type { Candle } from "@/lib/types";
 import { Explain } from "./ui";
@@ -40,6 +41,7 @@ function useThemeVersion() {
 export default function PriceChart({ history }: { history: Candle[] }) {
   const { t, lang } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
+  const captionId = useId();
   const [range, setRange] = useState<Range>("1Y");
   const [style, setStyle] = useState<"candles" | "line">("candles");
   const [inds, setInds] = useState<Set<Ind>>(() => new Set<Ind>(["sma", "volume"]));
@@ -162,10 +164,21 @@ export default function PriceChart({ history }: { history: Candle[] }) {
   const IND_LIST: Ind[] = ["sma", "bb", "rsi", "macd", "volume"];
   const active = IND_LIST.filter((k) => inds.has(k));
 
-  // Text summary for screen readers.
-  const first = history[Math.max(0, history.length - RANGE_DAYS[range])];
-  const lastC = history[history.length - 1];
-  const changeTxt = first && lastC ? `${(((lastC.close - first.close) / first.close) * 100).toFixed(1)}%` : "";
+  // Text alternative for screen readers: what a sighted user reads off the chart.
+  const visible = history.slice(Math.max(0, history.length - RANGE_DAYS[range]));
+  const firstC = visible[0];
+  const lastC = visible[visible.length - 1];
+  const summary =
+    firstC && lastC
+      ? fill(t.chart.a11ySummary, {
+          range: t.chart.ranges[range],
+          chg: fmtPct(((lastC.close - firstC.close) / firstC.close) * 100, lang, { sign: true }),
+          last: fmtPrice(lastC.close, lang),
+          date: fmtDate(lastC.time, lang),
+          hi: fmtPrice(Math.max(...visible.map((c) => c.high)), lang),
+          lo: fmtPrice(Math.min(...visible.map((c) => c.low)), lang),
+        })
+      : "";
 
   return (
     <div>
@@ -183,13 +196,16 @@ export default function PriceChart({ history }: { history: Candle[] }) {
         </div>
       </div>
 
-      <div
-        ref={ref}
-        role="img"
-        aria-label={`${t.stock.tabs.chart} ${range}: ${changeTxt}`}
-        className="w-full rounded-lg overflow-hidden border border-line"
-        style={{ height: `calc(clamp(280px, 45vh, 440px) + ${extraPanes * 110}px)` }}
-      />
+      <figure aria-labelledby={captionId} className="m-0">
+        <div
+          ref={ref}
+          className="w-full rounded-lg overflow-hidden border border-line"
+          style={{ height: `calc(clamp(280px, 45vh, 440px) + ${extraPanes * 110}px)` }}
+        />
+        <figcaption id={captionId} className="sr-only">
+          {summary}
+        </figcaption>
+      </figure>
 
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">{t.chart.indicators}</p>

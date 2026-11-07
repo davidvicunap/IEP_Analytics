@@ -36,6 +36,31 @@ npm run dev
 
 Sin `FMP_API_KEY` la app funciona en **modo demo** con datos simulados.
 
+Para desarrollar sin la pantalla de beta, añade `BETA_GATE=off` a `.env.local`.
+
+## Beta privada
+
+Mientras se firma la licencia de display de FMP, el sitio solo es accesible con un código de invitación (`src/proxy.ts`):
+
+- Los códigos están en la variable `BETA_INVITE_CODES` de Vercel, separados por comas y con etiqueta opcional: `david:IEP-XXXX-XXXX-XXXX,ana:IEP-YYYY-YYYY-YYYY`.
+- **Invitar a alguien:** añade un código nuevo y vuelve a desplegar.
+- **Revocar un acceso:** borra su código y vuelve a desplegar; esa persona tendrá que pedir otro código.
+- Sin códigos configurados, nadie puede entrar. Con `BETA_GATE=off`, el sitio es público.
+- Durante la beta, el sitio no se indexa (`robots.txt` y cabecera `X-Robots-Tag`).
+
+## Datos y servicios
+
+| Servicio | Para qué | Variables |
+| --- | --- | --- |
+| Financial Modeling Prep | Cotizaciones, fundamentales, noticias | `FMP_API_KEY` |
+| Neon (Postgres) | Lista de valores de la SEC, búsqueda local | `STORAGE_DATABASE_URL` |
+| Upstash (Redis) | Límite de solicitudes por IP, contador diario de llamadas a FMP | `KV_REST_API_URL`, `KV_REST_API_TOKEN` |
+| SEC EDGAR | Lista de empresas cotizadas (pública) | `SEC_USER_AGENT` |
+
+- Cada build aplica las migraciones de `drizzle/` y carga la lista de la SEC si está vacía o tiene más de 7 días (`scripts/db-setup.ts`). Un cron diario la refresca (`/api/cron/securities`, protegido con `CRON_SECRET`).
+- `GET /api/health` muestra el estado de la base de datos, Redis y el uso diario de FMP (sin datos de mercado; queda fuera de la beta para monitoreo).
+- Para cambiar el esquema: edita `src/db/schema.ts` y ejecuta `npm run db:generate`.
+
 ## Scripts
 
 | Comando | Qué hace |
@@ -48,7 +73,7 @@ Sin `FMP_API_KEY` la app funciona en **modo demo** con datos simulados.
 ## Deploy en Vercel
 
 1. Importa el repo en [vercel.com/new](https://vercel.com/new).
-2. Añade la variable de entorno `FMP_API_KEY`.
+2. Añade las variables de entorno `FMP_API_KEY` y `BETA_INVITE_CODES`.
 3. Deploy.
 
 ## Estructura
