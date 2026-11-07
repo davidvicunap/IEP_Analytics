@@ -8,7 +8,9 @@ import { scoreFundamentals, summarize, technicalSignals } from "@/lib/scoring";
 import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
 import FinancialStatements from "./FinancialStatements";
-import NewsList from "./NewsList";
+import ChartTab from "./ChartTab";
+import NewsPanel, { OfficialReleases } from "./NewsPanel";
+import FilingsPanel from "./FilingsPanel";
 import InsidersPanel from "./InsidersPanel";
 import RatiosPanel from "./RatiosPanel";
 import ValuationPanel from "./ValuationPanel";
@@ -19,8 +21,8 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
   loading: () => <div className="h-[340px] rounded-lg bg-panel-2 animate-pulse" />,
 });
 
-type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "insiders" | "news";
-const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "insiders", "news"];
+type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "filings" | "insiders" | "news";
+const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "filings", "insiders", "news"];
 // The FMP grid keeps what neither RatiosPanel (SEC ratios) nor ValuationPanel (multiples) covers.
 const MARKET_METRICS = new Set(["dividendYield", "currentRatio"]);
 
@@ -173,18 +175,21 @@ export default function StockView({ data }: { data: StockBundle }) {
                   )}
                 </Panel>
               )}
-              <Panel title={t.stock.tabs.news}>
-                <NewsList news={data.news} limit={4} />
+              <Panel title={t.news.latest}>
+                <OfficialReleases symbol={q.symbol} limit={4} onSeeAll={() => setTab("news")} />
               </Panel>
             </div>
           </div>
         )}
 
         {tab === "chart" && (
-          <div className="space-y-4">
-            <Panel>{chart}</Panel>
-            {signalList && <Panel title={t.stock.signalsTitle}>{signalList}</Panel>}
-          </div>
+          <ChartTab
+            symbol={q.symbol}
+            exchange={q.exchange}
+            history={history}
+            historyIssue={data.history.ok ? (history.length ? null : "not_found") : data.history.error}
+            signals={signalList && <Panel title={t.stock.signalsTitle}>{signalList}</Panel>}
+          />
         )}
 
         {tab === "fundamentals" && (
@@ -209,13 +214,11 @@ export default function StockView({ data }: { data: StockBundle }) {
 
         {tab === "financials" && <FinancialStatements symbol={q.symbol} />}
 
+        {tab === "filings" && <FilingsPanel symbol={q.symbol} />}
+
         {tab === "insiders" && <InsidersPanel symbol={q.symbol} />}
 
-        {tab === "news" && (
-          <Panel>
-            <NewsList news={data.news} />
-          </Panel>
-        )}
+        {tab === "news" && <NewsPanel symbol={q.symbol} exchange={q.exchange} onSeeAllFilings={() => setTab("filings")} />}
       </div>
     </div>
   );

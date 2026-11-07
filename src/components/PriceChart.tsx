@@ -38,7 +38,14 @@ function useThemeVersion() {
   return v;
 }
 
-export default function PriceChart({ history }: { history: Candle[] }) {
+export interface ChartLevel {
+  price: number;
+  kind: "support" | "resistance";
+}
+
+const NO_LEVELS: ChartLevel[] = []; // stable default: a new [] each render would rebuild the chart
+
+export default function PriceChart({ history, levels = NO_LEVELS }: { history: Candle[]; levels?: ChartLevel[] }) {
   const { t, lang } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const captionId = useId();
@@ -107,14 +114,22 @@ export default function PriceChart({ history }: { history: Candle[] }) {
       s.slice(start).flatMap((v, i) => (v == null ? [] : [{ time: slice[i].time, value: v }]));
     const thin = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
 
-    if (style === "candles") {
-      const s = chart.addSeries(CandlestickSeries, {
-        upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down, borderVisible: false,
+    const main =
+      style === "candles"
+        ? chart.addSeries(CandlestickSeries, { upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down, borderVisible: false })
+        : chart.addSeries(LineSeries, { color: c.accent, lineWidth: 2, priceLineVisible: false });
+    if (style === "candles") main.setData(slice.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+    else main.setData(slice.map(({ time, close }) => ({ time, value: close })));
+    // Support and resistance zones, when the user asks for them.
+    for (const l of levels) {
+      main.createPriceLine({
+        price: l.price,
+        color: l.kind === "support" ? c.up : c.down,
+        lineStyle: LineStyle.Dashed,
+        lineWidth: 1,
+        axisLabelVisible: true,
+        title: l.kind === "support" ? "S" : "R",
       });
-      s.setData(slice.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
-    } else {
-      const s = chart.addSeries(LineSeries, { color: c.accent, lineWidth: 2, priceLineVisible: false });
-      s.setData(slice.map(({ time, close }) => ({ time, value: close })));
     }
 
     if (inds.has("volume")) {
@@ -156,7 +171,7 @@ export default function PriceChart({ history }: { history: Candle[] }) {
     return () => {
       chart.remove();
     };
-  }, [history, computed, range, style, inds, themeV, lang]);
+  }, [history, computed, range, style, inds, themeV, lang, levels]);
 
   const chip = (on: boolean) =>
     `h-9 px-3 rounded-md text-xs font-semibold border transition-colors ${on ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`;

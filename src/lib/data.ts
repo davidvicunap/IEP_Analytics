@@ -53,17 +53,16 @@ export async function getStockDetails(symbol: string): Promise<StockDetails> {
       fundamentals: demo(mock.mockFundamentals(symbol)),
       income: demo(mock.mockIncome(symbol)),
       history: demo(mock.mockHistory(symbol)),
-      news: demo(mock.mockNews(symbol)),
     };
   }
-  const [profile, fundamentals, income, history, news] = await Promise.all([
+  // News comes from TradingView and SEC 8-K filings in the browser, not from FMP's quota.
+  const [profile, fundamentals, income, history] = await Promise.all([
     fmp.fmpProfile(symbol),
     fmp.fmpFundamentals(symbol),
     fmp.fmpIncome(symbol),
     fmp.fmpHistory(symbol),
-    fmp.fmpNews(symbol),
   ]);
-  return { source: "FMP", profile, fundamentals, income, history, news };
+  return { source: "FMP", profile, fundamentals, income, history };
 }
 
 export async function searchSymbols(query: string): Promise<Result<SearchResult[]>> {

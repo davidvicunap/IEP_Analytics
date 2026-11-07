@@ -10,7 +10,6 @@ import type {
   Candle,
   DataIssue,
   Fundamentals,
-  NewsItem,
   Profile,
   Quote,
   Result,
@@ -21,7 +20,7 @@ const BASE = "https://financialmodelingprep.com/stable";
 const TIMEOUT_MS = 8000;
 
 /** Cache lifetimes in seconds per data class. */
-export const TTL = { quote: 60, news: 900, prices: 3600, rates: 43200, fundamentals: 86400 } as const;
+export const TTL = { quote: 60, prices: 3600, rates: 43200, fundamentals: 86400 } as const;
 
 export function hasFmpKey(): boolean {
   return Boolean(process.env.FMP_API_KEY);
@@ -267,23 +266,6 @@ export function fmpHistory(symbol: string): Promise<Result<Candle[]>> {
         volume: num(r.volume) ?? 0,
       }))
       .sort((a, b) => (a.time < b.time ? -1 : 1));
-    return { data, fetchedAt };
-  });
-}
-
-export function fmpNews(symbol: string): Promise<Result<NewsItem[]>> {
-  return attempt("news/stock", async () => {
-    const { rows, fetchedAt } = await get("news/stock", { symbols: symbol, limit: "12" }, TTL.news);
-    const data = rows
-      .filter((r) => str(r.title) && str(r.url))
-      .map((r) => ({
-        title: String(r.title),
-        url: String(r.url),
-        publisher: str(r.publisher) ?? str(r.site),
-        publishedDate: str(r.publishedDate) ?? "",
-        image: str(r.image),
-        text: str(r.text),
-      }));
     return { data, fetchedAt };
   });
 }

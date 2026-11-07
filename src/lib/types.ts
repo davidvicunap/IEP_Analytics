@@ -79,15 +79,6 @@ export interface Candle {
   volume: number;
 }
 
-export interface NewsItem {
-  title: string;
-  url: string;
-  publisher?: string;
-  publishedDate: string;
-  image?: string;
-  text?: string;
-}
-
 export interface SearchResult {
   symbol: string;
   name: string;
@@ -102,5 +93,4 @@ export interface StockBundle {
   fundamentals: Result<Fundamentals>;
   income: Result<AnnualIncome[]>; // oldest -> newest
   history: Result<Candle[]>; // oldest -> newest
-  news: Result<NewsItem[]>;
 }
