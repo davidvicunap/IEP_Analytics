@@ -75,3 +75,12 @@ export async function searchSecurities(db: Db, query: string, limit = 10): Promi
     .limit(limit);
   return rows.map((r) => ({ symbol: r.symbol, name: r.name, exchange: r.exchange ?? undefined }));
 }
+
+export async function getSecurity(db: Db, symbol: string): Promise<{ symbol: string; cik: number; name: string } | null> {
+  const [row] = await db
+    .select({ symbol: securities.symbol, cik: securities.cik, name: securities.name })
+    .from(securities)
+    .where(eq(securities.symbol, symbol.toUpperCase()))
+    .limit(1);
+  return row ?? null;
+}

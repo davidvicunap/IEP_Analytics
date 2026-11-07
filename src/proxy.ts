@@ -3,8 +3,9 @@ import { BETA_COOKIE, isGateEnabled, parseInviteCodes, verifyToken } from "@/lib
 import { checkRateLimit, clientIp } from "@/lib/ratelimit";
 
 // Reachable without an invite: the gate page and its login endpoint, the health check
-// (no market data) and cron routes (they check CRON_SECRET themselves).
-const OPEN_PATHS = ["/beta", "/api/beta", "/api/health", "/api/cron"];
+// (no market data), cron routes (they check CRON_SECRET themselves) and SEC data
+// (public domain, not covered by the FMP license).
+const OPEN_PATHS = ["/beta", "/api/beta", "/api/health", "/api/cron", "/api/sec"];
 
 function noindex(res: NextResponse): NextResponse {
   res.headers.set("X-Robots-Tag", "noindex, nofollow");
