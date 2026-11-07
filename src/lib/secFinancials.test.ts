@@ -150,3 +150,47 @@ describe("safety", () => {
     );
   });
 });
+
+describe("fiscal year in progress (bank, calendar year)", () => {
+  const K = { accn: "0000019617-26-000001", form: "10-K", filed: "2026-02-13" };
+  const QA = { accn: "0000019617-26-000002", form: "10-Q", filed: "2026-05-01" };
+  const QB = { accn: "0000019617-26-000003", form: "10-Q", filed: "2026-08-01" };
+  const bank = parseCompanyFacts({
+    cik: 19617,
+    entityName: "Bank",
+    facts: {
+      "us-gaap": {
+        // The 10-K tags total net revenue as Revenues; the 10-Qs use the bank-specific tag.
+        Revenues: usd([{ start: "2025-01-01", end: "2025-12-31", val: 182e9, ...K }]),
+        RevenuesNetOfInterestExpense: usd([
+          { start: "2026-01-01", end: "2026-03-31", val: 50e9, ...QA },
+          { start: "2026-04-01", end: "2026-06-30", val: 51e9, ...QB },
+        ]),
+        NetIncomeLoss: usd([
+          { start: "2025-01-01", end: "2025-12-31", val: 57e9, ...K },
+          { start: "2026-01-01", end: "2026-03-31", val: 16e9, ...QA },
+          { start: "2026-04-01", end: "2026-06-30", val: 15e9, ...QB },
+        ]),
+        NetCashProvidedByUsedInOperatingActivities: usd([
+          { start: "2026-01-01", end: "2026-03-31", val: -20e9, ...QA },
+          { start: "2026-01-01", end: "2026-06-30", val: 10e9, ...QB },
+        ]),
+      },
+    },
+  });
+
+  it("shows the quarters filed after the last 10-K, with no Q4 yet", () => {
+    expect(bank.quarterly.periods.map((p) => p.label)).toEqual(["Q1 FY2026", "Q2 FY2026"]);
+    expect(bank.quarterly.periods[1]).toMatchObject({ accn: QB.accn, start: "2026-03-31" });
+  });
+
+  it("reads bank revenue tagged net of interest expense", () => {
+    expect(bank.quarterly.lines.revenue!.map((c) => c.value)).toEqual([50e9, 51e9]);
+    expect(bank.quarterly.lines.revenue![0].concept).toBe("RevenuesNetOfInterestExpense");
+    expect(bank.annual.lines.revenue![0].value).toBe(182e9);
+  });
+
+  it("derives in-progress quarters from year-to-date cash flow", () => {
+    expect(bank.quarterly.lines.operatingCashFlow!.map((c) => c.value)).toEqual([-20e9, 30e9]);
+  });
+});

@@ -26,7 +26,7 @@ interface LineDef {
 }
 
 export const LINES: LineDef[] = [
-  { key: "revenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueGoodsNet"] },
+  { key: "revenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax", "RevenuesNetOfInterestExpense", "Revenues", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueGoodsNet"] },
   { key: "costOfRevenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization"] },
   { key: "grossProfit", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["GrossProfit"] },
   { key: "operatingIncome", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["OperatingIncomeLoss"] },
@@ -155,6 +155,15 @@ function annualCell(gaap: ConceptMap, line: LineDef, p: Period): Cell {
 
 // ---- Quarterly ------------------------------------------------------------
 
+/** The fiscal year after the last 10-K, still in progress: its quarters come from 10-Qs only. */
+function openYear(years: Period[]): Period | null {
+  const last = years[years.length - 1];
+  if (!last) return null;
+  const start = new Date(Date.parse(last.end) + DAY).toISOString().slice(0, 10);
+  const end = new Date(Date.parse(last.end) + 365 * DAY).toISOString().slice(0, 10);
+  return { start, end, label: `FY${end.slice(0, 4)}` };
+}
+
 /** Quarter ends inside each fiscal year, plus the fiscal year end itself (Q4). */
 function quarterPeriods(gaap: ConceptMap, years: Period[], maxQuarters: number): Period[] {
   const out: Period[] = [];
@@ -177,7 +186,8 @@ function quarterPeriods(gaap: ConceptMap, years: Period[], maxQuarters: number):
     qEnds.forEach(([end, f], i) =>
       out.push({ end, label: `Q${i + 1} ${fy.label}`, accn: f.accn, form: f.form, filed: f.filed }),
     );
-    if (qEnds.length === 3) out.push({ end: fy.end, label: `Q4 ${fy.label}`, accn: fy.accn, form: fy.form, filed: fy.filed });
+    // Q4 comes from the 10-K, so the fiscal year in progress has no Q4 yet.
+    if (qEnds.length === 3 && fy.accn) out.push({ end: fy.end, label: `Q4 ${fy.label}`, accn: fy.accn, form: fy.form, filed: fy.filed });
   }
   // Quarter starts are the previous quarter end (or the fiscal year start for Q1).
   for (let i = 0; i < out.length; i++) {
@@ -250,7 +260,9 @@ export function parseCompanyFacts(json: unknown, opts: { years?: number; quarter
   if (!gaap) throw new Error("sec: no us-gaap facts");
 
   const years = annualPeriods(gaap, opts.years ?? 15);
-  const allYears = annualPeriods(gaap, 100); // quarter derivation needs the fiscal-year bounds
+  const closed = annualPeriods(gaap, 100); // quarter derivation needs the fiscal-year bounds
+  const open = openYear(closed);
+  const allYears = open ? [...closed, open] : closed;
   const quarters = quarterPeriods(gaap, allYears, opts.quarters ?? 16);
 
   const annual: StatementSet = { periods: years, lines: {} };
