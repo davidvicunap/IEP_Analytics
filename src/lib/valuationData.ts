@@ -3,7 +3,7 @@
 // its own: a missing peer price never hides the company's own multiples, and so on.
 import { getDb, type Db } from "@/db/client";
 import { getQuote, isDemo } from "./data";
-import { cagr, defaultScenarios, DEFAULT_TERMINAL_GROWTH, type DcfIssue, type Scenarios } from "./dcf";
+import { cagr, makerDefaults, type MakerAssumptions, type MakerBase, type MakerData } from "./dcfModel";
 import { getFinancials } from "./financials";
 import { fmpEquityRiskPremium, fmpHistory, fmpMarketCaps, fmpTreasury10y, type Rate } from "./fmp";
 import { companyYearInputs, ensureSic, latestMetricsYear, listedPeers } from "./peers";
@@ -11,7 +11,7 @@ import { businessType, type BusinessType } from "./ratios";
 import type { StatementSet } from "./secFinancials";
 import type { DataIssue, Result } from "./types";
 import {
-  MULTIPLES, historyStats, multipleHistory, multipleNote, multiplesFor, peerComparison, sharesConsistency, ttmAt, ttmSeries,
+  MULTIPLES, historyStats, marketBeta, multipleHistory, multipleNote, multiplesFor, peerComparison, sharesConsistency, ttmAt, ttmSeries,
   yearMultiples, type HistoryStats, type MultipleKey, type MultipleNote, type PeerComparison,
 } from "./valuation";
 
@@ -39,14 +39,17 @@ export interface ValuationPayload {
   monthly: { date: string; pe: number | null; ps: number | null; pb: number | null; fcfYield: number | null }[];
   history: { issue: HistoryIssue | null; from: string | null };
   peers: { issue: PeersIssue | null; year: number | null; priced: number; requested: number };
-  dcf: {
-    issue: Extract<DcfIssue, "negativeFcf"> | "notApplicable" | "noFcf" | null; // rate checks run on the user's inputs
-    fcf0: number | null;
-    revenueCagr5: number | null;
+  maker: {
+    issue: "notApplicable" | "noRevenue" | null;
+    ttmLabel: string | null;
+    base: MakerBase | null;
+    data: MakerData | null; // the figures the defaults come from, shown next to the inputs
+    defaults: MakerAssumptions | null;
+    conventions: string[]; // defaults that are conventions, not data
+    beta: { value: number; months: number } | null;
     rf: Rate | null;
     erp: Rate | null;
     ratesIssue: DataIssue | null;
-    defaults: { r: number | null; gT: number; scenarios: Scenarios };
   };
 }
 
@@ -122,8 +125,9 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
     const now = multiplesFor(marketCap, ttm);
 
     // Own history: month-end market cap from split-adjusted closes × SEC share counts.
-    const [prices, peers, rf, erp] = await Promise.all([
+    const [prices, market, peers, rf, erp] = await Promise.all([
       fmpHistory(symbol),
+      fmpHistory("SPY"), // market proxy for beta
       peerSection(db, cik, sic, marketCap),
       fmpTreasury10y(),
       fmpEquityRiskPremium(),
@@ -157,10 +161,41 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
     });
     if (!historyIssue && multiples.every((m) => !m.own)) historyIssue = "shortHistory";
 
-    const fcf0 = ttm?.fcf ?? null;
-    const growth = revenueCagr5(annual);
-    const r = rf.ok && erp.ok ? Math.round((rf.data.value + erp.data.value) * 10_000) / 10_000 : null;
+    const beta = prices.ok && market.ok ? marketBeta(prices.data, market.data) : null;
     const dcfApplicable = type === "general" || type === "reit";
+    let maker: ValuationPayload["maker"] = {
+      issue: dcfApplicable ? null : "notApplicable",
+      ttmLabel: ttm?.label ?? null,
+      base: null,
+      data: null,
+      defaults: null,
+      conventions: [],
+      beta,
+      rf: rf.ok ? rf.data : null,
+      erp: erp.ok ? erp.data : null,
+      ratesIssue: !rf.ok ? rf.error : !erp.ok ? erp.error : null,
+    };
+    if (dcfApplicable) {
+      if (!ttm?.revenue || ttm.revenue <= 0) maker = { ...maker, issue: "noRevenue" };
+      else {
+        const base: MakerBase = { revenue0: ttm.revenue, marketCap, price, debt: ttm.debt ?? 0, cash: ttm.cash ?? 0 };
+        const data: MakerData = {
+          revenue: ttm.revenue,
+          ebit: ttm.ebit ?? null,
+          da: ttm.da ?? null,
+          capex: ttm.capex ?? null,
+          incomeTax: ttm.incomeTax ?? null,
+          pretaxIncome: ttm.pretaxIncome ?? null,
+          interestExpense: ttm.interestExpense ?? null,
+          revenueCagr5: revenueCagr5(annual),
+          rf: rf.ok ? rf.data.value : null,
+          erp: erp.ok ? erp.data.value : null,
+          beta: beta?.value ?? null,
+        };
+        const { assumptions, conventions } = makerDefaults(data, base);
+        maker = { ...maker, base, data, defaults: assumptions, conventions };
+      }
+    }
 
     return {
       ok: true,
@@ -176,15 +211,7 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
         monthly,
         history: { issue: historyIssue, from: monthly[0]?.date ?? null },
         peers: peers.meta,
-        dcf: {
-          issue: !dcfApplicable ? "notApplicable" : fcf0 === null ? "noFcf" : fcf0 <= 0 ? "negativeFcf" : null,
-          fcf0,
-          revenueCagr5: growth,
-          rf: rf.ok ? rf.data : null,
-          erp: erp.ok ? erp.data : null,
-          ratesIssue: !rf.ok ? rf.error : !erp.ok ? erp.error : null,
-          defaults: { r, gT: DEFAULT_TERMINAL_GROWTH, scenarios: defaultScenarios(growth) },
-        },
+        maker,
       },
     };
   } catch (e) {

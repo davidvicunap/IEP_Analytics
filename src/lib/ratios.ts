@@ -27,11 +27,14 @@ export interface RatioInputs {
   equity?: number;
   assets?: number;
   longTermDebt?: number;
+  currentDebt?: number;
+  cash?: number;
+  depreciation?: number;
   revenueAmbiguous?: number; // 1 when the SEC data has two revenue totals more than 2 % apart
 }
 export const INPUT_KEYS: (keyof RatioInputs)[] = [
   "revenue", "revenuePrev", "grossProfit", "costOfRevenue", "operatingIncome", "netIncome",
-  "eps", "epsPrev", "ocf", "capex", "equity", "assets", "longTermDebt", "revenueAmbiguous",
+  "eps", "epsPrev", "ocf", "capex", "equity", "assets", "longTermDebt", "currentDebt", "cash", "depreciation", "revenueAmbiguous",
 ];
 
 /** Ratios divided by (or growing from) revenue. */
@@ -156,6 +159,9 @@ export function inputsFromStatements(set: StatementSet): RatioInputs[] {
       equity: v("equity", i),
       assets: v("totalAssets", i),
       longTermDebt: v("longTermDebt", i),
+      currentDebt: v("currentDebt", i),
+      cash: v("cash", i),
+      depreciation: v("depreciation", i),
     };
     for (const k of INPUT_KEYS) if (inputs[k] === undefined) delete inputs[k];
     return inputs;

@@ -92,8 +92,11 @@ describe("getValuation", () => {
     expect(pe.peers).toMatchObject({ value: 11, n: 6, sicPrefix: "357", year: 2025 }); // 440 / 40 on FY2025
     expect(pe.peers!.percentile).toBe(17); // above P0 (10) only: 1 of 6
     expect(v.peers).toMatchObject({ issue: null, priced: 6, requested: 6 });
-    expect(v.dcf).toMatchObject({ issue: null, fcf0: 32, defaults: { r: 0.0932, gT: 0.025, scenarios: { base: 0.1 } } });
-    expect(v.dcf.revenueCagr5).toBeCloseTo(0.1);
+    // DCF maker inputs: TTM base, beta vs the market (same series in this mock → exactly 1), rates
+    expect(v.maker).toMatchObject({ issue: null, base: { revenue0: 400, marketCap: 440, price: 44 }, rf: { value: 0.0486 }, erp: { value: 0.0446 } });
+    expect(v.maker.beta?.value).toBeCloseTo(1);
+    expect(v.maker.data?.revenueCagr5).toBeCloseTo(0.1);
+    expect(v.maker.defaults).toMatchObject({ rf: 0.0486, erp: 0.0446, terminal: "gordon", growth: [0.1, 0.085, 0.07, 0.055, 0.04] });
     expect(v.history.issue).toBeNull();
   });
 
@@ -121,14 +124,16 @@ describe("getValuation", () => {
     if (!r.ok) throw new Error(r.error);
     expect(r.data.businessType).toBe("bank");
     expect(r.data.multiples.filter((m) => m.applicable).map((m) => m.key)).toEqual(["pe", "pb"]);
-    expect(r.data.dcf.issue).toBe("notApplicable");
+    expect(r.data.maker.issue).toBe("notApplicable");
+    expect(r.data.maker.defaults).toBeNull();
   });
 
   it("leaves the DCF rate empty when the rates are unavailable", async () => {
     vi.mocked(fmpTreasury10y).mockResolvedValue({ ok: false, error: "plan_restricted" });
     const r = await getValuation("ME");
     if (!r.ok) throw new Error(r.error);
-    expect(r.data.dcf).toMatchObject({ ratesIssue: "plan_restricted", defaults: { r: null } });
+    expect(r.data.maker.ratesIssue).toBe("plan_restricted");
+    expect(r.data.maker.conventions).toContain("rf"); // the default rate is then a stated convention
   });
 
   it("refuses to mix simulated prices with real filings in demo mode", async () => {

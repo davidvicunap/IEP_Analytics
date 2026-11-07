@@ -32,6 +32,15 @@ export interface Ttm {
   fcf?: number;
   equity?: number;
   revenueAmbiguous?: boolean;
+  // for the DCF maker
+  ebit?: number;
+  da?: number;
+  capex?: number;
+  incomeTax?: number;
+  pretaxIncome?: number;
+  interestExpense?: number;
+  cash?: number;
+  debt?: number; // long + short term at the last quarter end
 }
 
 const DAY = 86_400_000;
@@ -61,7 +70,16 @@ export function ttmSeries(q: StatementSet): Ttm[] {
       fcf: sum("freeCashFlow"),
       equity: value("equity", i) ?? undefined,
       revenueAmbiguous: idx.some((j) => !!q.lines.revenue?.[j]?.alt) || undefined,
+      ebit: sum("operatingIncome"),
+      da: sum("depreciation"),
+      capex: sum("capex"),
+      incomeTax: sum("incomeTax"),
+      pretaxIncome: sum("pretaxIncome"),
+      interestExpense: sum("interestExpense"),
+      cash: value("cash", i) ?? undefined,
+      debt: value("longTermDebt", i) !== null || value("currentDebt", i) !== null ? (value("longTermDebt", i) ?? 0) + (value("currentDebt", i) ?? 0) : undefined,
     };
+    for (const k of Object.keys(t) as (keyof Ttm)[]) if (t[k] === undefined) delete t[k];
     out.push(t);
   }
   return out;
@@ -217,4 +235,43 @@ export function peerComparison(
     }
   }
   return null;
+}
+
+// ---- Beta ---------------------------------------------------------------------------------
+
+/** Month-end closes keyed by YYYY-MM. */
+function monthEnds(candles: Candle[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const c of candles) if (c.close > 0) m.set(c.time.slice(0, 7), c.close);
+  return m;
+}
+
+export const MIN_BETA_MONTHS = 24;
+
+/**
+ * Beta = cov(stock, market) ÷ var(market) on monthly returns over the common history
+ * (up to 5 years). Needs at least 24 months.
+ */
+export function marketBeta(stock: Candle[], market: Candle[]): { value: number; months: number } | null {
+  const s = monthEnds(stock);
+  const m = monthEnds(market);
+  const months = [...s.keys()].filter((k) => m.has(k)).sort();
+  const rs: number[] = [];
+  const rm: number[] = [];
+  for (let i = 1; i < months.length; i++) {
+    rs.push(s.get(months[i])! / s.get(months[i - 1])! - 1);
+    rm.push(m.get(months[i])! / m.get(months[i - 1])! - 1);
+  }
+  if (rs.length < MIN_BETA_MONTHS) return null;
+  const mean = (x: number[]) => x.reduce((a, b) => a + b, 0) / x.length;
+  const ms = mean(rs);
+  const mm = mean(rm);
+  let cov = 0;
+  let varM = 0;
+  for (let i = 0; i < rs.length; i++) {
+    cov += (rs[i] - ms) * (rm[i] - mm);
+    varM += (rm[i] - mm) ** 2;
+  }
+  if (!(varM > 0)) return null;
+  return { value: cov / varM, months: rs.length };
 }

@@ -34,6 +34,10 @@ export const FRAME_SPECS: FrameSpec[] = [
   { input: "equity", concepts: chain("equity"), uom: "USD", period: "yearEnd" },
   { input: "assets", concepts: chain("totalAssets"), uom: "USD", period: "yearEnd" },
   { input: "longTermDebt", concepts: chain("longTermDebt"), uom: "USD", period: "yearEnd" },
+  // For comps: enterprise value (debt − cash) and EBITDA (operating income + D&A).
+  { input: "currentDebt", concepts: chain("currentDebt"), uom: "USD", period: "yearEnd" },
+  { input: "cash", concepts: chain("cash"), uom: "USD", period: "yearEnd" },
+  { input: "depreciation", concepts: chain("depreciation"), uom: "USD", period: "year" },
 ];
 
 /** Frame period code: annual flows use CY2025, balances at year end use CY2025Q4I. */

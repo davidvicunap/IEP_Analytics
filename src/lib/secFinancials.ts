@@ -17,9 +17,10 @@
 
 export type StatementKey = "income" | "balance" | "cashflow";
 export type LineKey =
-  | "revenue" | "costOfRevenue" | "grossProfit" | "operatingIncome" | "netIncome" | "epsDiluted" | "dilutedShares"
-  | "cash" | "totalAssets" | "totalLiabilities" | "longTermDebt" | "equity"
-  | "operatingCashFlow" | "capex" | "freeCashFlow" | "dividendsPaid" | "buybacks";
+  | "revenue" | "costOfRevenue" | "grossProfit" | "operatingIncome" | "interestExpense" | "pretaxIncome" | "incomeTax"
+  | "netIncome" | "epsDiluted" | "dilutedShares"
+  | "cash" | "totalAssets" | "totalLiabilities" | "currentDebt" | "longTermDebt" | "equity"
+  | "operatingCashFlow" | "depreciation" | "capex" | "freeCashFlow" | "dividendsPaid" | "buybacks";
 
 interface LineDef {
   key: LineKey;
@@ -46,15 +47,27 @@ export const LINES: LineDef[] = [
   { key: "costOfRevenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization"] },
   { key: "grossProfit", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["GrossProfit"] },
   { key: "operatingIncome", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["OperatingIncomeLoss"] },
+  { key: "interestExpense", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt", "InterestAndDebtExpense"] },
+  {
+    key: "pretaxIncome", statement: "income", kind: "flow", unit: "USD", additive: true,
+    concepts: ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest", "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments"],
+  },
+  { key: "incomeTax", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["IncomeTaxExpenseBenefit"] },
   { key: "netIncome", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["NetIncomeLoss", "ProfitLoss", "NetIncomeLossAvailableToCommonStockholdersBasic"] },
   { key: "epsDiluted", statement: "income", kind: "flow", unit: "USD/shares", additive: false, concepts: ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted", "EarningsPerShareBasic"] },
   { key: "dilutedShares", statement: "income", kind: "flow", unit: "shares", additive: false, concepts: ["WeightedAverageNumberOfDilutedSharesOutstanding", "WeightedAverageNumberOfShareOutstandingBasicAndDiluted"] },
   { key: "cash", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", "Cash"] },
   { key: "totalAssets", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["Assets"] },
   { key: "totalLiabilities", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["Liabilities"] },
+  // Debt due within a year: the total when tagged, otherwise its usual largest part.
+  { key: "currentDebt", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["DebtCurrent", "LongTermDebtCurrent", "ShortTermBorrowings", "CommercialPaper"] },
   { key: "longTermDebt", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["LongTermDebtNoncurrent", "LongTermDebt", "LongTermDebtAndCapitalLeaseObligations"] },
   { key: "equity", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"] },
   { key: "operatingCashFlow", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"] },
+  {
+    key: "depreciation", statement: "cashflow", kind: "flow", unit: "USD", additive: true,
+    concepts: ["DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet", "DepreciationAndAmortization", "Depreciation"],
+  },
   { key: "capex", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"] },
   { key: "dividendsPaid", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsOfDividends", "PaymentsOfDividendsCommonStock"] },
   { key: "buybacks", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsForRepurchaseOfCommonStock"] },

@@ -9,9 +9,9 @@ import type { DataIssue, Result } from "@/lib/types";
 import { IssueNote, Panel } from "./ui";
 
 const ORDER: Record<StatementKey, LineKey[]> = {
-  income: ["revenue", "costOfRevenue", "grossProfit", "operatingIncome", "netIncome", "epsDiluted", "dilutedShares"],
-  balance: ["cash", "totalAssets", "totalLiabilities", "longTermDebt", "equity"],
-  cashflow: ["operatingCashFlow", "capex", "freeCashFlow", "dividendsPaid", "buybacks"],
+  income: ["revenue", "costOfRevenue", "grossProfit", "operatingIncome", "interestExpense", "pretaxIncome", "incomeTax", "netIncome", "epsDiluted", "dilutedShares"],
+  balance: ["cash", "totalAssets", "totalLiabilities", "currentDebt", "longTermDebt", "equity"],
+  cashflow: ["operatingCashFlow", "depreciation", "capex", "freeCashFlow", "dividendsPaid", "buybacks"],
 };
 
 type Margin = "gross" | "operating" | "net";
@@ -140,7 +140,7 @@ function StatementTable({ statement, set, cik, lang }: { statement: StatementKey
 
   return (
     <Panel title={t.fin.statements[statement]}>
-      <div ref={scroller} className="overflow-x-auto -mx-4" tabIndex={0} aria-label={t.fin.statements[statement]}>
+      <div ref={scroller} className="relative overflow-x-auto -mx-4" tabIndex={0} aria-label={t.fin.statements[statement]}>
         <table className="num text-sm w-max min-w-full border-separate border-spacing-0 [&_tr>*:last-child]:pr-4">
           <caption className="sr-only">{t.fin.statements[statement]}</caption>
           <thead>

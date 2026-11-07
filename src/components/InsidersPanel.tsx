@@ -120,7 +120,7 @@ function PeopleTable({ people }: { people: InsiderSummary["people"] }) {
   const { t } = useI18n();
   return (
     <Panel title={t.insiders.whoTitle}>
-      <div className="overflow-x-auto -mx-4" tabIndex={0} aria-label={t.insiders.whoTitle}>
+      <div className="relative overflow-x-auto -mx-4" tabIndex={0} aria-label={t.insiders.whoTitle}>
         <table className="num text-sm w-full min-w-[34rem]">
           <caption className="sr-only">{t.insiders.whoTitle}</caption>
           <thead>
@@ -153,7 +153,7 @@ function LatestTable({ rows, lang }: { rows: InsiderRow[]; lang: Lang }) {
   const { t } = useI18n();
   return (
     <Panel title={t.insiders.latestTitle}>
-      <div className="overflow-x-auto -mx-4" tabIndex={0} aria-label={t.insiders.latestTitle}>
+      <div className="relative overflow-x-auto -mx-4" tabIndex={0} aria-label={t.insiders.latestTitle}>
         <table className="num text-sm w-full min-w-[46rem]">
           <caption className="sr-only">{t.insiders.latestTitle}</caption>
           <thead>

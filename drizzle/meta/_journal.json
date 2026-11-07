@@ -29,6 +29,13 @@
       "when": 1794065442337,
       "tag": "0003_insiders",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794065916535,
+      "tag": "0004_reload_metrics_for_comps",
+      "breakpoints": true
     }
   ]
 }
