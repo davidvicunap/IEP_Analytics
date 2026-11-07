@@ -212,7 +212,7 @@ export default function StockView({ data }: { data: StockBundle }) {
 
         {tab === "valuation" && <ValuationPanel symbol={q.symbol} />}
 
-        {tab === "financials" && <FinancialStatements symbol={q.symbol} />}
+        {tab === "financials" && <FinancialStatements symbol={q.symbol} fmpIncome={data.source === "FMP" ? data.income : undefined} />}
 
         {tab === "filings" && <FilingsPanel symbol={q.symbol} />}
 

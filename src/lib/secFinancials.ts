@@ -83,7 +83,7 @@ export interface Cell {
   concept?: string;
   accn?: string; // SEC accession number of the filing the value comes from
   form?: string;
-  derived?: "ytd_difference" | "fy_minus_9m" | "formula";
+  derived?: "ytd_difference" | "fy_minus_9m" | "formula" | "ttm" | "projection";
   alt?: { concept: string; value: number }; // another total the SEC data has for this period
 }
 
