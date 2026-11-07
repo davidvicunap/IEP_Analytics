@@ -7,6 +7,7 @@ import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { scoreFundamentals, summarize, technicalSignals } from "@/lib/scoring";
 import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
+import FinancialStatements from "./FinancialStatements";
 import NewsList from "./NewsList";
 import { Change, Dot, IssueNote, Panel, Provenance, WatchButton } from "./ui";
 
@@ -15,8 +16,8 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
   loading: () => <div className="h-[340px] rounded-lg bg-panel-2 animate-pulse" />,
 });
 
-type Tab = "overview" | "chart" | "fundamentals" | "news";
-const TABS: Tab[] = ["overview", "chart", "fundamentals", "news"];
+type Tab = "overview" | "chart" | "fundamentals" | "financials" | "news";
+const TABS: Tab[] = ["overview", "chart", "fundamentals", "financials", "news"];
 
 export default function StockView({ data }: { data: StockBundle }) {
   const { t, lang } = useI18n();
@@ -196,6 +197,8 @@ export default function StockView({ data }: { data: StockBundle }) {
             <IncomeBars income={data.income} source={data.source} />
           </div>
         )}
+
+        {tab === "financials" && <FinancialStatements symbol={q.symbol} />}
 
         {tab === "news" && (
           <Panel>
