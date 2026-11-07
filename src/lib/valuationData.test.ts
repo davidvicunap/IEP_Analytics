@@ -12,11 +12,11 @@ vi.mock("@/db/client", () => ({ getDb: () => db }));
 const demo = { on: false };
 vi.mock("./data", () => ({ getQuote: vi.fn(), isDemo: () => demo.on }));
 vi.mock("./financials", () => ({ getFinancials: vi.fn() }));
-vi.mock("./fmp", () => ({ fmpHistory: vi.fn(), fmpMarketCaps: vi.fn(), fmpTreasury10y: vi.fn(), fmpEquityRiskPremium: vi.fn() }));
+vi.mock("./fmp", () => ({ fmpHistory: vi.fn(), fmpTreasury10y: vi.fn(), fmpEquityRiskPremium: vi.fn() }));
 
 import { getQuote } from "./data";
 import { getFinancials } from "./financials";
-import { fmpEquityRiskPremium, fmpHistory, fmpMarketCaps, fmpTreasury10y } from "./fmp";
+import { fmpEquityRiskPremium, fmpHistory, fmpTreasury10y } from "./fmp";
 import { getValuation, revenueCagr5 } from "./valuationData";
 
 const ok = <T,>(data: T) => ({ ok: true as const, data, fetchedAt: "2026-11-06T21:00:00.000Z" });
@@ -77,36 +77,25 @@ beforeEach(() => {
   vi.mocked(fmpHistory).mockResolvedValue(ok(candles));
   vi.mocked(fmpTreasury10y).mockResolvedValue(ok({ value: 0.0486, date: "2026-11-06" }));
   vi.mocked(fmpEquityRiskPremium).mockResolvedValue(ok({ value: 0.0446, date: "2026-11-06" }));
-  // peers P0…P5 priced at 100, 150, 200, 250, 300, 350 → P/E 10…35
-  vi.mocked(fmpMarketCaps).mockResolvedValue(ok({ P0: 100, P1: 150, P2: 200, P3: 250, P4: 300, P5: 350 }));
 });
 
 describe("getValuation", () => {
-  it("assembles multiples, 5-year history, peers and DCF inputs", async () => {
+  it("assembles multiples, the 5-year history analysis and DCF inputs", async () => {
     const r = await getValuation("ME");
     if (!r.ok) throw new Error(r.error);
     const v = r.data;
     const pe = v.multiples.find((m) => m.key === "pe")!;
     expect(pe.value).toBeCloseTo(11); // 440 / 40
-    expect(pe.own?.n).toBeGreaterThanOrEqual(24);
-    expect(pe.peers).toMatchObject({ value: 11, n: 6, sicPrefix: "357", year: 2025 }); // 440 / 40 on FY2025
-    expect(pe.peers!.percentile).toBe(17); // above P0 (10) only: 1 of 6
-    expect(v.peers).toMatchObject({ issue: null, priced: 6, requested: 6 });
+    // Month-end caps 400…440 (closes 40…44 × 10 shares) over TTM net income 40 → P/E 10…11.
+    expect(pe.own).toMatchObject({ verdict: "expensive", max: 11, min: 10 });
+    expect(pe.own!.n).toBeGreaterThanOrEqual(24);
+    expect(pe.own!.priceAtMedian).toBeCloseTo((44 * pe.own!.median) / 11);
     // DCF maker inputs: TTM base, beta vs the market (same series in this mock → exactly 1), rates
     expect(v.maker).toMatchObject({ issue: null, base: { revenue0: 400, marketCap: 440, price: 44 }, rf: { value: 0.0486 }, erp: { value: 0.0446 } });
     expect(v.maker.beta?.value).toBeCloseTo(1);
     expect(v.maker.data?.revenueCagr5).toBeCloseTo(0.1);
     expect(v.maker.defaults).toMatchObject({ rf: 0.0486, erp: 0.0446, terminal: "gordon", growth: [0.1, 0.085, 0.07, 0.055, 0.04] });
     expect(v.history.issue).toBeNull();
-  });
-
-  it("says so when the data plan prices too few peers", async () => {
-    vi.mocked(fmpMarketCaps).mockResolvedValue(ok({ P0: 100, P1: 150 }));
-    const r = await getValuation("ME");
-    if (!r.ok) throw new Error(r.error);
-    expect(r.data.peers).toMatchObject({ issue: "fewPeers", priced: 2, requested: 6 });
-    expect(r.data.multiples.every((m) => m.peers === null)).toBe(true);
-    expect(r.data.multiples.find((m) => m.key === "pe")!.value).toBeCloseTo(11); // own multiples unaffected
   });
 
   it("skips history when SEC shares don't match the quote (e.g. several share classes)", async () => {

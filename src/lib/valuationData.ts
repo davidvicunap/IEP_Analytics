@@ -1,22 +1,22 @@
 // Server-side: valuation for a ticker. Prices and market caps come from FMP (licensed data,
 // so this is served behind the beta gate); fundamentals from SEC filings. Each part fails on
-// its own: a missing peer price never hides the company's own multiples, and so on.
-import { getDb, type Db } from "@/db/client";
+// its own: a missing price history never hides today's multiples, and so on. Peers live in
+// the Comps view (compsData.ts).
+import { getDb } from "@/db/client";
 import { getQuote, isDemo } from "./data";
 import { cagr, makerDefaults, type MakerAssumptions, type MakerBase, type MakerData } from "./dcfModel";
 import { getFinancials } from "./financials";
-import { fmpEquityRiskPremium, fmpHistory, fmpMarketCaps, fmpTreasury10y, type Rate } from "./fmp";
-import { companyYearInputs, ensureSic, latestMetricsYear, listedPeers } from "./peers";
+import { fmpEquityRiskPremium, fmpHistory, fmpTreasury10y, type Rate } from "./fmp";
+import { ensureSic } from "./peers";
 import { businessType, type BusinessType } from "./ratios";
 import type { StatementSet } from "./secFinancials";
 import type { DataIssue, Result } from "./types";
 import {
-  MULTIPLES, historyStats, marketBeta, multipleHistory, multipleNote, multiplesFor, peerComparison, sharesConsistency, ttmAt, ttmSeries,
-  yearMultiples, type HistoryStats, type MultipleKey, type MultipleNote, type PeerComparison,
+  MULTIPLES, analyzeHistory, marketBeta, multipleHistory, multipleNote, multiplesFor, sharesConsistency, ttmAt, ttmSeries,
+  type HistoryAnalysis, type MultipleKey, type MultipleNote,
 } from "./valuation";
 
 export type HistoryIssue = DataIssue | "noShares" | "sharesMismatch" | "shortHistory";
-export type PeersIssue = DataIssue | "noSic" | "noPeerData" | "fewPeers";
 
 export interface MultipleRow {
   key: MultipleKey;
@@ -24,8 +24,7 @@ export interface MultipleRow {
   higherIsCheaper: boolean;
   value: number | null; // now: quote market cap ÷ latest public TTM
   note: MultipleNote | null;
-  own: HistoryStats | null; // vs its month-ends of the last 5 years
-  peers: (PeerComparison & { year: number }) | null; // vs peers, all on the same fiscal year
+  own: HistoryAnalysis | null; // vs its month-ends of the last 5 years
 }
 
 export interface ValuationPayload {
@@ -36,9 +35,8 @@ export interface ValuationPayload {
   quoteAt: string;
   ttm: { label: string; end: string; revenue?: number; netIncome?: number; fcf?: number; equity?: number } | null;
   multiples: MultipleRow[];
-  monthly: { date: string; pe: number | null; ps: number | null; pb: number | null; fcfYield: number | null }[];
+  monthly: ({ date: string } & Record<MultipleKey, number | null>)[];
   history: { issue: HistoryIssue | null; from: string | null };
-  peers: { issue: PeersIssue | null; year: number | null; priced: number; requested: number };
   maker: {
     issue: "notApplicable" | "noRevenue" | null;
     ttmLabel: string | null;
@@ -63,39 +61,6 @@ export function revenueCagr5(annual: StatementSet): number | null {
   const years = (Date.parse(annual.periods[n].end) - Date.parse(annual.periods[n - 5].end)) / (365.25 * 86_400_000);
   if (Math.abs(years - 5) > 0.1) return null;
   return cagr(rev[n - 5].value ?? NaN, rev[n].value ?? NaN, 5);
-}
-
-async function peerSection(db: Db, cik: number, sic: number | null, marketCap: number) {
-  const none = (issue: PeersIssue, year: number | null = null) => ({
-    comparisons: {} as Partial<Record<MultipleKey, MultipleRow["peers"]>>,
-    meta: { issue, year, priced: 0, requested: 0 },
-  });
-  if (!sic) return none("noSic");
-  const latest = await latestMetricsYear(db);
-  if (!latest) return none("noPeerData");
-  const year = latest.year;
-  const own = await companyYearInputs(db, cik, year);
-  const peers = await listedPeers(db, sic, year, cik);
-  if (!own || peers.length === 0) return none("noPeerData", year);
-
-  const caps = await fmpMarketCaps(peers.map((p) => p.symbol));
-  if (!caps.ok) return none(caps.error, year);
-  const priced = peers
-    .filter((p) => caps.data[p.symbol] !== undefined)
-    .map((p) => ({ sic: p.sic, values: yearMultiples(caps.data[p.symbol], p.inputs) }));
-
-  const mine = yearMultiples(marketCap, own);
-  const comparisons: Partial<Record<MultipleKey, MultipleRow["peers"]>> = {};
-  for (const m of MULTIPLES) {
-    const v = mine[m.key];
-    const c = v === null ? null : peerComparison(m.key, v, sic, priced);
-    comparisons[m.key] = c && { ...c, year };
-  }
-  const anyComparison = Object.values(comparisons).some(Boolean);
-  return {
-    comparisons,
-    meta: { issue: anyComparison ? null : ("fewPeers" as const), year, priced: priced.length, requested: peers.length },
-  };
 }
 
 export async function getValuation(symbol: string): Promise<Result<ValuationPayload>> {
@@ -125,10 +90,9 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
     const now = multiplesFor(marketCap, ttm);
 
     // Own history: month-end market cap from split-adjusted closes × SEC share counts.
-    const [prices, market, peers, rf, erp] = await Promise.all([
+    const [prices, market, rf, erp] = await Promise.all([
       fmpHistory(symbol),
       fmpHistory("SPY"), // market proxy for beta
-      peerSection(db, cik, sic, marketCap),
       fmpTreasury10y(),
       fmpEquityRiskPremium(),
     ]);
@@ -146,6 +110,8 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
       }
     }
 
+    // EV multiples keep today's net debt fixed when translating a multiple into a price.
+    const netDebtToCap = ttm?.cash !== undefined ? ((ttm.debt ?? 0) - ttm.cash) / marketCap : 0;
     const multiples: MultipleRow[] = MULTIPLES.map((m) => {
       const applicable = m.appliesTo.includes(type);
       const value = applicable ? now[m.key] : null;
@@ -155,8 +121,10 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
         higherIsCheaper: m.higherIsCheaper,
         value,
         note: applicable ? multipleNote(m.key, ttm) : null,
-        own: applicable && value !== null && hist.length ? historyStats(hist, m.key, value) : null,
-        peers: applicable ? (peers.comparisons[m.key] ?? null) : null,
+        own:
+          applicable && value !== null && hist.length
+            ? analyzeHistory(hist, m.key, value, price, m.higherIsCheaper, m.key === "evEbitda" ? netDebtToCap : 0)
+            : null,
       };
     });
     if (!historyIssue && multiples.every((m) => !m.own)) historyIssue = "shortHistory";
@@ -210,7 +178,6 @@ export async function getValuation(symbol: string): Promise<Result<ValuationPayl
         multiples,
         monthly,
         history: { issue: historyIssue, from: monthly[0]?.date ?? null },
-        peers: peers.meta,
         maker,
       },
     };

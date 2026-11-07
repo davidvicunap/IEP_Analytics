@@ -1,9 +1,9 @@
 // Valuation multiples from SEC fundamentals and market prices. Pure functions: the server
 // assembles the inputs (valuationData.ts) and the same code runs in tests.
-import { median, percentileRank, type BusinessType, type RatioInputs } from "./ratios";
+import { median, percentileRank, type BusinessType } from "./ratios";
 import type { LineKey, SharesHistory, StatementSet } from "./secFinancials";
 
-export type MultipleKey = "pe" | "ps" | "pb" | "fcfYield";
+export type MultipleKey = "pe" | "evEbitda" | "ps" | "pb" | "fcfYield";
 export type MultipleNote = "loss" | "negativeEquity" | "negativeFcf" | "revenueAmbiguous";
 
 export interface MultipleDef {
@@ -17,6 +17,7 @@ export interface MultipleDef {
 // (FFO isn't in standard XBRL, and net income understates REIT earnings because of depreciation).
 export const MULTIPLES: MultipleDef[] = [
   { key: "pe", appliesTo: ["general", "bank", "insurance"], higherIsCheaper: false },
+  { key: "evEbitda", appliesTo: ["general", "reit"], higherIsCheaper: false },
   { key: "ps", appliesTo: ["general", "reit"], higherIsCheaper: false },
   { key: "pb", appliesTo: ["general", "bank", "insurance", "reit"], higherIsCheaper: false },
   { key: "fcfYield", appliesTo: ["general", "reit"], higherIsCheaper: true },
@@ -113,8 +114,12 @@ export function multiplesFor(marketCap: number, t: Ttm | undefined): Record<Mult
   const ni = pos(t?.netIncome);
   const rev = pos(t?.revenue);
   const eq = pos(t?.equity);
+  // EV = market cap + debt − cash at the same quarter end; EBITDA = TTM operating income + D&A.
+  const ebitda = t?.ebit !== undefined && t?.da !== undefined ? pos(t.ebit + t.da) : null;
+  const ev = t?.cash !== undefined ? marketCap + (t.debt ?? 0) - t.cash : null;
   return {
     pe: ni ? marketCap / ni : null,
+    evEbitda: ev !== null && ebitda ? ev / ebitda : null,
     ps: rev ? marketCap / rev : null,
     pb: eq ? marketCap / eq : null,
     fcfYield: t?.fcf !== undefined && marketCap > 0 ? t.fcf / marketCap : null,
@@ -168,74 +173,7 @@ export function sharesConsistency(shares: SharesHistory, marketCap: number, pric
   return marketCap / price / last.value;
 }
 
-export interface HistoryStats {
-  percentile: number;
-  median: number;
-  min: number;
-  max: number;
-  n: number; // months with a value
-  from: string;
-}
-
 export const MIN_HISTORY_MONTHS = 24;
-
-export function historyStats(history: HistoryPoint[], key: MultipleKey, current: number): HistoryStats | null {
-  const pts = history.filter((h) => h.values[key] !== null);
-  if (pts.length < MIN_HISTORY_MONTHS) return null;
-  const values = pts.map((h) => h.values[key]!);
-  return {
-    percentile: percentileRank(values, current)!,
-    median: median(values)!,
-    min: Math.min(...values),
-    max: Math.max(...values),
-    n: values.length,
-    from: pts[0].date,
-  };
-}
-
-// ---- Peers (same fiscal year for everyone) ------------------------------------------
-
-/** Multiples on one fiscal year's figures (SEC frames inputs), the basis used for peers. */
-export function yearMultiples(marketCap: number, i: RatioInputs): Record<MultipleKey, number | null> {
-  const pos = (v: number | undefined) => (v !== undefined && v > 0 ? v : null);
-  const ni = pos(i.netIncome);
-  const rev = i.revenueAmbiguous ? null : pos(i.revenue);
-  const eq = pos(i.equity);
-  return {
-    pe: ni ? marketCap / ni : null,
-    ps: rev ? marketCap / rev : null,
-    pb: eq ? marketCap / eq : null,
-    fcfYield: i.ocf !== undefined && i.capex !== undefined && marketCap > 0 ? (i.ocf - i.capex) / marketCap : null,
-  };
-}
-
-export const MIN_VALUATION_PEERS = 5;
-
-export interface PeerComparison {
-  value: number; // the company's multiple on the same basis
-  percentile: number;
-  median: number;
-  n: number;
-  sicPrefix: string;
-}
-
-/** Narrowest SIC group (3 digits, then 2) with enough priced peers. */
-export function peerComparison(
-  key: MultipleKey,
-  value: number,
-  sic: number,
-  peers: { sic: number; values: Record<MultipleKey, number | null> }[],
-): PeerComparison | null {
-  const vals = (rows: typeof peers) => rows.map((p) => p.values[key]).filter((v): v is number => v !== null);
-  for (const digits of [3, 2]) {
-    const div = digits === 3 ? 10 : 100;
-    const group = vals(peers.filter((p) => Math.floor(p.sic / div) === Math.floor(sic / div)));
-    if (group.length >= MIN_VALUATION_PEERS) {
-      return { value, percentile: percentileRank(group, value)!, median: median(group)!, n: group.length, sicPrefix: String(Math.floor(sic / div)) };
-    }
-  }
-  return null;
-}
 
 // ---- Beta ---------------------------------------------------------------------------------
 
@@ -274,4 +212,82 @@ export function marketBeta(stock: Candle[], market: Candle[]): { value: number; 
   }
   if (!(varM > 0)) return null;
   return { value: cov / varM, months: rs.length };
+}
+
+// ---- History analysis -------------------------------------------------------------------------
+
+export interface HistoryAnalysis {
+  key: MultipleKey;
+  current: number;
+  n: number;
+  from: string;
+  mean: number;
+  median: number;
+  sd: number;
+  z: number; // standard deviations from the 5-year mean
+  percentile: number;
+  min: number;
+  max: number;
+  /** Price per share if the multiple went back to its median with today's fundamentals. */
+  priceAtMedian: number | null;
+  verdict: "cheap" | "expensive" | "inRange"; // from the company's own point of view
+}
+
+/**
+ * Where today's multiple sits in its own 5-year history. Price multiples: a higher multiple
+ * means a more expensive stock; yields: the opposite. "Cheap/expensive" means beyond one
+ * standard deviation from the 5-year mean, against the company itself only.
+ */
+export function analyzeHistory(
+  history: { date: string; values: Record<MultipleKey, number | null> }[],
+  key: MultipleKey,
+  current: number,
+  price: number,
+  higherIsCheaper: boolean,
+  netDebtToCap = 0, // EV multiples only: (debt − cash) ÷ market cap today
+): HistoryAnalysis | null {
+  const pts = history.filter((h) => h.values[key] !== null);
+  if (pts.length < MIN_HISTORY_MONTHS || !(price > 0)) return null;
+  const values = pts.map((h) => h.values[key]!);
+  const st = seriesStats(values)!;
+  const z = st.sd > Math.abs(st.mean) * 1e-9 ? (current - st.mean) / st.sd : 0; // float noise on a flat series isn't spread
+  const cheapSide = higherIsCheaper ? z > 1 : z < -1;
+  const dearSide = higherIsCheaper ? z < -1 : z > 1;
+  return {
+    key,
+    current,
+    ...st,
+    from: pts[0].date,
+    z,
+    percentile: percentileRank(values, current)!,
+    priceAtMedian: priceAtMultiple(st.median, current, price, higherIsCheaper, netDebtToCap),
+    verdict: cheapSide ? "cheap" : dearSide ? "expensive" : "inRange",
+  };
+}
+
+export interface SeriesStats {
+  n: number;
+  mean: number;
+  median: number;
+  sd: number; // population standard deviation
+  min: number;
+  max: number;
+}
+
+export function seriesStats(values: number[]): SeriesStats | null {
+  if (values.length === 0) return null;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const sd = Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length);
+  return { n: values.length, mean, median: median(values)!, sd, min: Math.min(...values), max: Math.max(...values) };
+}
+
+/**
+ * Price per share at another multiple with the same fundamentals. Equity multiples scale the
+ * price directly; for EV multiples the net debt stays fixed, so only the equity part moves.
+ * Null when the answer has no meaning (losses, a negative median yield, equity wiped out).
+ */
+export function priceAtMultiple(target: number, current: number, price: number, higherIsCheaper: boolean, netDebtToCap = 0): number | null {
+  if (!(current > 0) || !(target > 0)) return null;
+  const capRatio = higherIsCheaper ? current / target : (1 + netDebtToCap) * (target / current) - netDebtToCap;
+  return capRatio > 0 ? price * capRatio : null;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseShares, type SharesHistory, type StatementSet } from "./secFinancials";
 import {
-  adjustedShares, historyStats, multipleHistory, multipleNote, multiplesFor, sharesAt, sharesConsistency, ttmAt, ttmSeries,
+  adjustedShares, analyzeHistory, multipleHistory, multipleNote, multiplesFor, priceAtMultiple, sharesAt, sharesConsistency, ttmAt, ttmSeries,
 } from "./valuation";
 
 const cell = (value: number | null, extra: object = {}) => ({ value, ...extra });
@@ -128,9 +128,63 @@ describe("multiple history", () => {
   });
 
   it("needs 24 months to compare with history", () => {
-    const pts = Array.from({ length: 30 }, (_, i) => ({ date: `m${i}`, marketCap: 1, values: { pe: 10 + i, ps: null, pb: null, fcfYield: null } }));
-    expect(historyStats(pts, "pe", 39)).toMatchObject({ n: 30, percentile: 98, median: 24.5, min: 10, max: 39 });
-    expect(historyStats(pts, "ps", 1)).toBeNull();
-    expect(historyStats(pts.slice(0, 20), "pe", 15)).toBeNull();
+    const pts = Array.from({ length: 30 }, (_, i) => ({ date: `m${i}`, marketCap: 1, values: { pe: 10 + i, evEbitda: null, ps: null, pb: null, fcfYield: null } }));
+    expect(analyzeHistory(pts, "pe", 39, 100, false)).toMatchObject({ n: 30, percentile: 98, median: 24.5, min: 10, max: 39, from: "m0" });
+    expect(analyzeHistory(pts, "ps", 1, 100, false)).toBeNull();
+    expect(analyzeHistory(pts.slice(0, 20), "pe", 15, 100, false)).toBeNull();
+  });
+});
+
+describe("EV/EBITDA and history analysis", () => {
+  it("EV/EBITDA = (market cap + debt − cash) ÷ (operating income + D&A)", () => {
+    const t = { end: "2025-12-31", filed: "2026-02-01", label: "Q4", ebit: 80, da: 20, debt: 300, cash: 100 };
+    expect(multiplesFor(1000, t).evEbitda).toBeCloseTo(12); // (1000 + 300 − 100) / 100
+    expect(multiplesFor(1000, { ...t, cash: undefined }).evEbitda).toBeNull();
+  });
+
+  // 36 months of P/E alternating 18 and 22: mean 20, σ 2.
+  const hist = Array.from({ length: 36 }, (_, i) => ({ date: `2023-${String((i % 12) + 1).padStart(2, "0")}-28`, values: { pe: i % 2 ? 22 : 18, evEbitda: null, ps: null, pb: null, fcfYield: 0.05 } }));
+
+  it("measures today against the 5-year mean and median", () => {
+    const a = analyzeHistory(hist, "pe", 25, 100, false)!;
+    expect(a).toMatchObject({ mean: 20, median: 20, sd: 2, n: 36, verdict: "expensive" });
+    expect(a.z).toBeCloseTo(2.5);
+    expect(a.priceAtMedian).toBeCloseTo(80); // back to 20x with today's earnings
+    expect(analyzeHistory(hist, "pe", 19, 100, false)!.verdict).toBe("inRange");
+  });
+
+  it("turns yields around: a higher yield than usual is cheap", () => {
+    const y = analyzeHistory(hist, "fcfYield", 0.08, 100, true)!;
+    expect(y.verdict).toBe("inRange"); // σ is 0 here, so no verdict either way
+    const varied = hist.map((h, i) => ({ ...h, values: { ...h.values, fcfYield: i % 2 ? 0.06 : 0.04 } }));
+    const v = analyzeHistory(varied, "fcfYield", 0.08, 100, true)!;
+    expect(v.verdict).toBe("cheap");
+    expect(v.priceAtMedian).toBeCloseTo((100 * 0.08) / 0.05);
+  });
+
+  it("needs two years of history", () => {
+    expect(analyzeHistory(hist.slice(0, 20), "pe", 20, 100, false)).toBeNull();
+  });
+});
+
+describe("price at another multiple", () => {
+  it("scales the price for equity multiples and turns yields around", () => {
+    expect(priceAtMultiple(20, 25, 100, false)).toBeCloseTo(80);
+    expect(priceAtMultiple(0.05, 0.04, 100, true)).toBeCloseTo(80); // a higher yield means a lower price
+  });
+  it("keeps net debt fixed for EV multiples", () => {
+    // Cap 1000, net debt 500 → EV 1500 at 15x, so EBITDA 100. At 10x: EV 1000 → equity 500 → half the price.
+    expect(priceAtMultiple(10, 15, 100, false, 0.5)).toBeCloseTo(50);
+    // Net cash works the other way: cap 1000, cash 200 → EV 800 at 8x (EBITDA 100); at 10x EV 1000 → equity 1200.
+    expect(priceAtMultiple(10, 8, 100, false, -0.2)).toBeCloseTo(120);
+  });
+  it("has no answer when it would be meaningless", () => {
+    expect(priceAtMultiple(5, 15, 100, false, 2)).toBeNull(); // EV below the debt: equity wiped out
+    expect(priceAtMultiple(0.05, -0.01, 100, true)).toBeNull(); // negative free cash flow today
+    expect(priceAtMultiple(-0.01, 0.05, 100, true)).toBeNull(); // negative median yield
+  });
+  it("is what the history analysis reports for EV/EBITDA", () => {
+    const hist = Array.from({ length: 24 }, (_, i) => ({ date: `d${i}`, values: { pe: null, evEbitda: 10, ps: null, pb: null, fcfYield: null } }));
+    expect(analyzeHistory(hist, "evEbitda", 15, 100, false, 0.5)!.priceAtMedian).toBeCloseTo(50);
   });
 });
