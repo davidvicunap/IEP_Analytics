@@ -9,6 +9,7 @@ import type { StockBundle } from "@/lib/types";
 import { IncomeBars, MetricGrid } from "./Fundamentals";
 import FinancialStatements from "./FinancialStatements";
 import NewsList from "./NewsList";
+import InsidersPanel from "./InsidersPanel";
 import RatiosPanel from "./RatiosPanel";
 import ValuationPanel from "./ValuationPanel";
 import { Change, Dot, IssueNote, Panel, Provenance, WatchButton } from "./ui";
@@ -18,8 +19,8 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
   loading: () => <div className="h-[340px] rounded-lg bg-panel-2 animate-pulse" />,
 });
 
-type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "news";
-const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "news"];
+type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "insiders" | "news";
+const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "insiders", "news"];
 // The FMP grid keeps what neither RatiosPanel (SEC ratios) nor ValuationPanel (multiples) covers.
 const MARKET_METRICS = new Set(["dividendYield", "currentRatio"]);
 
@@ -207,6 +208,8 @@ export default function StockView({ data }: { data: StockBundle }) {
         {tab === "valuation" && <ValuationPanel symbol={q.symbol} />}
 
         {tab === "financials" && <FinancialStatements symbol={q.symbol} />}
+
+        {tab === "insiders" && <InsidersPanel symbol={q.symbol} />}
 
         {tab === "news" && (
           <Panel>

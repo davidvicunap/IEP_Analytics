@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 /**
  * US-listed securities from the SEC's company_tickers_exchange.json (public data).
@@ -48,3 +48,50 @@ export const companyMetrics = pgTable(
 );
 
 export type CompanyMetrics = typeof companyMetrics.$inferSelect;
+
+/** Form 4 filings already read for an issuer (also failures, so they aren't retried daily). */
+export const insiderFilings = pgTable(
+  "insider_filings",
+  {
+    accn: text("accn").primaryKey(),
+    issuerCik: integer("issuer_cik").notNull(),
+    filed: text("filed").notNull(), // YYYY-MM-DD
+    status: text("status").notNull(), // "ok" | "error"
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("insider_filings_issuer_idx").on(t.issuerCik)],
+);
+
+/** Non-derivative transactions from Form 4 filings, one row per transaction. */
+export const insiderTransactions = pgTable(
+  "insider_transactions",
+  {
+    accn: text("accn").notNull(),
+    seq: integer("seq").notNull(),
+    issuerCik: integer("issuer_cik").notNull(),
+    ownerCik: integer("owner_cik"),
+    ownerName: text("owner_name").notNull(),
+    otherOwners: integer("other_owners").notNull().default(0),
+    isDirector: boolean("is_director").notNull(),
+    isOfficer: boolean("is_officer").notNull(),
+    isTenPct: boolean("is_ten_pct").notNull(),
+    officerTitle: text("officer_title"),
+    date: text("date").notNull(),
+    code: text("code").notNull(),
+    acquired: boolean("acquired").notNull(),
+    shares: doublePrecision("shares").notNull(),
+    price: doublePrecision("price"),
+    ownedAfter: doublePrecision("owned_after"),
+    direct: boolean("direct").notNull(),
+    planned: boolean("planned").notNull(),
+    security: text("security").notNull(),
+  },
+  (t) => [uniqueIndex("insider_tx_accn_seq_idx").on(t.accn, t.seq), index("insider_tx_issuer_date_idx").on(t.issuerCik, t.date)],
+);
+
+/** When each issuer's Form 4 list was last checked, and how many filings are still unread. */
+export const insiderChecks = pgTable("insider_checks", {
+  issuerCik: integer("issuer_cik").primaryKey(),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  pending: integer("pending").notNull().default(0),
+});

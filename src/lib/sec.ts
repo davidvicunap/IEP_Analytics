@@ -68,6 +68,18 @@ export class SecHttpError extends Error {
   }
 }
 
+/** Raw text (Form 4 XML) with the same pacing and identification as JSON requests. */
+export async function secText(url: string, timeoutMs = 15_000): Promise<string> {
+  await secSlot();
+  const res = await fetch(url, {
+    headers: { "User-Agent": secUserAgent(), Accept: "application/xml,text/xml,*/*" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new SecHttpError(res.status, url);
+  return res.text();
+}
+
 export async function secJson(url: string, timeoutMs = 20_000): Promise<unknown> {
   await secSlot();
   const res = await fetch(url, {

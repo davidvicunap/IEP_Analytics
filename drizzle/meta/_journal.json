@@ -22,6 +22,13 @@
       "when": 1794023867437,
       "tag": "0002_reload_company_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794065442337,
+      "tag": "0003_insiders",
+      "breakpoints": true
     }
   ]
 }
