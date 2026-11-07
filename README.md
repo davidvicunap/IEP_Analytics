@@ -58,6 +58,7 @@ Mientras se firma la licencia de display de FMP, el sitio solo es accesible con 
 | SEC EDGAR | Lista de empresas cotizadas (pública) | `SEC_USER_AGENT` |
 
 - Cada build aplica las migraciones de `drizzle/` y carga la lista de la SEC si está vacía o tiene más de 7 días (`scripts/db-setup.ts`). Un cron diario la refresca (`/api/cron/securities`, protegido con `CRON_SECRET`).
+- Datos sectoriales (ratios con percentiles): el build y un cron diario (`/api/cron/sec-metrics`) cargan cada semana los datos anuales de todas las cotizadas desde los «frames» de la SEC (`company_metrics`) y rellenan poco a poco el código SIC de cada empresa, de mayor a menor (≈ 8 consultas/s, por debajo del límite de 10/s de la SEC).
 - `GET /api/health` muestra el estado de la base de datos, Redis y el uso diario de FMP (sin datos de mercado; queda fuera de la beta para monitoreo).
 - Para cambiar el esquema: edita `src/db/schema.ts` y ejecuta `npm run db:generate`.
 
