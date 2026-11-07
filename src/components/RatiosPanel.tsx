@@ -7,7 +7,7 @@ import type { RatioGroup, RatioKey } from "@/lib/ratios";
 import type { RatioRow, RatiosPayload } from "@/lib/ratiosData";
 import type { Level } from "@/lib/scoring";
 import type { DataIssue, Result } from "@/lib/types";
-import { Explain, IssueNote, LevelBadge, Panel } from "./ui";
+import { Comparison, Explain, IssueNote, LevelBadge, Panel } from "./ui";
 
 const GROUPS: RatioGroup[] = ["profitability", "returns", "health", "growth"];
 type Lang = "es" | "en";
@@ -161,21 +161,6 @@ function RatioCard({ r, payload, lang }: { r: RatioRow; payload: RatiosPayload; 
       <History r={r} lang={lang} />
       <Explain>{t.ratios.what[r.key]}</Explain>
     </article>
-  );
-}
-
-function Comparison({ label, percentile, text }: { label: string; percentile?: number; text: string }) {
-  return (
-    <div>
-      <dt className="font-medium">{label}</dt>
-      {percentile !== undefined && (
-        <div className="relative my-1 h-1.5 rounded-full bg-panel-2" aria-hidden="true">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-accent/40" style={{ width: `${percentile}%` }} />
-          <div className="absolute -top-0.5 h-2.5 w-1 rounded-full bg-accent" style={{ left: `calc(${percentile}% - 2px)` }} />
-        </div>
-      )}
-      <dd className="text-muted">{text}</dd>
-    </div>
   );
 }
 

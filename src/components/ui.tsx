@@ -145,3 +145,19 @@ export function WatchButton({ symbol }: { symbol: string }) {
     </button>
   );
 }
+
+/** A labelled percentile (0–100) with a marker bar and a sentence; used inside a <dl>. */
+export function Comparison({ label, percentile, text }: { label: string; percentile?: number; text: string }) {
+  return (
+    <div>
+      <dt className="font-medium">{label}</dt>
+      {percentile !== undefined && (
+        <div className="relative my-1 h-1.5 rounded-full bg-panel-2" aria-hidden="true">
+          <div className="absolute inset-y-0 left-0 rounded-full bg-accent/40" style={{ width: `${percentile}%` }} />
+          <div className="absolute -top-0.5 h-2.5 w-1 rounded-full bg-accent" style={{ left: `calc(${percentile}% - 2px)` }} />
+        </div>
+      )}
+      <dd className="text-muted">{text}</dd>
+    </div>
+  );
+}
