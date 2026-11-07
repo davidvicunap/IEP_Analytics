@@ -194,3 +194,44 @@ describe("fiscal year in progress (bank, calendar year)", () => {
     expect(bank.quarterly.lines.operatingCashFlow!.map((c) => c.value)).toEqual([-20e9, 30e9]);
   });
 });
+
+describe("revenue: largest total wins", () => {
+  const K = { accn: "0000000001-26-000001", form: "10-K", filed: "2026-02-20" };
+  const Y = { start: "2025-01-01", end: "2025-12-31" };
+  const Y0 = { start: "2024-01-01", end: "2024-12-31" };
+  const make = (gaap: object) => parseCompanyFacts({ cik: 1, entityName: "X", facts: { "us-gaap": { NetIncomeLoss: usd([{ ...Y, val: 5e9, ...K }, { ...Y0, val: 4e9, ...K }]), ...gaap } } });
+
+  it("takes the total over a partial contract-revenue tag and keeps the other as alt", () => {
+    // e.g. a commodity trader: contract revenue 27 bn, total revenue 85 bn
+    const f = make({
+      RevenueFromContractWithCustomerExcludingAssessedTax: usd([{ ...Y, val: 27e9, ...K }]),
+      Revenues: usd([{ ...Y, val: 85e9, ...K }, { ...Y0, val: 80e9, ...K }]),
+    });
+    const rev = f.annual.lines.revenue!;
+    expect(rev[1]).toMatchObject({ value: 85e9, concept: "Revenues", alt: { concept: "RevenueFromContractWithCustomerExcludingAssessedTax", value: 27e9 } });
+    expect(rev[0]).toMatchObject({ value: 80e9, concept: "Revenues" });
+    expect(rev[0].alt).toBeUndefined();
+  });
+
+  it("keeps the preferred concept on a tie and ignores differences within 2 %", () => {
+    const f = make({
+      RevenueFromContractWithCustomerExcludingAssessedTax: usd([{ ...Y, val: 100e9, ...K }]),
+      Revenues: usd([{ ...Y, val: 101e9, ...K }]),
+      SalesRevenueNet: usd([{ ...Y, val: 100e9, ...K }]),
+    });
+    const c = f.annual.lines.revenue!.at(-1)!;
+    expect(c).toMatchObject({ value: 101e9, concept: "Revenues" });
+    expect(c.alt).toBeUndefined();
+  });
+
+  it("uses revenue including excise taxes only when nothing else is tagged", () => {
+    const f = make({
+      RevenueFromContractWithCustomerIncludingAssessedTax: usd([{ ...Y, val: 30e9, ...K }, { ...Y0, val: 29e9, ...K }]),
+      Revenues: usd([{ ...Y, val: 25e9, ...K }]),
+    });
+    expect(f.annual.lines.revenue!.map((c) => [c.value, c.concept])).toEqual([
+      [29e9, "RevenueFromContractWithCustomerIncludingAssessedTax"],
+      [25e9, "Revenues"],
+    ]);
+  });
+});

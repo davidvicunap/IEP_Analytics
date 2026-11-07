@@ -60,3 +60,24 @@ describe("collectYear", () => {
     await expect(collectYear(2025, failing)).rejects.toThrow("429");
   });
 });
+
+describe("collectYear revenue rule", () => {
+  const responses: Record<string, unknown> = {
+    "RevenueFromContractWithCustomerExcludingAssessedTax/USD/CY2025": frame([[1, 27], [2, 100], [3, 50]]),
+    "Revenues/USD/CY2025": frame([[1, 85], [2, 101]]),
+    "RevenueFromContractWithCustomerIncludingAssessedTax/USD/CY2025": frame([[2, 999], [4, 40]]),
+  };
+  const fetchJson = async (url: string) => {
+    const key = url.replace("https://data.sec.gov/api/xbrl/frames/us-gaap/", "").replace(".json", "");
+    if (key in responses) return responses[key];
+    throw notFound();
+  };
+
+  it("takes the largest total, flags totals more than 2 % apart, and falls back last", async () => {
+    const m = await collectYear(2025, fetchJson);
+    expect(m.get(1)).toEqual({ revenue: 85, revenueAmbiguous: 1 });
+    expect(m.get(2)).toEqual({ revenue: 101 }); // 1 % apart: fine; excise-tax total ignored
+    expect(m.get(3)).toEqual({ revenue: 50 });
+    expect(m.get(4)).toEqual({ revenue: 40 }); // fallback only
+  });
+});

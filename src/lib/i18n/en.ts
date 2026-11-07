@@ -195,6 +195,9 @@ const en: Dict = {
     source: "Source: SEC EDGAR (XBRL). Each column links to the original filing; hover a figure to see its accounting concept.",
     loading: "Loading SEC financial statements…",
     openFiling: "Open the original filing at the SEC",
+    derivedMark: "calculated",
+    altTitle: "Another revenue total in SEC data: {v} ({concept})",
+    altNote: "† The SEC data has another revenue total for that period (over 2% apart); we show the larger one. Hover the figure to see both.",
   },
   ratios: {
     marketTitle: "Price and liquidity (FMP)",
@@ -254,6 +257,7 @@ const en: Dict = {
       negativeEquity: "Negative equity (often from buybacks): this ratio isn't meaningful.",
       smallEquity: "Equity is small relative to assets (buybacks), which inflates ROE; check ROIC too.",
       negativeBase: "Last year was negative or zero, so percentage growth isn't meaningful.",
+      revenueAmbiguous: "The SEC data has two different revenue totals for this company; we use the larger one and leave it out of the sector comparison. Check the original filing.",
     },
     notApplicable: "Don't apply to this type of company: {list}.",
     seeHistory: "See history",

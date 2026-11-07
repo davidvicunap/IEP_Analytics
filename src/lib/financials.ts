@@ -33,7 +33,7 @@ async function fetchFinancials(cik: number): Promise<Financials & { fetchedAt: s
 }
 
 // Only successful, parsed results are cached (a few KB, not the multi-MB raw payload).
-const cachedFinancials = unstable_cache((cik: number) => fetchFinancials(cik), ["sec-financials-v2"], {
+const cachedFinancials = unstable_cache((cik: number) => fetchFinancials(cik), ["sec-financials-v3"], {
   revalidate: 86_400,
   tags: ["sec"],
 });

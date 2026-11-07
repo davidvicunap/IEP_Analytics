@@ -10,7 +10,7 @@ export type RatioKey =
 
 export type RatioGroup = "profitability" | "returns" | "health" | "growth";
 export type BusinessType = "general" | "bank" | "insurance" | "reit";
-export type RatioNote = "negativeEquity" | "smallEquity" | "negativeBase";
+export type RatioNote = "negativeEquity" | "smallEquity" | "negativeBase" | "revenueAmbiguous";
 
 /** Raw annual figures a ratio needs. Balance-sheet values are at the period end. */
 export interface RatioInputs {
@@ -27,11 +27,15 @@ export interface RatioInputs {
   equity?: number;
   assets?: number;
   longTermDebt?: number;
+  revenueAmbiguous?: number; // 1 when the SEC data has two revenue totals more than 2 % apart
 }
 export const INPUT_KEYS: (keyof RatioInputs)[] = [
   "revenue", "revenuePrev", "grossProfit", "costOfRevenue", "operatingIncome", "netIncome",
-  "eps", "epsPrev", "ocf", "capex", "equity", "assets", "longTermDebt",
+  "eps", "epsPrev", "ocf", "capex", "equity", "assets", "longTermDebt", "revenueAmbiguous",
 ];
+
+/** Ratios divided by (or growing from) revenue. */
+export const REVENUE_BASED = new Set<RatioKey>(["grossMargin", "operatingMargin", "netMargin", "fcfMargin", "revenueGrowth"]);
 
 /** US federal statutory rate, used to put operating income on an after-tax basis for ROIC. */
 export const TAX_RATE = 0.21;
@@ -56,7 +60,9 @@ export const RATIOS: RatioDef[] = [
     compute: (i) => div(i.grossProfit ?? (ok(i.revenue, i.costOfRevenue) ? i.revenue! - i.costOfRevenue! : undefined), i.revenue),
   },
   { key: "operatingMargin", group: "profitability", better: "higher", appliesTo: NON_FIN, compute: (i) => div(i.operatingIncome, i.revenue) },
-  { key: "netMargin", group: "profitability", better: "higher", appliesTo: ALL, compute: (i) => div(i.netIncome, i.revenue) },
+  // Banks and insurers have no comparable "revenue" (filers tag fees only, gross interest
+  // income or net revenue), so revenue-based ratios are left out for them.
+  { key: "netMargin", group: "profitability", better: "higher", appliesTo: NON_FIN, compute: (i) => div(i.netIncome, i.revenue) },
   {
     key: "fcfMargin", group: "profitability", better: "higher", appliesTo: NON_FIN,
     compute: (i) => (ok(i.ocf, i.capex) ? div(i.ocf! - i.capex!, i.revenue) : null),
@@ -69,7 +75,7 @@ export const RATIOS: RatioDef[] = [
   },
   { key: "debtToEquity", group: "health", better: "lower", appliesTo: NON_FIN, compute: (i) => div(i.longTermDebt, i.equity) },
   { key: "equityToAssets", group: "health", better: "higher", appliesTo: ["bank", "insurance"], compute: (i) => div(i.equity, i.assets) },
-  { key: "revenueGrowth", group: "growth", better: "higher", appliesTo: ALL, compute: (i) => (ok(i.revenue) ? (div(i.revenue, i.revenuePrev) ?? NaN) - 1 : null) },
+  { key: "revenueGrowth", group: "growth", better: "higher", appliesTo: NON_FIN, compute: (i) => (ok(i.revenue) ? (div(i.revenue, i.revenuePrev) ?? NaN) - 1 : null) },
   { key: "epsGrowth", group: "growth", better: "higher", appliesTo: ALL, compute: (i) => (ok(i.eps) ? (div(i.eps, i.epsPrev) ?? NaN) - 1 : null) },
 ];
 
@@ -91,6 +97,7 @@ export function ratioNote(key: RatioKey, i: RatioInputs, type: BusinessType): Ra
     return "smallEquity"; // buybacks shrink equity and inflate ROE
   }
   if (key === "revenueGrowth" && ok(i.revenuePrev) && i.revenuePrev! <= 0) return "negativeBase";
+  if (REVENUE_BASED.has(key) && i.revenueAmbiguous) return "revenueAmbiguous";
   if (key === "epsGrowth" && ok(i.epsPrev) && i.epsPrev! <= 0) return "negativeBase";
   return null;
 }
@@ -133,7 +140,9 @@ export function inputsFromStatements(set: StatementSet): RatioInputs[] {
   const v = (key: keyof StatementSet["lines"], i: number) => set.lines[key]?.[i]?.value ?? undefined;
   return set.periods.map((p, i) => {
     const prevOk = i > 0 && yearApart(set.periods[i - 1].end, p.end);
+    const revAlt = set.lines.revenue?.[i]?.alt || (prevOk && set.lines.revenue?.[i - 1]?.alt);
     const inputs: RatioInputs = {
+      revenueAmbiguous: revAlt ? 1 : undefined,
       revenue: v("revenue", i),
       revenuePrev: prevOk ? v("revenue", i - 1) : undefined,
       grossProfit: v("grossProfit", i),

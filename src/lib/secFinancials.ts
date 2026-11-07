@@ -4,6 +4,11 @@
 //  - Each line has an ordered list of us-gaap concepts; for each period the first concept
 //    that has a value wins (companies switch tags over the years, e.g. Revenues →
 //    RevenueFromContractWithCustomerExcludingAssessedTax after ASC 606).
+//  - Revenue is different: many filers tag a partial figure with one revenue concept
+//    (e.g. only revenue from contracts with customers, without interest, leases or
+//    commodity sales) and the total with another. The largest candidate wins, and when
+//    another candidate differs by more than 2 % the cell keeps it as `alt` so the UI can
+//    say so and peer statistics can leave the company out.
 //  - When several filings report the same period, the most recently filed value wins
 //    (restatements), and the cell keeps that filing's accession number.
 //  - Annual = 10-K facts covering ~1 year. Quarterly flow values come from 3-month facts
@@ -23,10 +28,21 @@ interface LineDef {
   unit: "USD" | "USD/shares" | "shares";
   concepts: string[];
   additive: boolean; // false: quarterly values are never derived by subtraction (per-share data)
+  largest?: boolean; // pick the largest candidate instead of the first (revenue)
+  fallback?: string[]; // used only when no concept in `concepts` has a value
 }
 
+/** Two revenue totals further apart than this are flagged as ambiguous. */
+export const ALT_TOLERANCE = 0.02;
+
 export const LINES: LineDef[] = [
-  { key: "revenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax", "RevenuesNetOfInterestExpense", "Revenues", "SalesRevenueNet", "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueGoodsNet"] },
+  {
+    key: "revenue", statement: "income", kind: "flow", unit: "USD", additive: true, largest: true,
+    concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax", "RevenuesNetOfInterestExpense", "Revenues", "SalesRevenueNet"],
+    // Only when nothing above is tagged: the first includes excise taxes collected for the
+    // government, the second covers goods only (services are tagged separately).
+    fallback: ["RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueGoodsNet"],
+  },
   { key: "costOfRevenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization"] },
   { key: "grossProfit", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["GrossProfit"] },
   { key: "operatingIncome", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["OperatingIncomeLoss"] },
@@ -55,6 +71,7 @@ export interface Cell {
   accn?: string; // SEC accession number of the filing the value comes from
   form?: string;
   derived?: "ytd_difference" | "fy_minus_9m" | "formula";
+  alt?: { concept: string; value: number }; // another total the SEC data has for this period
 }
 
 export interface Period {
@@ -140,17 +157,38 @@ function annualPeriods(gaap: ConceptMap, maxYears: number): Period[] {
   return out.slice(-maxYears);
 }
 
+/** First concept with a value, or for `largest` lines the largest candidate (see header). */
+export function pickCell(line: Pick<LineDef, "concepts" | "largest" | "fallback">, cellFor: (concept: string) => Cell | null): Cell {
+  const first = (concepts: string[]) => {
+    for (const concept of concepts) {
+      const c = cellFor(concept);
+      if (c && c.value !== null) return c;
+    }
+    return null;
+  };
+  if (!line.largest) return first([...line.concepts, ...(line.fallback ?? [])]) ?? { value: null };
+
+  const cands = line.concepts.map(cellFor).filter((c): c is Cell => c !== null && c.value !== null);
+  if (cands.length === 0) return first(line.fallback ?? []) ?? { value: null };
+  let best = cands[0];
+  for (const c of cands) if (c.value! > best.value!) best = c; // ties keep the earlier concept
+  const others = cands.filter(
+    (c) => c !== best && c.value! > 0 && Math.abs(best.value! - c.value!) > Math.abs(best.value!) * ALT_TOLERANCE,
+  );
+  if (others.length === 0) return best;
+  const alt = others.reduce((a, b) => (a.value! < b.value! ? a : b));
+  return { ...best, alt: { concept: alt.concept!, value: alt.value! } };
+}
+
 function annualCell(gaap: ConceptMap, line: LineDef, p: Period): Cell {
-  for (const concept of line.concepts) {
+  return pickCell(line, (concept) => {
     const facts = factsOf(gaap, concept, line.unit);
     const f =
       line.kind === "instant"
         ? latest(facts, (x) => !x.start && near(x.end, p.end, 3) && (isAnnualForm(x.form) || isQuarterForm(x.form)))
         : latest(facts, (x) => isAnnualForm(x.form) && isYear(x) && near(x.end, p.end, 3));
-    const c = cellFrom(f, concept);
-    if (c) return c;
-  }
-  return { value: null };
+    return cellFrom(f, concept);
+  });
 }
 
 // ---- Quarterly ------------------------------------------------------------
@@ -199,20 +237,17 @@ function quarterPeriods(gaap: ConceptMap, years: Period[], maxQuarters: number):
 
 function quarterCell(gaap: ConceptMap, line: LineDef, q: Period, years: Period[]): Cell {
   const fy = years.find((y) => q.label.endsWith(y.label));
-  for (const concept of line.concepts) {
+  // Each concept is resolved on its own, so a derived value never mixes two concepts.
+  return pickCell(line, (concept): Cell | null => {
     const facts = factsOf(gaap, concept, line.unit);
-    if (facts.length === 0) continue;
+    if (facts.length === 0) return null;
 
-    if (line.kind === "instant") {
-      const c = cellFrom(latest(facts, (x) => !x.start && near(x.end, q.end, 3)), concept);
-      if (c) return c;
-      continue;
-    }
+    if (line.kind === "instant") return cellFrom(latest(facts, (x) => !x.start && near(x.end, q.end, 3)), concept);
 
     // 1) A reported 3-month value.
     const direct = latest(facts, (x) => isQuarter(x) && near(x.end, q.end, 3) && (isQuarterForm(x.form) || isAnnualForm(x.form)));
-    if (direct) return cellFrom(direct, concept)!;
-    if (!line.additive || !fy?.start) continue;
+    if (direct) return cellFrom(direct, concept);
+    if (!line.additive || !fy?.start) return null;
 
     // 2) Year-to-date at this quarter end minus year-to-date at the previous one.
     const ytd = (end: string) =>
@@ -220,10 +255,10 @@ function quarterCell(gaap: ConceptMap, line: LineDef, q: Period, years: Period[]
     const cur = q.label.startsWith("Q4")
       ? latest(facts, (x) => isAnnualForm(x.form) && isYear(x) && near(x.end, fy.end, 3))
       : ytd(q.end);
-    if (!cur) continue;
-    if (q.label.startsWith("Q1")) return cellFrom(cur, concept)!;
+    if (!cur) return null;
+    if (q.label.startsWith("Q1")) return cellFrom(cur, concept);
     const prev = q.start ? ytd(q.start) : undefined;
-    if (!prev) continue;
+    if (!prev) return null;
     return {
       value: cur.val - prev.val,
       concept,
@@ -231,8 +266,7 @@ function quarterCell(gaap: ConceptMap, line: LineDef, q: Period, years: Period[]
       form: cur.form,
       derived: q.label.startsWith("Q4") ? "fy_minus_9m" : "ytd_difference",
     };
-  }
-  return { value: null };
+  });
 }
 
 // ---- Assembly -------------------------------------------------------------

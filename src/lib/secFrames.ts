@@ -1,7 +1,7 @@
 // SEC XBRL "frames": one request returns every filer's value for a concept in a calendar
 // period. Used to build peer distributions without one request per company.
 import { INPUT_KEYS, type RatioInputs } from "./ratios";
-import { LINES, type LineKey } from "./secFinancials";
+import { ALT_TOLERANCE, LINES, type LineKey } from "./secFinancials";
 
 export interface FramePoint {
   cik: number;
@@ -12,14 +12,17 @@ interface FrameSpec {
   input: keyof RatioInputs;
   concepts: string[]; // first concept with a value for a company wins, as in the statements
   uom: string;
-  period: "year" | "prevYear" | "yearEnd" ;
+  period: "year" | "prevYear" | "yearEnd";
+  largest?: boolean; // revenue: the largest candidate wins, as in the statements
+  fallback?: string[];
 }
 
 const chain = (key: LineKey) => LINES.find((l) => l.key === key)!.concepts;
+const revenue = LINES.find((l) => l.key === "revenue")!;
 
 export const FRAME_SPECS: FrameSpec[] = [
-  { input: "revenue", concepts: chain("revenue"), uom: "USD", period: "year" },
-  { input: "revenuePrev", concepts: chain("revenue"), uom: "USD", period: "prevYear" },
+  { input: "revenue", concepts: revenue.concepts, fallback: revenue.fallback, largest: true, uom: "USD", period: "year" },
+  { input: "revenuePrev", concepts: revenue.concepts, fallback: revenue.fallback, largest: true, uom: "USD", period: "prevYear" },
   { input: "grossProfit", concepts: chain("grossProfit"), uom: "USD", period: "year" },
   { input: "costOfRevenue", concepts: chain("costOfRevenue"), uom: "USD", period: "year" },
   { input: "operatingIncome", concepts: chain("operatingIncome"), uom: "USD", period: "year" },
@@ -78,24 +81,51 @@ export type FetchJson = (url: string) => Promise<unknown>;
 
 /**
  * Inputs per company for one year. Frames that 404 (concept unused that year) are skipped;
- * any other failure aborts, so a partial refresh never replaces good data.
+ * any other failure aborts, so a partial refresh never replaces good data. Revenue follows
+ * the statements' rule (largest candidate); competing totals set `revenueAmbiguous`.
  */
 export async function collectYear(year: number, fetchJson: FetchJson, keep?: Set<number>): Promise<Map<number, RatioInputs>> {
   const byCik = new Map<number, RatioInputs>();
+  const inputsOf = (cik: number) => {
+    const i = byCik.get(cik) ?? {};
+    byCik.set(cik, i);
+    return i;
+  };
+  const load = async (concept: string, spec: FrameSpec): Promise<FramePoint[]> => {
+    try {
+      const points = parseFrame(await fetchJson(frameUrl(concept, spec.uom, framePeriod(spec, year))));
+      return keep ? points.filter((p) => keep.has(p.cik)) : points;
+    } catch (e) {
+      if ((e as { status?: number }).status === 404) return [];
+      throw e;
+    }
+  };
+
   for (const spec of FRAME_SPECS) {
-    for (const concept of spec.concepts) {
-      let points: FramePoint[];
-      try {
-        points = parseFrame(await fetchJson(frameUrl(concept, spec.uom, framePeriod(spec, year))));
-      } catch (e) {
-        if ((e as { status?: number }).status === 404) continue;
-        throw e;
+    if (!spec.largest) {
+      for (const concept of [...spec.concepts, ...(spec.fallback ?? [])]) {
+        for (const p of await load(concept, spec)) {
+          const inputs = inputsOf(p.cik);
+          if (inputs[spec.input] === undefined) inputs[spec.input] = p.val;
+        }
       }
-      for (const p of points) {
-        if (keep && !keep.has(p.cik)) continue;
-        const inputs = byCik.get(p.cik) ?? {};
+      continue;
+    }
+    const cands = new Map<number, number[]>();
+    for (const concept of spec.concepts) {
+      for (const p of await load(concept, spec)) cands.set(p.cik, [...(cands.get(p.cik) ?? []), p.val]);
+    }
+    for (const [cik, vals] of cands) {
+      const best = Math.max(...vals);
+      const inputs = inputsOf(cik);
+      inputs[spec.input] = best;
+      if (vals.some((v) => v > 0 && Math.abs(best - v) > Math.abs(best) * ALT_TOLERANCE)) inputs.revenueAmbiguous = 1;
+    }
+    for (const concept of spec.fallback ?? []) {
+      for (const p of await load(concept, spec)) {
+        if (cands.has(p.cik)) continue;
+        const inputs = inputsOf(p.cik);
         if (inputs[spec.input] === undefined) inputs[spec.input] = p.val;
-        byCik.set(p.cik, inputs);
       }
     }
   }

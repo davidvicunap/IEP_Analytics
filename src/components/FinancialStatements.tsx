@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtDate, fmtNum } from "@/lib/format";
 import type { FinancialsPayload } from "@/lib/financials";
 import { filingUrl, type Cell, type LineKey, type Period, type StatementKey, type StatementSet } from "@/lib/secFinancials";
@@ -37,6 +37,14 @@ export function marginCells(set: StatementSet, margin: Margin): (number | null)[
   });
 }
 
+function cellTitle(c: Cell, key: LineKey, lang: "es" | "en", altTitle: string): string | undefined {
+  const parts: string[] = [];
+  if (c.concept) parts.push(`us-gaap:${c.concept}${c.accn ? ` · ${c.accn}` : ""}`);
+  else if (c.derived) parts.push("IEP");
+  if (c.alt) parts.push(fill(altTitle, { v: fmtCell(key, { value: c.alt.value }, lang), concept: `us-gaap:${c.alt.concept}` }));
+  return parts.length ? parts.join("\n") : undefined;
+}
+
 function fmtCell(key: LineKey, c: Cell, lang: "es" | "en"): string {
   if (c.value === null) return "—";
   if (key === "epsDiluted") return `$${fmtNum(c.value, lang, 2)}`;
@@ -44,6 +52,8 @@ function fmtCell(key: LineKey, c: Cell, lang: "es" | "en"): string {
   const s = fmtBig(Math.abs(c.value), lang);
   return c.value < 0 ? `−$${s}` : `$${s}`;
 }
+
+const hasAlt = (set: StatementSet) => Object.values(set.lines).some((cells) => cells?.some((c) => c.alt));
 
 export default function FinancialStatements({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
@@ -105,6 +115,7 @@ export default function FinancialStatements({ symbol }: { symbol: string }) {
 
       <div className="space-y-1 text-[11px] text-muted">
         <p>{t.fin.derivedNote}</p>
+        {hasAlt(set) && <p>{t.fin.altNote}</p>}
         <p>
           {t.fin.source} · {t.data.updated} <time dateTime={state.fetchedAt}>{fmtAsOf(state.fetchedAt, lang)}</time>
         </p>
@@ -152,10 +163,15 @@ function StatementTable({ statement, set, cik, lang }: { statement: StatementKey
                   <td
                     key={i}
                     className={`text-right pl-4 py-1.5 border-t border-line whitespace-nowrap ${c.value !== null && c.value < 0 ? "text-down" : ""}`}
-                    title={c.concept ? `us-gaap:${c.concept}${c.accn ? ` · ${c.accn}` : ""}` : c.derived ? "IEP" : undefined}
+                    title={cellTitle(c, key, lang, t.fin.altTitle)}
                   >
                     {fmtCell(key, c, lang)}
-                    {c.derived && <span className="text-muted" aria-label="calculado">*</span>}
+                    {c.derived && <span className="text-muted" aria-label={t.fin.derivedMark}>*</span>}
+                    {c.alt && (
+                      <span className="text-warn" aria-label={fill(t.fin.altTitle, { v: fmtCell(key, { value: c.alt.value }, lang), concept: c.alt.concept })}>
+                        †
+                      </span>
+                    )}
                   </td>
                 ))}
               </tr>

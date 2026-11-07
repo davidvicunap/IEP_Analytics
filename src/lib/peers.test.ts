@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Db } from "@/db/client";
 import { backfillSic, ensureSic, latestMetricsYear, peerInputs, refreshCompanyMetrics } from "./peers";
-import { assembleRatios } from "./ratiosData";
+import { assembleRatios, sectorComparison } from "./ratiosData";
 import type { StatementSet } from "./secFinancials";
 
 let db: Db;
@@ -107,5 +107,49 @@ describe("assembleRatios", () => {
     expect(net.sector).toBeNull(); // 1 peer < 10
     const gross = r.ratios.find((x) => x.key === "grossMargin")!;
     expect(gross.value).toBeNull();
+  });
+});
+
+describe("sectorComparison", () => {
+  const peer = (cik: number, sic: number, netIncome: number, amb = false) => ({
+    cik, sic, inputs: { revenue: 100, netIncome, ...(amb ? { revenueAmbiguous: 1 } : {}) },
+  });
+
+  it("uses the 3-digit group with ≥ 15 peers, else the 2-digit group with ≥ 10", () => {
+    const same = Array.from({ length: 15 }, (_, k) => peer(100 + k, 3571, k));
+    expect(sectorComparison("netMargin", 0.2, 3571, same)).toMatchObject({ sicPrefix: "357", n: 15, percentile: 100 });
+    const mixed = Array.from({ length: 12 }, (_, k) => peer(200 + k, k < 5 ? 3572 : 3661, k));
+    expect(sectorComparison("netMargin", 0.2, 3571, mixed)).toMatchObject({ sicPrefix: "35", n: 12 });
+    expect(sectorComparison("netMargin", 0.2, 3571, mixed.slice(0, 9))).toBeNull();
+  });
+
+  it("leaves peers with ambiguous revenue out of revenue-based ratios only", () => {
+    const peers = Array.from({ length: 12 }, (_, k) => peer(300 + k, 3600, k, k < 3));
+    expect(sectorComparison("netMargin", 0.05, 3571, peers)).toBeNull(); // 9 usable < 10
+    const roe = peers.map((p) => ({ ...p, inputs: { ...p.inputs, equity: 50 } }));
+    expect(sectorComparison("roe", 0.1, 3571, roe)).toMatchObject({ n: 12 });
+  });
+});
+
+describe("assembleRatios with ambiguous revenue", () => {
+  it("notes revenue-based ratios and skips their sector comparison", async () => {
+    const years = Array.from({ length: 6 }, (_, k) => 2020 + k);
+    const annual: StatementSet = {
+      periods: years.map((y) => ({ end: `${y}-12-31`, label: `FY${y}` })),
+      lines: {
+        revenue: years.map((_, k) => ({
+          value: 100 + k,
+          ...(k === 5 ? { alt: { concept: "RevenueFromContractWithCustomerExcludingAssessedTax", value: 40 } } : {}),
+        })),
+        netIncome: years.map(() => ({ value: 10 })),
+        equity: years.map(() => ({ value: 100 })),
+      },
+    };
+    const r = await assembleRatios(db, { symbol: "BIG", cik: 1, annual });
+    const net = r.ratios.find((x) => x.key === "netMargin")!;
+    expect(net.note).toBe("revenueAmbiguous");
+    expect(net.sector).toBeNull();
+    expect(net.own).not.toBeNull(); // its own history is still shown
+    expect(r.ratios.find((x) => x.key === "roe")!.note).toBeNull();
   });
 });

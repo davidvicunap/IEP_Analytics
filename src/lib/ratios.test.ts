@@ -107,3 +107,29 @@ describe("inputs from statements", () => {
     expect(computeRatios(i[1]).revenueGrowth).toBeCloseTo(0.2);
   });
 });
+
+describe("ambiguous revenue", () => {
+  it("notes revenue-based ratios and leaves the others alone", () => {
+    const i = { ...base, revenueAmbiguous: 1 };
+    expect(ratioNote("netMargin", i, "general")).toBe("revenueAmbiguous");
+    expect(ratioNote("revenueGrowth", i, "general")).toBe("revenueAmbiguous");
+    expect(ratioNote("roe", i, "general")).toBeNull();
+  });
+
+  it("flags inputs when the statements carry another revenue total", () => {
+    const set: StatementSet = {
+      periods: [{ end: "2024-12-31", label: "FY2024" }, { end: "2025-12-31", label: "FY2025" }],
+      lines: { revenue: [{ value: 80 }, { value: 85, alt: { concept: "RevenueFromContractWithCustomerExcludingAssessedTax", value: 27 } }] },
+    };
+    const [a, b] = inputsFromStatements(set);
+    expect(a.revenueAmbiguous).toBeUndefined();
+    expect(b.revenueAmbiguous).toBe(1);
+  });
+
+  it("leaves revenue-based ratios out for banks and insurers", () => {
+    expect(applies("netMargin", "bank")).toBe(false);
+    expect(applies("revenueGrowth", "insurance")).toBe(false);
+    expect(applies("netMargin", "reit")).toBe(true);
+    expect(applies("epsGrowth", "bank")).toBe(true);
+  });
+});

@@ -111,7 +111,8 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
 
 function RatioCard({ r, payload, lang }: { r: RatioRow; payload: RatiosPayload; lang: Lang }) {
   const { t } = useI18n();
-  const level = r.value === null ? null : ratioLevel(r);
+  // No traffic light on a figure the SEC data itself disagrees about.
+  const level = r.value === null || r.note === "revenueAmbiguous" ? null : ratioLevel(r);
   const name = t.ratios.names[r.key];
   return (
     <article className="rounded-lg border border-line bg-panel p-3 flex flex-col gap-2">
@@ -126,23 +127,25 @@ function RatioCard({ r, payload, lang }: { r: RatioRow; payload: RatiosPayload; 
 
       {r.value !== null && (
         <dl className="space-y-2 text-xs">
-          <Comparison
-            label={t.ratios.vsSector}
-            percentile={r.sector?.percentile}
-            text={
-              r.sector && payload.peersYear
-                ? fill(t.ratios.sectorText, {
-                    p: r.sector.percentile,
-                    n: r.sector.n,
-                    sic: `${r.sector.sicPrefix}${"x".repeat(4 - r.sector.sicPrefix.length)}`,
-                    year: payload.peersYear,
-                    m: fmtRatio(r.key, r.sector.median, lang),
-                  })
-                : payload.sic
-                  ? t.ratios.noSector
-                  : t.ratios.noSic
-            }
-          />
+          {r.note !== "revenueAmbiguous" && (
+            <Comparison
+              label={t.ratios.vsSector}
+              percentile={r.sector?.percentile}
+              text={
+                r.sector && payload.peersYear
+                  ? fill(t.ratios.sectorText, {
+                      p: r.sector.percentile,
+                      n: r.sector.n,
+                      sic: `${r.sector.sicPrefix}${"x".repeat(4 - r.sector.sicPrefix.length)}`,
+                      year: payload.peersYear,
+                      m: fmtRatio(r.key, r.sector.median, lang),
+                    })
+                  : payload.sic
+                    ? t.ratios.noSector
+                    : t.ratios.noSic
+              }
+            />
+          )}
           <Comparison
             label={t.ratios.vsHistory}
             percentile={r.own?.percentile}

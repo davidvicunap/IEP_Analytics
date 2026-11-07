@@ -195,6 +195,9 @@ const es = {
     source: "Fuente: SEC EDGAR (XBRL). Cada columna enlaza al informe original; pasa el cursor por una cifra para ver su concepto contable.",
     loading: "Cargando estados financieros de la SEC…",
     openFiling: "Abrir el informe original en la SEC",
+    derivedMark: "calculado",
+    altTitle: "Otro total de ingresos en la SEC: {v} ({concept})",
+    altNote: "† La SEC tiene otro total de ingresos para ese período (más de 2 % de diferencia); mostramos el mayor. Pasa el cursor por la cifra para ver ambos.",
   },
   ratios: {
     marketTitle: "Precio y liquidez (FMP)",
@@ -254,6 +257,7 @@ const es = {
       negativeEquity: "Patrimonio negativo (a menudo por recompras): este ratio no tiene sentido.",
       smallEquity: "El patrimonio es pequeño frente a los activos (recompras), lo que infla el ROE; mira también el ROIC.",
       negativeBase: "El año anterior fue negativo o cero, así que el crecimiento en % no tiene sentido.",
+      revenueAmbiguous: "La SEC tiene dos totales de ingresos distintos para esta empresa; usamos el mayor y la dejamos fuera de la comparación sectorial. Revisa el informe original.",
     },
     notApplicable: "No aplican a este tipo de empresa: {list}.",
     seeHistory: "Ver historial",

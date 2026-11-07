@@ -4,7 +4,7 @@ import { getDb, type Db } from "@/db/client";
 import { getFinancials, type FinancialsPayload } from "./financials";
 import { ensureSic, latestMetricsYear, peerInputs, type PeerRow } from "./peers";
 import {
-  RATIOS, applies, businessType, computeRatios, inputsFromStatements, median, percentileRank, ratioNote,
+  RATIOS, REVENUE_BASED, applies, businessType, computeRatios, inputsFromStatements, median, percentileRank, ratioNote,
   type BusinessType, type RatioGroup, type RatioKey, type RatioNote,
 } from "./ratios";
 import type { DataIssue, Result } from "./types";
@@ -50,15 +50,17 @@ function compare(values: number[], x: number): Comparison | null {
 }
 
 /** Narrowest SIC group with enough peers that report the ratio. */
-function sectorComparison(key: RatioKey, x: number, sic: number, peers: PeerRow[]): RatioRow["sector"] {
+export function sectorComparison(key: RatioKey, x: number, sic: number, peers: PeerRow[]): RatioRow["sector"] {
+  // Peers whose revenue is ambiguous in SEC data stay out of revenue-based comparisons.
+  const usable = REVENUE_BASED.has(key) ? peers.filter((p) => !p.inputs.revenueAmbiguous) : peers;
   const values = (rows: PeerRow[]) =>
     rows.map((p) => computeRatios(p.inputs)[key]).filter((v): v is number => v !== null);
-  const industry = values(peers.filter((p) => Math.floor(p.sic / 10) === Math.floor(sic / 10)));
+  const industry = values(usable.filter((p) => Math.floor(p.sic / 10) === Math.floor(sic / 10)));
   if (industry.length >= MIN_PEERS_INDUSTRY) {
     const c = compare(industry, x);
     return c && { ...c, sicPrefix: String(Math.floor(sic / 10)) };
   }
-  const major = values(peers);
+  const major = values(usable);
   if (major.length >= MIN_PEERS_MAJOR) {
     const c = compare(major, x);
     return c && { ...c, sicPrefix: String(Math.floor(sic / 100)) };
@@ -105,16 +107,20 @@ export async function assembleRatios(db: Db, fin: Pick<FinancialsPayload, "symbo
     const history = periods.map((p, i) => ({ label: p.label, value: applicable ? series[i][r.key] : null }));
     const value = applicable && last >= 0 ? series[last][r.key] : null;
     const own = history.map((h) => h.value).filter((v): v is number => v !== null);
+    const note = applicable && last >= 0 ? ratioNote(r.key, inputs[last], type) : null;
+    // With two competing revenue totals the company is left out of revenue-based sector
+    // comparisons, exactly like ambiguous peers are.
+    const comparable = applicable && value !== null && note !== "revenueAmbiguous";
     return {
       key: r.key,
       group: r.group,
       better: r.better,
       applicable,
       value,
-      note: applicable && last >= 0 ? ratioNote(r.key, inputs[last], type) : null,
+      note,
       history,
       own: applicable && value !== null && own.length >= MIN_OWN_YEARS ? compare(own, value) : null,
-      sector: applicable && value !== null && sicInfo.sic ? sectorComparison(r.key, value, sicInfo.sic, peers) : null,
+      sector: comparable && sicInfo.sic ? sectorComparison(r.key, value!, sicInfo.sic, peers) : null,
     };
   });
 
@@ -146,7 +152,7 @@ const cachedRatios = unstable_cache(
     if (!r.ok) throw new RatiosError(r.error);
     return { data: r.data, fetchedAt: r.fetchedAt };
   },
-  ["sec-ratios-v1"],
+  ["sec-ratios-v2"],
   { revalidate: 21_600, tags: ["sec"] },
 );
 

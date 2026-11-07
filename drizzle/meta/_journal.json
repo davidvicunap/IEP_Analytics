@@ -15,6 +15,13 @@
       "when": 1794022640706,
       "tag": "0001_sector_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794023867437,
+      "tag": "0002_reload_company_metrics",
+      "breakpoints": true
     }
   ]
 }
