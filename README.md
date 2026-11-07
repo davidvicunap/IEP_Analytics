@@ -48,6 +48,19 @@ Mientras se firma la licencia de display de FMP, el sitio solo es accesible con 
 - Sin códigos configurados, nadie puede entrar. Con `BETA_GATE=off`, el sitio es público.
 - Durante la beta, el sitio no se indexa (`robots.txt` y cabecera `X-Robots-Tag`).
 
+## Datos y servicios
+
+| Servicio | Para qué | Variables |
+| --- | --- | --- |
+| Financial Modeling Prep | Cotizaciones, fundamentales, noticias | `FMP_API_KEY` |
+| Neon (Postgres) | Lista de valores de la SEC, búsqueda local | `STORAGE_DATABASE_URL` |
+| Upstash (Redis) | Límite de solicitudes por IP, contador diario de llamadas a FMP | `KV_REST_API_URL`, `KV_REST_API_TOKEN` |
+| SEC EDGAR | Lista de empresas cotizadas (pública) | `SEC_USER_AGENT` |
+
+- Cada build aplica las migraciones de `drizzle/` y carga la lista de la SEC si está vacía o tiene más de 7 días (`scripts/db-setup.ts`). Un cron diario la refresca (`/api/cron/securities`, protegido con `CRON_SECRET`).
+- `GET /api/health` muestra el estado de la base de datos, Redis y el uso diario de FMP (sin datos de mercado; queda fuera de la beta para monitoreo).
+- Para cambiar el esquema: edita `src/db/schema.ts` y ejecuta `npm run db:generate`.
+
 ## Scripts
 
 | Comando | Qué hace |

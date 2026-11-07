@@ -13,7 +13,12 @@ vi.mock("./fmp", async (importOriginal) => {
   };
 });
 
-import { demoAllowed, getQuote, getQuotes, isDemo } from "./data";
+const dbMock = vi.hoisted(() => ({ db: null as unknown, search: vi.fn() }));
+vi.mock("@/db/client", () => ({ getDb: () => dbMock.db }));
+vi.mock("./securities", () => ({ searchSecurities: dbMock.search }));
+
+import { demoAllowed, getQuote, getQuotes, isDemo, searchSymbols } from "./data";
+import * as fmp from "./fmp";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -51,5 +56,29 @@ describe("getQuotes", () => {
     expect(entries.map((e) => e.symbol)).toEqual(["SPY", "QQQ", "AAPL"]);
     expect(entries[0].quote?.price).toBe(100);
     expect(entries[1]).toEqual({ symbol: "QQQ", error: "plan_restricted" });
+  });
+});
+
+describe("searchSymbols", () => {
+  it("answers from the local securities table without calling FMP", async () => {
+    vi.stubEnv("FMP_API_KEY", "real-key");
+    dbMock.db = {};
+    dbMock.search.mockResolvedValueOnce([{ symbol: "AAPL", name: "Apple Inc.", exchange: "NASDAQ" }]);
+    const spy = vi.spyOn(fmp, "fmpSearch");
+    const r = await searchSymbols("apple");
+    expect(r.ok && r.data[0].symbol).toBe("AAPL");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("falls back to FMP when the database fails or has no match", async () => {
+    vi.stubEnv("FMP_API_KEY", "real-key");
+    dbMock.db = {};
+    const spy = vi.spyOn(fmp, "fmpSearch").mockResolvedValue({ ok: true, data: [], fetchedAt: "x" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    dbMock.search.mockRejectedValueOnce(new Error("db down"));
+    await searchSymbols("apple");
+    dbMock.search.mockResolvedValueOnce([]);
+    await searchSymbols("zzzz");
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

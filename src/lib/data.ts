@@ -1,5 +1,7 @@
 // Server-side data facade: real FMP data, or simulated data in development only.
+import { getDb } from "@/db/client";
 import * as fmp from "./fmp";
+import { searchSecurities } from "./securities";
 import * as mock from "./mock";
 import type { DataSource, Quote, QuoteEntry, Result, SearchResult, StockBundle } from "./types";
 
@@ -67,5 +69,18 @@ export async function getStockDetails(symbol: string): Promise<StockDetails> {
 export async function searchSymbols(query: string): Promise<Result<SearchResult[]>> {
   const q = query.trim().slice(0, 40);
   if (!q) return { ok: true, data: [], fetchedAt: now() };
-  return isDemo() ? demo(mock.mockSearch(q)) : fmp.fmpSearch(q);
+  if (isDemo()) return demo(mock.mockSearch(q));
+
+  // Local search over the SEC securities list: instant and uses no FMP quota.
+  // FMP is the fallback when the database is missing, failing or has no match.
+  const db = getDb();
+  if (db) {
+    try {
+      const data = await searchSecurities(db, q);
+      if (data.length > 0) return { ok: true, data, fetchedAt: now() };
+    } catch (e) {
+      console.error(JSON.stringify({ event: "db_search_error", message: e instanceof Error ? e.message : String(e) }));
+    }
+  }
+  return fmp.fmpSearch(q);
 }
