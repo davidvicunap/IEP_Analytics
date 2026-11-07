@@ -127,3 +127,49 @@ export async function peerInputs(db: Db, sic: number, year: number, excludeCik: 
   const seen = new Set<number>();
   return rows.flatMap((r) => (seen.has(r.cik) || r.sic === null ? [] : (seen.add(r.cik), [{ cik: r.cik, sic: r.sic, inputs: cleanInputs(r.inputs) }])));
 }
+
+// ---- Peers for valuation ---------------------------------------------------------------
+
+export interface ListedPeer extends PeerRow {
+  symbol: string;
+  rank: number | null;
+}
+
+/**
+ * The largest listed companies in the same 2-digit SIC group with yearly inputs, one
+ * symbol per company (its most valuable share class), largest first.
+ */
+export async function listedPeers(db: Db, sic: number, year: number, excludeCik: number, limit = 40): Promise<ListedPeer[]> {
+  const lo = Math.floor(sic / 100) * 100;
+  const rows = await db
+    .select({
+      cik: securities.cik,
+      symbol: securities.symbol,
+      rank: securities.rank,
+      sic: securities.sic,
+      inputs: companyMetrics.inputs,
+    })
+    .from(securities)
+    .innerJoin(companyMetrics, and(eq(companyMetrics.cik, securities.cik), eq(companyMetrics.year, year)))
+    .where(and(eq(securities.active, true), gte(securities.sic, lo), lte(securities.sic, lo + 99), ne(securities.cik, excludeCik)))
+    .orderBy(sql`${securities.rank} asc nulls last`, asc(securities.symbol));
+  const seen = new Set<number>();
+  const out: ListedPeer[] = [];
+  for (const r of rows) {
+    if (seen.has(r.cik) || r.sic === null) continue;
+    seen.add(r.cik);
+    out.push({ cik: r.cik, symbol: r.symbol, rank: r.rank, sic: r.sic, inputs: cleanInputs(r.inputs) });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** A company's own yearly inputs (same source and year as its peers). */
+export async function companyYearInputs(db: Db, cik: number, year: number): Promise<RatioInputs | null> {
+  const [row] = await db
+    .select({ inputs: companyMetrics.inputs })
+    .from(companyMetrics)
+    .where(and(eq(companyMetrics.cik, cik), eq(companyMetrics.year, year)))
+    .limit(1);
+  return row ? cleanInputs(row.inputs) : null;
+}

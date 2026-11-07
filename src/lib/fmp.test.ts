@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // unstable_cache needs a Next.js server; in unit tests it simply calls through.
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
-import { fmpFundamentals, fmpQuote, fmpSearch, kindFromMessage, kindFromStatus } from "./fmp";
+import { fmpEquityRiskPremium, fmpFundamentals, fmpMarketCaps, fmpQuote, fmpSearch, fmpTreasury10y, kindFromMessage, kindFromStatus } from "./fmp";
 
 const KEY = "test-secret-key-123";
 
@@ -134,5 +134,49 @@ describe("partial results", () => {
     );
     const r = await fmpSearch("apple");
     expect(r.ok && r.data.map((x) => x.symbol)).toEqual(["AAPL", "APLE"]);
+  });
+});
+
+describe("valuation inputs", () => {
+  it("takes the latest 10-year Treasury yield as a fraction", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respond(200, [
+        { date: "2026-11-05", month1: 4.03, year10: 4.84 },
+        { date: "2026-11-06", month1: 4.02, year10: 4.86 },
+      ]),
+    );
+    const r = await fmpTreasury10y();
+    expect(r.ok && r.data).toEqual({ value: 0.0486, date: "2026-11-06" });
+  });
+
+  it("reads the US equity risk premium", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respond(200, [
+        { country: "United Kingdom", countryRiskPremium: 0.78, totalEquityRiskPremium: 5.01 },
+        { country: "United States", countryRiskPremium: 0.23, totalEquityRiskPremium: 4.46 },
+      ]),
+    );
+    const r = await fmpEquityRiskPremium();
+    expect(r.ok && r.data.value).toBeCloseTo(0.0446);
+  });
+
+  it("returns market caps for the symbols the plan covers and skips the rest", async () => {
+    const fetchMock = respond(200, [
+      { symbol: "JPM", date: "2026-11-06", marketCap: 889137973100 },
+      { symbol: "WFC", date: "2026-11-06", marketCap: 251975289000 },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await fmpMarketCaps(["wfc", "JPM", "ADM", "JPM"]);
+    expect(r.ok && r.data).toEqual({ JPM: 889137973100, WFC: 251975289000 });
+    const url = String((fetchMock.mock.calls[0] as unknown[])[0]);
+    expect(url).toContain("market-capitalization-batch?symbols=ADM%2CJPM%2CWFC");
+  });
+
+  it("reports a plan restriction instead of an empty answer", async () => {
+    vi.stubGlobal("fetch", respond(402, "Restricted Endpoint"));
+    const r = await fmpMarketCaps(["ADM"]);
+    expect(r).toEqual({ ok: false, error: "plan_restricted" });
   });
 });

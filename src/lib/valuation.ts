@@ -1,6 +1,6 @@
 // Valuation multiples from SEC fundamentals and market prices. Pure functions: the server
 // assembles the inputs (valuationData.ts) and the same code runs in tests.
-import { median, percentileRank, type BusinessType } from "./ratios";
+import { median, percentileRank, type BusinessType, type RatioInputs } from "./ratios";
 import type { LineKey, SharesHistory, StatementSet } from "./secFinancials";
 
 export type MultipleKey = "pe" | "ps" | "pb" | "fcfYield";
@@ -173,4 +173,48 @@ export function historyStats(history: HistoryPoint[], key: MultipleKey, current:
     n: values.length,
     from: pts[0].date,
   };
+}
+
+// ---- Peers (same fiscal year for everyone) ------------------------------------------
+
+/** Multiples on one fiscal year's figures (SEC frames inputs), the basis used for peers. */
+export function yearMultiples(marketCap: number, i: RatioInputs): Record<MultipleKey, number | null> {
+  const pos = (v: number | undefined) => (v !== undefined && v > 0 ? v : null);
+  const ni = pos(i.netIncome);
+  const rev = i.revenueAmbiguous ? null : pos(i.revenue);
+  const eq = pos(i.equity);
+  return {
+    pe: ni ? marketCap / ni : null,
+    ps: rev ? marketCap / rev : null,
+    pb: eq ? marketCap / eq : null,
+    fcfYield: i.ocf !== undefined && i.capex !== undefined && marketCap > 0 ? (i.ocf - i.capex) / marketCap : null,
+  };
+}
+
+export const MIN_VALUATION_PEERS = 5;
+
+export interface PeerComparison {
+  value: number; // the company's multiple on the same basis
+  percentile: number;
+  median: number;
+  n: number;
+  sicPrefix: string;
+}
+
+/** Narrowest SIC group (3 digits, then 2) with enough priced peers. */
+export function peerComparison(
+  key: MultipleKey,
+  value: number,
+  sic: number,
+  peers: { sic: number; values: Record<MultipleKey, number | null> }[],
+): PeerComparison | null {
+  const vals = (rows: typeof peers) => rows.map((p) => p.values[key]).filter((v): v is number => v !== null);
+  for (const digits of [3, 2]) {
+    const div = digits === 3 ? 10 : 100;
+    const group = vals(peers.filter((p) => Math.floor(p.sic / div) === Math.floor(sic / div)));
+    if (group.length >= MIN_VALUATION_PEERS) {
+      return { value, percentile: percentileRank(group, value)!, median: median(group)!, n: group.length, sicPrefix: String(Math.floor(sic / div)) };
+    }
+  }
+  return null;
 }

@@ -21,7 +21,7 @@ const BASE = "https://financialmodelingprep.com/stable";
 const TIMEOUT_MS = 8000;
 
 /** Cache lifetimes in seconds per data class. */
-export const TTL = { quote: 60, news: 900, prices: 3600, fundamentals: 86400 } as const;
+export const TTL = { quote: 60, news: 900, prices: 3600, rates: 43200, fundamentals: 86400 } as const;
 
 export function hasFmpKey(): boolean {
   return Boolean(process.env.FMP_API_KEY);
@@ -311,4 +311,57 @@ export async function fmpSearch(query: string): Promise<Result<SearchResult[]>> 
   }
   const fetchedAt = bySymbol.ok ? bySymbol.fetchedAt : (byName as { fetchedAt: string }).fetchedAt;
   return { ok: true, data: out.slice(0, 10), fetchedAt };
+}
+
+// ---- Valuation inputs -------------------------------------------------------------
+
+export interface Rate {
+  value: number; // as a fraction: 0.0486 for 4.86 %
+  date: string;
+}
+
+/** 4.86 → 0.0486 without float noise (FMP sends percentages with two decimals). */
+const pct = (v: number) => Math.round(v * 10_000) / 1_000_000;
+
+/** Latest 10-year US Treasury yield (constant maturity). */
+export function fmpTreasury10y(): Promise<Result<Rate>> {
+  const from = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+  return attempt("treasury-rates", async () => {
+    const { rows, fetchedAt } = await get("treasury-rates", { from }, TTL.rates);
+    const latest = rows
+      .filter((r) => str(r.date) && num(r.year10) !== undefined)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    if (!latest) throw new ProviderError("not_found");
+    return { data: { value: pct(num(latest.year10)!), date: String(latest.date).slice(0, 10) }, fetchedAt };
+  });
+}
+
+/** Total equity risk premium for the United States (mature-market premium + country risk). */
+export function fmpEquityRiskPremium(): Promise<Result<Rate>> {
+  return attempt("market-risk-premium", async () => {
+    const { rows, fetchedAt } = await get("market-risk-premium", {}, TTL.fundamentals);
+    const us = rows.find((r) => r.country === "United States");
+    const v = num(us?.totalEquityRiskPremium);
+    if (v === undefined) throw new ProviderError("not_found");
+    return { data: { value: pct(v), date: fetchedAt.slice(0, 10) }, fetchedAt };
+  });
+}
+
+/**
+ * Current market caps for many symbols in one call. Plans that cover only some symbols
+ * simply leave the others out, so callers must handle a partial map.
+ */
+export function fmpMarketCaps(symbols: string[]): Promise<Result<Record<string, number>>> {
+  const list = [...new Set(symbols.map((s) => s.toUpperCase()))].sort();
+  return attempt("market-capitalization-batch", async () => {
+    if (list.length === 0) return { data: {}, fetchedAt: new Date().toISOString() };
+    const { rows, fetchedAt } = await get("market-capitalization-batch", { symbols: list.join(",") }, TTL.fundamentals);
+    const data: Record<string, number> = {};
+    for (const r of rows) {
+      const sym = str(r.symbol);
+      const cap = num(r.marketCap);
+      if (sym && cap !== undefined && cap > 0) data[sym.toUpperCase()] = cap;
+    }
+    return { data, fetchedAt };
+  });
 }
