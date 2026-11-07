@@ -52,13 +52,14 @@ Mientras se firma la licencia de display de FMP, el sitio solo es accesible con 
 
 | Servicio | Para qué | Variables |
 | --- | --- | --- |
-| Financial Modeling Prep | Cotizaciones, fundamentales, noticias | `FMP_API_KEY` |
+| Financial Modeling Prep | Cotizaciones, precios históricos, capitalización de comparables, bono del Tesoro a 10 años y prima de riesgo, noticias | `FMP_API_KEY` |
 | Neon (Postgres) | Lista de valores de la SEC, búsqueda local | `STORAGE_DATABASE_URL` |
 | Upstash (Redis) | Límite de solicitudes por IP, contador diario de llamadas a FMP | `KV_REST_API_URL`, `KV_REST_API_TOKEN` |
-| SEC EDGAR | Lista de empresas cotizadas (pública) | `SEC_USER_AGENT` |
+| SEC EDGAR | Lista de empresas, estados financieros (XBRL), acciones en circulación, datos sectoriales (pública) | `SEC_USER_AGENT` |
 
 - Cada build aplica las migraciones de `drizzle/` y carga la lista de la SEC si está vacía o tiene más de 7 días (`scripts/db-setup.ts`). Un cron diario la refresca (`/api/cron/securities`, protegido con `CRON_SECRET`).
 - Datos sectoriales (ratios con percentiles): el build y un cron diario (`/api/cron/sec-metrics`) cargan cada semana los datos anuales de todas las cotizadas desde los «frames» de la SEC (`company_metrics`) y rellenan poco a poco el código SIC de cada empresa, de mayor a menor (≈ 8 consultas/s, por debajo del límite de 10/s de la SEC).
+- Valoración (`/api/valuation/[symbol]`, dentro de la beta porque usa precios de FMP): múltiplos de 12 meses con datos de la SEC; historial de 5 años reconstruido con cierres ajustados por splits × acciones en circulación de la SEC (el historial de capitalización de FMP solo cubre 1 mes en el plan gratuito); comparables con su capitalización en una sola llamada. En el plan gratuito de FMP solo un grupo de acciones grandes tiene precio, así que la comparación con pares casi nunca tendrá 5 empresas; con un plan de pago aparece sola. El DCF se verifica contra `scripts/reference/dcf_reference.py` (tolerancia ≤ 0,5 %).
 - `GET /api/health` muestra el estado de la base de datos, Redis y el uso diario de FMP (sin datos de mercado; queda fuera de la beta para monitoreo).
 - Para cambiar el esquema: edita `src/db/schema.ts` y ejecuta `npm run db:generate`.
 
