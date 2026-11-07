@@ -31,6 +31,7 @@ export async function refreshSecurities(db: Db, rows: Omit<NewSecurity, "updated
           cik: sql`excluded.cik`,
           name: sql`excluded.name`,
           exchange: sql`excluded.exchange`,
+          rank: sql`excluded.rank`,
           active: sql`excluded.active`,
           updatedAt: sql`excluded.updated_at`,
         },

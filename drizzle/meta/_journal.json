@@ -8,6 +8,13 @@
       "when": 1794019981334,
       "tag": "0000_securities",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794022640706,
+      "tag": "0001_sector_metrics",
+      "breakpoints": true
     }
   ]
 }
