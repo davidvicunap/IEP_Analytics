@@ -347,3 +347,86 @@ export function fmpMarketCaps(symbols: string[]): Promise<Result<Record<string, 
     return { data, fetchedAt };
   });
 }
+
+// ---- Analysts -------------------------------------------------------------------------
+// Consensus figures from FMP. Lower plans cover a fixed list of large companies; for the rest
+// FMP answers with a plan error, which the UI shows as such.
+
+export interface Range {
+  avg: number;
+  low?: number;
+  high?: number;
+}
+
+export interface AnalystEstimate {
+  date: string; // end of the fiscal year the estimate is for
+  revenue: Range | null;
+  eps: Range | null; // usually the "adjusted" EPS analysts follow, not GAAP EPS
+  analystsRevenue?: number;
+  analystsEps?: number;
+}
+
+/** First numeric field among the names FMP has used for it (stable API first, then legacy). */
+const pick = (r: Json, ...keys: string[]) => keys.map((k) => num(r[k])).find((v) => v !== undefined);
+
+/** Annual consensus estimates, oldest fiscal year first (past years included). */
+export function fmpAnalystEstimates(symbol: string): Promise<Result<AnalystEstimate[]>> {
+  return attempt("analyst-estimates", async () => {
+    const { rows, fetchedAt } = await get("analyst-estimates", { symbol, period: "annual", page: "0", limit: "10" }, TTL.fundamentals);
+    const data = rows
+      .filter((r) => str(r.date))
+      .map((r): AnalystEstimate => {
+        const rev = pick(r, "revenueAvg", "estimatedRevenueAvg");
+        const eps = pick(r, "epsAvg", "estimatedEpsAvg");
+        return {
+          date: String(r.date).slice(0, 10),
+          revenue: rev === undefined ? null : { avg: rev, low: pick(r, "revenueLow", "estimatedRevenueLow"), high: pick(r, "revenueHigh", "estimatedRevenueHigh") },
+          eps: eps === undefined ? null : { avg: eps, low: pick(r, "epsLow", "estimatedEpsLow"), high: pick(r, "epsHigh", "estimatedEpsHigh") },
+          analystsRevenue: pick(r, "numAnalystsRevenue", "numberAnalystEstimatedRevenue"),
+          analystsEps: pick(r, "numAnalystsEps", "numberAnalystsEstimatedEps"),
+        };
+      })
+      .filter((e) => e.revenue || e.eps)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (data.length === 0) throw new ProviderError("not_found");
+    return { data, fetchedAt };
+  });
+}
+
+export interface PriceTarget {
+  consensus: number;
+  median?: number;
+  high?: number;
+  low?: number;
+}
+
+export function fmpPriceTarget(symbol: string): Promise<Result<PriceTarget>> {
+  return attempt("price-target-consensus", async () => {
+    const { rows, fetchedAt } = await get("price-target-consensus", { symbol }, TTL.fundamentals);
+    const r = rows[0];
+    const consensus = r ? num(r.targetConsensus) : undefined;
+    if (!r || consensus === undefined || !(consensus > 0)) throw new ProviderError("not_found");
+    return { data: { consensus, median: num(r.targetMedian), high: num(r.targetHigh), low: num(r.targetLow) }, fetchedAt };
+  });
+}
+
+export interface Grades {
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strongSell: number;
+  consensus?: string;
+}
+
+export function fmpGrades(symbol: string): Promise<Result<Grades>> {
+  return attempt("grades-consensus", async () => {
+    const { rows, fetchedAt } = await get("grades-consensus", { symbol }, TTL.fundamentals);
+    const r = rows[0];
+    if (!r) throw new ProviderError("not_found");
+    const n = (k: string) => Math.max(0, Math.round(num(r[k]) ?? 0));
+    const data: Grades = { strongBuy: n("strongBuy"), buy: n("buy"), hold: n("hold"), sell: n("sell"), strongSell: n("strongSell"), consensus: str(r.consensus) };
+    if (data.strongBuy + data.buy + data.hold + data.sell + data.strongSell === 0) throw new ProviderError("not_found");
+    return { data, fetchedAt };
+  });
+}

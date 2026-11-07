@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // unstable_cache needs a Next.js server; in unit tests it simply calls through.
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
-import { fmpEquityRiskPremium, fmpFundamentals, fmpMarketCaps, fmpQuote, fmpSearch, fmpTreasury10y, kindFromMessage, kindFromStatus } from "./fmp";
+import {
+  fmpAnalystEstimates, fmpEquityRiskPremium, fmpFundamentals, fmpGrades, fmpMarketCaps, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
+  kindFromMessage, kindFromStatus,
+} from "./fmp";
 
 const KEY = "test-secret-key-123";
 
@@ -180,3 +183,39 @@ describe("valuation inputs", () => {
     expect(r).toEqual({ ok: false, error: "plan_restricted" });
   });
 });
+
+describe("analysts", () => {
+  it("reads annual estimates oldest first, with the stable API's field names", async () => {
+    const fetchMock = respond(200, [
+      { symbol: "AAPL", date: "2028-09-27", revenueLow: 500e9, revenueHigh: 560e9, revenueAvg: 527.9e9, epsAvg: 10.77, epsHigh: 11.5, epsLow: 9.9, numAnalystsRevenue: 18, numAnalystsEps: 20 },
+      { symbol: "AAPL", date: "2027-09-27", revenueAvg: 502.8e9, epsAvg: 9.79, numAnalystsRevenue: 25, numAnalystsEps: 28 },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await fmpAnalystEstimates("AAPL");
+    expect(r.ok && r.data.map((e) => e.date)).toEqual(["2027-09-27", "2028-09-27"]);
+    expect(r.ok && r.data[1]).toMatchObject({ revenue: { avg: 527.9e9, low: 500e9, high: 560e9 }, eps: { avg: 10.77, low: 9.9, high: 11.5 }, analystsEps: 20 });
+    const url = String((fetchMock.mock.calls[0] as unknown[])[0]);
+    expect(url).toContain("analyst-estimates?symbol=AAPL&period=annual");
+  });
+
+  it("also understands the legacy field names", async () => {
+    vi.stubGlobal("fetch", respond(200, [{ date: "2027-09-27", estimatedRevenueAvg: 5e11, estimatedEpsAvg: 9.8, numberAnalystsEstimatedEps: 7 }]));
+    const r = await fmpAnalystEstimates("AAPL");
+    expect(r.ok && r.data[0]).toMatchObject({ revenue: { avg: 5e11 }, eps: { avg: 9.8 }, analystsEps: 7 });
+  });
+
+  it("reports symbols outside the plan as a plan restriction", async () => {
+    vi.stubGlobal("fetch", respond(402, "Premium Query Parameter: this value set for 'symbol' is not available under your current subscription"));
+    expect(await fmpAnalystEstimates("ADM")).toEqual({ ok: false, error: "plan_restricted" });
+  });
+
+  it("reads the price target and the ratings, and treats empty answers as no coverage", async () => {
+    vi.stubGlobal("fetch", respond(200, [{ symbol: "AAPL", targetHigh: 350, targetLow: 220, targetConsensus: 301.5, targetMedian: 305 }]));
+    expect(await fmpPriceTarget("AAPL")).toMatchObject({ ok: true, data: { consensus: 301.5, median: 305, high: 350, low: 220 } });
+    vi.stubGlobal("fetch", respond(200, [{ symbol: "AAPL", strongBuy: 1, buy: 29, hold: 11, sell: 4, strongSell: 0, consensus: "Buy" }]));
+    expect(await fmpGrades("AAPL")).toMatchObject({ ok: true, data: { buy: 29, hold: 11, sell: 4, consensus: "Buy" } });
+    vi.stubGlobal("fetch", respond(200, []));
+    expect(await fmpGrades("ZZZZ")).toEqual({ ok: false, error: "not_found" });
+  });
+});
+

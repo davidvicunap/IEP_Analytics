@@ -6,13 +6,12 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { scoreFundamentals, summarize, technicalSignals } from "@/lib/scoring";
 import type { StockBundle } from "@/lib/types";
-import { IncomeBars, MetricGrid } from "./Fundamentals";
 import FinancialStatements from "./FinancialStatements";
 import ChartTab from "./ChartTab";
 import NewsPanel, { OfficialReleases } from "./NewsPanel";
 import FilingsPanel from "./FilingsPanel";
 import InsidersPanel from "./InsidersPanel";
-import RatiosPanel from "./RatiosPanel";
+import FundamentalsPanel from "./fundamentals/FundamentalsPanel";
 import ValuationPanel from "./ValuationPanel";
 import { Change, Dot, IssueNote, Panel, Provenance, WatchButton } from "./ui";
 
@@ -23,8 +22,6 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
 
 type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "filings" | "insiders" | "news";
 const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "filings", "insiders", "news"];
-// The FMP grid keeps what neither RatiosPanel (SEC ratios) nor ValuationPanel (multiples) covers.
-const MARKET_METRICS = new Set(["dividendYield", "currentRatio"]);
 
 export default function StockView({ data }: { data: StockBundle }) {
   const { t, lang } = useI18n();
@@ -192,23 +189,7 @@ export default function StockView({ data }: { data: StockBundle }) {
           />
         )}
 
-        {tab === "fundamentals" && (
-          <div className="space-y-4">
-            <RatiosPanel symbol={q.symbol} />
-            {data.fundamentals.ok ? (
-              <div className="space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.ratios.marketTitle}</h2>
-                <MetricGrid scores={scores.filter((s) => MARKET_METRICS.has(s.key))} />
-                <Provenance source={data.source} asOf={data.fundamentals.fetchedAt} />
-              </div>
-            ) : (
-              <Panel>
-                <IssueNote issue={data.fundamentals.error} />
-              </Panel>
-            )}
-            <IncomeBars income={data.income} source={data.source} />
-          </div>
-        )}
+        {tab === "fundamentals" && <FundamentalsPanel symbol={q.symbol} price={q.price} />}
 
         {tab === "valuation" && <ValuationPanel symbol={q.symbol} />}
 

@@ -9,7 +9,7 @@ Un "Bloomberg Terminal para dummies": análisis de acciones de EE.UU. explicado 
 - **Buscador** por nombre o ticker con autocompletado (atajo `/` en desktop).
 - **Gráfico interactivo** (velas o línea, 1M/6M/1A/5A) con medias móviles 50/200, Bandas de Bollinger, RSI, MACD y volumen. Cada indicador trae su explicación «¿Qué es esto?».
 - **Señales técnicas** en lenguaje humano (sobrecompra/sobreventa, tendencia, cruce dorado, impulso).
-- **Fundamentales con semáforo** (verde/amarillo/rojo): P/E, P/S, P/B, crecimiento de ventas, márgenes, ROE, deuda, liquidez, dividendo, más un gráfico de ingresos y beneficio a 5 años.
+- **Fundamentales para inversores a largo plazo**: las pruebas de calidad estilo Buffett sobre 10 años de 10-K de la SEC (ROIC alto y constante, margen bruto, BPA creciente, conversión a caja, capex, deuda, intereses, recompras; pruebas propias para bancos y aseguradoras), crecimiento compuesto a 3/5/10 años, lo que esperan los analistas (estimaciones de ingresos y BPA, precio objetivo y recomendaciones de FMP), 10 años de tendencias y los ratios frente al sector. Las cifras por acción se ajustan por splits.
 - **«En pocas palabras»**: resumen automático de la acción en 3–5 frases.
 - **Watchlist** guardada en el navegador y **noticias** por ticker.
 - Tema claro/oscuro, accesible (teclado, lectores de pantalla, contraste AA) y sin scroll horizontal desde 320px.
