@@ -18,7 +18,18 @@ describe("service configuration", () => {
     expect(redisConfig({ KV_REST_API_URL: "https://r", KV_REST_API_TOKEN: "t" })).toEqual({ url: "https://r", token: "t" });
     expect(redisConfig({ STORAGE_KV_REST_API_URL: "https://s", STORAGE_KV_REST_API_TOKEN: "u" })).toEqual({ url: "https://s", token: "u" });
     expect(redisConfig({ UPSTASH_REDIS_REST_URL: "https://x", UPSTASH_REDIS_REST_TOKEN: "y" })).toEqual({ url: "https://x", token: "y" });
+    // What the integration actually created in this project:
+    expect(
+      redisConfig({
+        STORAGE_REDIS_KV_REST_API_URL: "https://p",
+        STORAGE_REDIS_KV_REST_API_TOKEN: "rw",
+        STORAGE_REDIS_KV_REST_API_READ_ONLY_TOKEN: "ro",
+      }),
+    ).toEqual({ url: "https://p", token: "rw" });
+    // Unprefixed names win over prefixed ones.
+    expect(redisConfig({ STORAGE_KV_REST_API_URL: "https://s", STORAGE_KV_REST_API_TOKEN: "u", KV_REST_API_URL: "https://r", KV_REST_API_TOKEN: "t" })).toEqual({ url: "https://r", token: "t" });
     expect(redisConfig({ KV_REST_API_URL: "https://r" })).toBeNull(); // token missing
+    expect(redisConfig({ A_KV_REST_API_URL: "https://r", B_KV_REST_API_TOKEN: "t" })).toBeNull(); // prefixes differ
   });
 });
 
