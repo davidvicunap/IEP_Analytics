@@ -4,6 +4,7 @@
 // - Only successful responses are cached: errors throw inside the cached function,
 //   so a transient 429 or plan error is retried on the next request instead of sticking.
 import { unstable_cache } from "next/cache";
+import { recordProviderCall } from "./quota";
 import type {
   AnnualIncome,
   Candle,
@@ -80,6 +81,7 @@ export async function fetchFmp(path: string, params: Record<string, string>): Pr
   const key = process.env.FMP_API_KEY;
   if (!key) throw logged(new ProviderError("not_configured"), path);
   const qs = new URLSearchParams({ ...params, apikey: key });
+  await recordProviderCall("fmp"); // counts real upstream calls only (cache hits never get here)
 
   let res: Response;
   try {
