@@ -1,0 +1,92 @@
+{
+ "note": "Real inputs as of 2026-11-06: trailing FCF from SEC filings, market cap from FMP, 10-year Treasury 4.86 % + US equity risk premium 4.46 % (FMP). Expected values come from scripts/reference/dcf_reference.py.",
+ "r": 0.0932,
+ "gT": 0.025,
+ "cases": [
+  {
+   "symbol": "AAPL",
+   "ttm": "Q4 FY2026",
+   "fcf0": 136056000000,
+   "marketCap": 4996616254000,
+   "scenarios": {
+    "bear": 0.0049999999999999975,
+    "base": 0.055,
+    "bull": 0.10500000000000001
+   },
+   "expected": {
+    "bear": 1826430076805.2476,
+    "base": 2419847221803.609,
+    "bull": 3193295225889.6904,
+    "impliedGrowth": 0.1876577453801323
+   }
+  },
+  {
+   "symbol": "MSFT",
+   "ttm": "Q1 FY2027",
+   "fcf0": 59957000000,
+   "marketCap": 3940410675900,
+   "scenarios": {
+    "bear": 0.09499999999999999,
+    "base": 0.145,
+    "bull": 0.195
+   },
+   "expected": {
+    "bear": 1331767288048.3855,
+    "base": 1750791760610.8513,
+    "bull": 2289597292671.197,
+    "impliedGrowth": 0.2996129534451883
+   }
+  },
+  {
+   "symbol": "NVDA",
+   "ttm": "Q2 FY2027",
+   "fcf0": 127006000000,
+   "marketCap": 4498024000000,
+   "scenarios": {
+    "bear": 0.15000000000000002,
+    "base": 0.2,
+    "bull": 0.25
+   },
+   "expected": {
+    "bear": 3810459338376.374,
+    "base": 4980390793666.955,
+    "bull": 6472796694521.734,
+    "impliedGrowth": 0.18085529169684467
+   }
+  },
+  {
+   "symbol": "KO",
+   "ttm": "Q3 FY2026",
+   "fcf0": 14282000000,
+   "marketCap": 411562996389,
+   "scenarios": {
+    "bear": 0.024999999999999994,
+    "base": 0.075,
+    "bull": 0.125
+   },
+   "expected": {
+    "bear": 214648826979.47214,
+    "base": 283968533876.7117,
+    "bull": 374044156383.9376,
+    "impliedGrowth": 0.14255964404532132
+   }
+  },
+  {
+   "symbol": "XOM",
+   "ttm": "Q1 FY2026",
+   "fcf0": 18792000000,
+   "marketCap": 676620638563,
+   "scenarios": {
+    "bear": 0.08,
+    "base": 0.13,
+    "bull": 0.18
+   },
+   "expected": {
+    "bear": 384158432856.15674,
+    "base": 505772970495.823,
+    "bull": 662499750235.4635,
+    "impliedGrowth": 0.18394954368400349
+   }
+  }
+ ]
+}

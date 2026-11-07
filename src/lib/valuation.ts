@@ -1,0 +1,176 @@
+// Valuation multiples from SEC fundamentals and market prices. Pure functions: the server
+// assembles the inputs (valuationData.ts) and the same code runs in tests.
+import { median, percentileRank, type BusinessType } from "./ratios";
+import type { LineKey, SharesHistory, StatementSet } from "./secFinancials";
+
+export type MultipleKey = "pe" | "ps" | "pb" | "fcfYield";
+export type MultipleNote = "loss" | "negativeEquity" | "negativeFcf" | "revenueAmbiguous";
+
+export interface MultipleDef {
+  key: MultipleKey;
+  appliesTo: BusinessType[];
+  /** true when a higher value means a cheaper stock (yields), false for price multiples. */
+  higherIsCheaper: boolean;
+}
+
+// Banks and insurers are valued on earnings and book value; REITs on assets and cash flow
+// (FFO isn't in standard XBRL, and net income understates REIT earnings because of depreciation).
+export const MULTIPLES: MultipleDef[] = [
+  { key: "pe", appliesTo: ["general", "bank", "insurance"], higherIsCheaper: false },
+  { key: "ps", appliesTo: ["general", "reit"], higherIsCheaper: false },
+  { key: "pb", appliesTo: ["general", "bank", "insurance", "reit"], higherIsCheaper: false },
+  { key: "fcfYield", appliesTo: ["general", "reit"], higherIsCheaper: true },
+];
+
+/** Trailing twelve months ending at a quarter; balance-sheet values at that quarter end. */
+export interface Ttm {
+  end: string;
+  filed: string; // when the last of the four quarters became public
+  label: string;
+  revenue?: number;
+  netIncome?: number;
+  fcf?: number;
+  equity?: number;
+  revenueAmbiguous?: boolean;
+}
+
+const DAY = 86_400_000;
+const quarterApart = (a: string, b: string) => {
+  const d = (Date.parse(b) - Date.parse(a)) / DAY;
+  return d >= 80 && d <= 100;
+};
+
+/** TTM figures for every run of four consecutive quarters. */
+export function ttmSeries(q: StatementSet): Ttm[] {
+  const out: Ttm[] = [];
+  const value = (k: LineKey, i: number) => q.lines[k]?.[i]?.value ?? null;
+  for (let i = 3; i < q.periods.length; i++) {
+    const idx = [i - 3, i - 2, i - 1, i];
+    if (!idx.slice(1).every((j, k) => quarterApart(q.periods[idx[k]].end, q.periods[j].end))) continue;
+    const sum = (k: LineKey) => {
+      const vals = idx.map((j) => value(k, j));
+      return vals.every((v) => v !== null) ? vals.reduce((a, b) => a + b!, 0) : undefined;
+    };
+    const p = q.periods[i];
+    const t: Ttm = {
+      end: p.end,
+      filed: p.filed ?? p.end,
+      label: p.label,
+      revenue: sum("revenue"),
+      netIncome: sum("netIncome"),
+      fcf: sum("freeCashFlow"),
+      equity: value("equity", i) ?? undefined,
+      revenueAmbiguous: idx.some((j) => !!q.lines.revenue?.[j]?.alt) || undefined,
+    };
+    out.push(t);
+  }
+  return out;
+}
+
+/** The latest TTM that was public on `date` (no look-ahead into later filings). */
+export function ttmAt(series: Ttm[], date: string): Ttm | undefined {
+  let best: Ttm | undefined;
+  for (const t of series) if (t.filed <= date && (!best || t.end > best.end)) best = t;
+  return best;
+}
+
+/** Cover-page share counts restated to today's share basis (after every later split). */
+export function adjustedShares(sh: SharesHistory): { end: string; value: number }[] {
+  return sh.points
+    .filter((p) => !sh.reliableFrom || p.end >= sh.reliableFrom)
+    .map((p) => ({
+      end: p.end,
+      value: p.value * sh.splits.filter((s) => s.after >= p.end).reduce((m, s) => m * s.ratio, 1),
+    }));
+}
+
+export function sharesAt(adj: { end: string; value: number }[], date: string): number | undefined {
+  let best: { end: string; value: number } | undefined;
+  for (const p of adj) if (p.end <= date && (!best || p.end > best.end)) best = p;
+  return best?.value;
+}
+
+export function multiplesFor(marketCap: number, t: Ttm | undefined): Record<MultipleKey, number | null> {
+  const pos = (v: number | undefined) => (v !== undefined && v > 0 ? v : null);
+  const ni = pos(t?.netIncome);
+  const rev = pos(t?.revenue);
+  const eq = pos(t?.equity);
+  return {
+    pe: ni ? marketCap / ni : null,
+    ps: rev ? marketCap / rev : null,
+    pb: eq ? marketCap / eq : null,
+    fcfYield: t?.fcf !== undefined && marketCap > 0 ? t.fcf / marketCap : null,
+  };
+}
+
+/** Why a multiple is missing or needs care. */
+export function multipleNote(key: MultipleKey, t: Ttm | undefined): MultipleNote | null {
+  if (!t) return null;
+  if (key === "pe" && t.netIncome !== undefined && t.netIncome <= 0) return "loss";
+  if (key === "pb" && t.equity !== undefined && t.equity <= 0) return "negativeEquity";
+  if (key === "fcfYield" && t.fcf !== undefined && t.fcf < 0) return "negativeFcf";
+  if (key === "ps" && t.revenueAmbiguous) return "revenueAmbiguous";
+  return null;
+}
+
+export interface Candle {
+  time: string;
+  close: number;
+}
+
+export interface HistoryPoint {
+  date: string;
+  marketCap: number;
+  values: Record<MultipleKey, number | null>;
+}
+
+/**
+ * Month-end multiples: split-adjusted close × shares on that date, over the TTM figures that
+ * were public then. Months before the first share count are skipped.
+ */
+export function multipleHistory(candles: Candle[], shares: SharesHistory, ttm: Ttm[]): HistoryPoint[] {
+  const adj = adjustedShares(shares);
+  const lastOfMonth = new Map<string, Candle>();
+  for (const c of candles) lastOfMonth.set(c.time.slice(0, 7), c); // candles are oldest → newest
+  const out: HistoryPoint[] = [];
+  for (const c of lastOfMonth.values()) {
+    const n = sharesAt(adj, c.time);
+    if (!n || !(c.close > 0)) continue;
+    const marketCap = c.close * n;
+    out.push({ date: c.time, marketCap, values: multiplesFor(marketCap, ttmAt(ttm, c.time)) });
+  }
+  return out;
+}
+
+/** Share count implied by the quote vs the latest SEC count, as a ratio (1 = identical). */
+export function sharesConsistency(shares: SharesHistory, marketCap: number, price: number): number | null {
+  const adj = adjustedShares(shares);
+  const last = adj.at(-1);
+  if (!last || !(price > 0) || !(marketCap > 0)) return null;
+  return marketCap / price / last.value;
+}
+
+export interface HistoryStats {
+  percentile: number;
+  median: number;
+  min: number;
+  max: number;
+  n: number; // months with a value
+  from: string;
+}
+
+export const MIN_HISTORY_MONTHS = 24;
+
+export function historyStats(history: HistoryPoint[], key: MultipleKey, current: number): HistoryStats | null {
+  const pts = history.filter((h) => h.values[key] !== null);
+  if (pts.length < MIN_HISTORY_MONTHS) return null;
+  const values = pts.map((h) => h.values[key]!);
+  return {
+    percentile: percentileRank(values, current)!,
+    median: median(values)!,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    n: values.length,
+    from: pts[0].date,
+  };
+}

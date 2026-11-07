@@ -93,6 +93,28 @@ export interface Financials {
   entityName: string;
   annual: StatementSet;
   quarterly: StatementSet;
+  shares: SharesHistory;
+}
+
+/** Shares outstanding from each report's cover page (dei:EntityCommonStockSharesOutstanding). */
+export interface SharePoint {
+  end: string; // the date the count refers to
+  value: number; // as reported (not adjusted for later splits)
+  filed: string;
+}
+
+/** A split detected between two cover-page counts: `ratio` new shares per old share. */
+export interface Split {
+  after: string; // last count before the split
+  before: string; // first count after it
+  ratio: number; // 4 for a 4-for-1 split, 0.1 for a 1-for-10 reverse split
+}
+
+export interface SharesHistory {
+  points: SharePoint[];
+  splits: Split[];
+  /** First count after a jump that isn't a clean split (merger, data error): history starts there. */
+  reliableFrom: string | null;
 }
 
 interface Fact {
@@ -287,9 +309,45 @@ function dropEmptyLines(set: StatementSet) {
   }
 }
 
+// ---- Shares outstanding and splits -------------------------------------------
+
+/** Split ratios that occur in practice; any other big jump is treated as unreliable data. */
+const SPLIT_RATIOS = [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100];
+const SPLIT_JUMP = 1.5; // quarter-to-quarter share counts never move this much without a split or a deal
+
+function splitRatio(r: number): number | null {
+  const inv = r < 1;
+  const x = inv ? 1 / r : r;
+  const n = SPLIT_RATIOS.find((k) => Math.abs(x / k - 1) <= 0.06);
+  return n ? (inv ? 1 / n : n) : null;
+}
+
+export function parseShares(dei: ConceptMap | undefined): SharesHistory {
+  const facts = factsOf(dei ?? {}, "EntityCommonStockSharesOutstanding", "shares").filter((f) => f.val > 0);
+  const byEnd = new Map<string, Fact>(); // latest-filed count for each date
+  for (const f of facts) {
+    const prev = byEnd.get(f.end);
+    if (!prev || f.filed > prev.filed) byEnd.set(f.end, f);
+  }
+  const points = [...byEnd.values()]
+    .sort((a, b) => (a.end < b.end ? -1 : 1))
+    .map((f) => ({ end: f.end, value: f.val, filed: f.filed }));
+
+  const splits: Split[] = [];
+  let reliableFrom: string | null = null;
+  for (let i = 1; i < points.length; i++) {
+    const r = points[i].value / points[i - 1].value;
+    if (r < SPLIT_JUMP && r > 1 / SPLIT_JUMP) continue;
+    const ratio = splitRatio(r);
+    if (ratio) splits.push({ after: points[i - 1].end, before: points[i].end, ratio });
+    else reliableFrom = points[i].end; // keep only what follows the last unexplained jump
+  }
+  return { points, splits: reliableFrom ? splits.filter((s) => s.after >= reliableFrom!) : splits, reliableFrom };
+}
+
 export function parseCompanyFacts(json: unknown, opts: { years?: number; quarters?: number } = {}): Financials {
   if (!json || typeof json !== "object") throw new Error("sec: unexpected companyfacts payload");
-  const root = json as { cik?: unknown; entityName?: unknown; facts?: { "us-gaap"?: ConceptMap } };
+  const root = json as { cik?: unknown; entityName?: unknown; facts?: { "us-gaap"?: ConceptMap; dei?: ConceptMap } };
   const gaap = root.facts?.["us-gaap"];
   if (!gaap) throw new Error("sec: no us-gaap facts");
 
@@ -297,7 +355,9 @@ export function parseCompanyFacts(json: unknown, opts: { years?: number; quarter
   const closed = annualPeriods(gaap, 100); // quarter derivation needs the fiscal-year bounds
   const open = openYear(closed);
   const allYears = open ? [...closed, open] : closed;
-  const quarters = quarterPeriods(gaap, allYears, opts.quarters ?? 16);
+  // 24 quarters: the table shows them all, and valuation needs trailing-12-month figures
+  // going back 5 years (each one sums the 4 quarters before it).
+  const quarters = quarterPeriods(gaap, allYears, opts.quarters ?? 24);
 
   const annual: StatementSet = { periods: years, lines: {} };
   const quarterly: StatementSet = { periods: quarters, lines: {} };
@@ -314,6 +374,7 @@ export function parseCompanyFacts(json: unknown, opts: { years?: number; quarter
     entityName: typeof root.entityName === "string" ? root.entityName : "",
     annual,
     quarterly,
+    shares: parseShares(root.facts?.dei),
   };
 }
 
