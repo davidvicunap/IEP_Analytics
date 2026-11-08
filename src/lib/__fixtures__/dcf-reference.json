@@ -1,0 +1,395 @@
+{
+ "note": "Real inputs as of 2026-11-06: TTM figures from SEC filings, market cap from FMP, price = market cap \u00f7 SEC shares; default assumptions from src/lib/dcfModel.ts (beta fixed at 1). Expected values come from scripts/reference/dcf_reference.py.",
+ "cases": [
+  {
+   "symbol": "AAPL",
+   "ttm": "Q4 FY2026",
+   "base": {
+    "revenue0": 478834000000,
+    "marketCap": 4996616254000,
+    "price": 343.83,
+    "debt": 78114000000,
+    "cash": 36305000000
+   },
+   "assumptions": {
+    "growth": [
+     0.0553,
+     0.0493,
+     0.0432,
+     0.0371,
+     0.0311
+    ],
+    "ebitMargin": [
+     0.3301,
+     0.3301,
+     0.3301,
+     0.3301,
+     0.3301
+    ],
+    "daPct": [
+     0.028,
+     0.028,
+     0.028,
+     0.028,
+     0.028
+    ],
+    "capexPct": [
+     0.0189,
+     0.0189,
+     0.0189,
+     0.0189,
+     0.0189
+    ],
+    "nwcPct": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "taxRate": 0.1699,
+    "rf": 0.0486,
+    "beta": 1,
+    "erp": 0.0446,
+    "costOfDebt": 0.0636,
+    "waccOverride": null,
+    "terminal": "gordon",
+    "terminalGrowth": 0.025,
+    "exitMultiple": 29.5,
+    "midYear": true
+   },
+   "expected": {
+    "gordon-mid": {
+     "ev": 2256814589452.0293,
+     "perShare": 152.42022462934
+    },
+    "gordon-end": {
+     "ev": 2229732906414.3096,
+     "perShare": 150.5566644507081
+    },
+    "exit-mid": {
+     "ev": 4638789573355.163,
+     "perShare": 316.3300422103429
+    },
+    "exit-end": {
+     "ev": 4611707890317.443,
+     "perShare": 314.46648203171105
+    },
+    "wacc": 0.09257804651577842,
+    "impliedGrowth": 0.24615748711147845
+   }
+  },
+  {
+   "symbol": "MSFT",
+   "ttm": "Q1 FY2027",
+   "base": {
+    "revenue0": 346445000000,
+    "marketCap": 3940410675900,
+    "price": 530.61,
+    "debt": 35481000000,
+    "cash": 20281000000
+   },
+   "assumptions": {
+    "growth": [
+     0.1457,
+     0.1216,
+     0.0974,
+     0.0733,
+     0.0491
+    ],
+    "ebitMargin": [
+     0.471,
+     0.471,
+     0.471,
+     0.471,
+     0.471
+    ],
+    "daPct": [
+     0.1106,
+     0.1106,
+     0.1106,
+     0.1106,
+     0.1106
+    ],
+    "capexPct": [
+     0.336,
+     0.2796,
+     0.2233,
+     0.1669,
+     0.1106
+    ],
+    "nwcPct": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "taxRate": 0.1968,
+    "rf": 0.0486,
+    "beta": 1,
+    "erp": 0.0446,
+    "costOfDebt": 0.0908,
+    "waccOverride": null,
+    "terminal": "gordon",
+    "terminalGrowth": 0.025,
+    "exitMultiple": 19.5,
+    "midYear": true
+   },
+   "expected": {
+    "gordon-mid": {
+     "ev": 2516857024409.8296,
+     "perShare": 336.86951510934
+    },
+    "gordon-end": {
+     "ev": 2494819856810.401,
+     "perShare": 333.9020220073013
+    },
+    "exit-mid": {
+     "ev": 4505769138731.491,
+     "perShare": 604.6935425475905
+    },
+    "exit-end": {
+     "ev": 4483731971132.0625,
+     "perShare": 601.7260494455518
+    },
+    "wacc": 0.09301911479002324,
+    "impliedGrowth": 0.20898842872689813
+   }
+  },
+  {
+   "symbol": "NVDA",
+   "ttm": "Q2 FY2027",
+   "base": {
+    "revenue0": 302969000000,
+    "marketCap": 4498024000000,
+    "price": 186.64,
+    "debt": 33366000000,
+    "cash": 22443000000
+   },
+   "assumptions": {
+    "growth": [
+     0.25,
+     0.205,
+     0.16,
+     0.115,
+     0.07
+    ],
+    "ebitMargin": [
+     0.6521,
+     0.6521,
+     0.6521,
+     0.6521,
+     0.6521
+    ],
+    "daPct": [
+     0.0122,
+     0.0122,
+     0.0122,
+     0.0122,
+     0.0122
+    ],
+    "capexPct": [
+     0.0219,
+     0.0195,
+     0.017,
+     0.0146,
+     0.0122
+    ],
+    "nwcPct": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "taxRate": 0.1605,
+    "rf": 0.0486,
+    "beta": 1,
+    "erp": 0.0446,
+    "costOfDebt": 0.0139,
+    "waccOverride": null,
+    "terminal": "gordon",
+    "terminalGrowth": 0.025,
+    "exitMultiple": 22.5,
+    "midYear": true
+   },
+   "expected": {
+    "gordon-mid": {
+     "ev": 4475744718167.907,
+     "perShare": 185.26231195717457
+    },
+    "gordon-end": {
+     "ev": 4427713182881.87,
+     "perShare": 183.26930219426848
+    },
+    "exit-mid": {
+     "ev": 7171439904564.32,
+     "perShare": 297.1168840068183
+    },
+    "exit-end": {
+     "ev": 7123408369278.283,
+     "perShare": 295.12387424391216
+    },
+    "wacc": 0.0925996628677514,
+    "impliedGrowth": 0.1647998570217535
+   }
+  },
+  {
+   "symbol": "KO",
+   "ttm": "Q3 FY2026",
+   "base": {
+    "revenue0": 51054000000,
+    "marketCap": 411562996389,
+    "price": 95.67,
+    "debt": 36623000000,
+    "cash": 13454000000
+   },
+   "assumptions": {
+    "growth": [
+     0.0775,
+     0.067,
+     0.0565,
+     0.046,
+     0.0355
+    ],
+    "ebitMargin": [
+     0.3004,
+     0.3004,
+     0.3004,
+     0.3004,
+     0.3004
+    ],
+    "daPct": [
+     0.02,
+     0.02,
+     0.02,
+     0.02,
+     0.02
+    ],
+    "capexPct": [
+     0.0345,
+     0.0309,
+     0.0272,
+     0.0236,
+     0.02
+    ],
+    "nwcPct": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "taxRate": 0.1736,
+    "rf": 0.0486,
+    "beta": 1,
+    "erp": 0.0446,
+    "costOfDebt": 0.0417,
+    "waccOverride": null,
+    "terminal": "gordon",
+    "terminalGrowth": 0.025,
+    "exitMultiple": 26.5,
+    "midYear": true
+   },
+   "expected": {
+    "gordon-mid": {
+     "ev": 236376721456.3109,
+     "perShare": 49.5612649598992
+    },
+    "gordon-end": {
+     "ev": 233893605582.63208,
+     "perShare": 48.984051513308586
+    },
+    "exit-mid": {
+     "ev": 433263389515.3557,
+     "perShare": 95.32861454787168
+    },
+    "exit-end": {
+     "ev": 430780273641.6769,
+     "perShare": 94.75140110128106
+    },
+    "wacc": 0.08840020078919895,
+    "impliedGrowth": 0.20838636367275565
+   }
+  },
+  {
+   "symbol": "XOM",
+   "ttm": "Q1 FY2026",
+   "base": {
+    "revenue0": 334246000000,
+    "marketCap": 676620638563,
+    "price": 163.24,
+    "debt": 47661000000,
+    "cash": 8435000000
+   },
+   "assumptions": {
+    "growth": [
+     0.1285,
+     0.1078,
+     0.0871,
+     0.0664,
+     0.0457
+    ],
+    "ebitMargin": [
+     0.1117,
+     0.1117,
+     0.1117,
+     0.1117,
+     0.1117
+    ],
+    "daPct": [
+     0.081,
+     0.081,
+     0.081,
+     0.081,
+     0.081
+    ],
+    "capexPct": [
+     0.0855,
+     0.0844,
+     0.0832,
+     0.0821,
+     0.081
+    ],
+    "nwcPct": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "taxRate": 0.2848,
+    "rf": 0.0486,
+    "beta": 1,
+    "erp": 0.0446,
+    "costOfDebt": 0.0145,
+    "waccOverride": null,
+    "terminal": "gordon",
+    "terminalGrowth": 0.025,
+    "exitMultiple": 11,
+    "midYear": true
+   },
+   "expected": {
+    "gordon-mid": {
+     "ev": 574270720321.713,
+     "perShare": 129.0837068328417
+    },
+    "gordon-end": {
+     "ev": 568497462756.345,
+     "perShare": 127.69086347090672
+    },
+    "exit-mid": {
+     "ev": 845292745874.7214,
+     "perShare": 194.46988178788447
+    },
+    "exit-end": {
+     "ev": 839519488309.3534,
+     "perShare": 193.0770384259495
+    },
+    "wacc": 0.08774943856725063,
+    "impliedGrowth": 0.14279669094344963
+   }
+  }
+ ]
+}

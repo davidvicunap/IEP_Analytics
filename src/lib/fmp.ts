@@ -10,7 +10,6 @@ import type {
   Candle,
   DataIssue,
   Fundamentals,
-  NewsItem,
   Profile,
   Quote,
   Result,
@@ -21,7 +20,7 @@ const BASE = "https://financialmodelingprep.com/stable";
 const TIMEOUT_MS = 8000;
 
 /** Cache lifetimes in seconds per data class. */
-export const TTL = { quote: 60, news: 900, prices: 3600, fundamentals: 86400 } as const;
+export const TTL = { quote: 60, prices: 3600, rates: 43200, fundamentals: 86400 } as const;
 
 export function hasFmpKey(): boolean {
   return Boolean(process.env.FMP_API_KEY);
@@ -271,23 +270,6 @@ export function fmpHistory(symbol: string): Promise<Result<Candle[]>> {
   });
 }
 
-export function fmpNews(symbol: string): Promise<Result<NewsItem[]>> {
-  return attempt("news/stock", async () => {
-    const { rows, fetchedAt } = await get("news/stock", { symbols: symbol, limit: "12" }, TTL.news);
-    const data = rows
-      .filter((r) => str(r.title) && str(r.url))
-      .map((r) => ({
-        title: String(r.title),
-        url: String(r.url),
-        publisher: str(r.publisher) ?? str(r.site),
-        publishedDate: str(r.publishedDate) ?? "",
-        image: str(r.image),
-        text: str(r.text),
-      }));
-    return { data, fetchedAt };
-  });
-}
-
 const US_EXCHANGES = new Set(["NASDAQ", "NYSE", "AMEX", "NYSEARCA", "CBOE", "BATS"]);
 
 export async function fmpSearch(query: string): Promise<Result<SearchResult[]>> {
@@ -311,4 +293,140 @@ export async function fmpSearch(query: string): Promise<Result<SearchResult[]>> 
   }
   const fetchedAt = bySymbol.ok ? bySymbol.fetchedAt : (byName as { fetchedAt: string }).fetchedAt;
   return { ok: true, data: out.slice(0, 10), fetchedAt };
+}
+
+// ---- Valuation inputs -------------------------------------------------------------
+
+export interface Rate {
+  value: number; // as a fraction: 0.0486 for 4.86 %
+  date: string;
+}
+
+/** 4.86 → 0.0486 without float noise (FMP sends percentages with two decimals). */
+const pct = (v: number) => Math.round(v * 10_000) / 1_000_000;
+
+/** Latest 10-year US Treasury yield (constant maturity). */
+export function fmpTreasury10y(): Promise<Result<Rate>> {
+  const from = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10);
+  return attempt("treasury-rates", async () => {
+    const { rows, fetchedAt } = await get("treasury-rates", { from }, TTL.rates);
+    const latest = rows
+      .filter((r) => str(r.date) && num(r.year10) !== undefined)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    if (!latest) throw new ProviderError("not_found");
+    return { data: { value: pct(num(latest.year10)!), date: String(latest.date).slice(0, 10) }, fetchedAt };
+  });
+}
+
+/** Total equity risk premium for the United States (mature-market premium + country risk). */
+export function fmpEquityRiskPremium(): Promise<Result<Rate>> {
+  return attempt("market-risk-premium", async () => {
+    const { rows, fetchedAt } = await get("market-risk-premium", {}, TTL.fundamentals);
+    const us = rows.find((r) => r.country === "United States");
+    const v = num(us?.totalEquityRiskPremium);
+    if (v === undefined) throw new ProviderError("not_found");
+    return { data: { value: pct(v), date: fetchedAt.slice(0, 10) }, fetchedAt };
+  });
+}
+
+/**
+ * Current market caps for many symbols in one call. Plans that cover only some symbols
+ * simply leave the others out, so callers must handle a partial map.
+ */
+export function fmpMarketCaps(symbols: string[]): Promise<Result<Record<string, number>>> {
+  const list = [...new Set(symbols.map((s) => s.toUpperCase()))].sort();
+  return attempt("market-capitalization-batch", async () => {
+    if (list.length === 0) return { data: {}, fetchedAt: new Date().toISOString() };
+    const { rows, fetchedAt } = await get("market-capitalization-batch", { symbols: list.join(",") }, TTL.fundamentals);
+    const data: Record<string, number> = {};
+    for (const r of rows) {
+      const sym = str(r.symbol);
+      const cap = num(r.marketCap);
+      if (sym && cap !== undefined && cap > 0) data[sym.toUpperCase()] = cap;
+    }
+    return { data, fetchedAt };
+  });
+}
+
+// ---- Analysts -------------------------------------------------------------------------
+// Consensus figures from FMP. Lower plans cover a fixed list of large companies; for the rest
+// FMP answers with a plan error, which the UI shows as such.
+
+export interface Range {
+  avg: number;
+  low?: number;
+  high?: number;
+}
+
+export interface AnalystEstimate {
+  date: string; // end of the fiscal year the estimate is for
+  revenue: Range | null;
+  eps: Range | null; // usually the "adjusted" EPS analysts follow, not GAAP EPS
+  analystsRevenue?: number;
+  analystsEps?: number;
+}
+
+/** First numeric field among the names FMP has used for it (stable API first, then legacy). */
+const pick = (r: Json, ...keys: string[]) => keys.map((k) => num(r[k])).find((v) => v !== undefined);
+
+/** Annual consensus estimates, oldest fiscal year first (past years included). */
+export function fmpAnalystEstimates(symbol: string): Promise<Result<AnalystEstimate[]>> {
+  return attempt("analyst-estimates", async () => {
+    const { rows, fetchedAt } = await get("analyst-estimates", { symbol, period: "annual", page: "0", limit: "10" }, TTL.fundamentals);
+    const data = rows
+      .filter((r) => str(r.date))
+      .map((r): AnalystEstimate => {
+        const rev = pick(r, "revenueAvg", "estimatedRevenueAvg");
+        const eps = pick(r, "epsAvg", "estimatedEpsAvg");
+        return {
+          date: String(r.date).slice(0, 10),
+          revenue: rev === undefined ? null : { avg: rev, low: pick(r, "revenueLow", "estimatedRevenueLow"), high: pick(r, "revenueHigh", "estimatedRevenueHigh") },
+          eps: eps === undefined ? null : { avg: eps, low: pick(r, "epsLow", "estimatedEpsLow"), high: pick(r, "epsHigh", "estimatedEpsHigh") },
+          analystsRevenue: pick(r, "numAnalystsRevenue", "numberAnalystEstimatedRevenue"),
+          analystsEps: pick(r, "numAnalystsEps", "numberAnalystsEstimatedEps"),
+        };
+      })
+      .filter((e) => e.revenue || e.eps)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (data.length === 0) throw new ProviderError("not_found");
+    return { data, fetchedAt };
+  });
+}
+
+export interface PriceTarget {
+  consensus: number;
+  median?: number;
+  high?: number;
+  low?: number;
+}
+
+export function fmpPriceTarget(symbol: string): Promise<Result<PriceTarget>> {
+  return attempt("price-target-consensus", async () => {
+    const { rows, fetchedAt } = await get("price-target-consensus", { symbol }, TTL.fundamentals);
+    const r = rows[0];
+    const consensus = r ? num(r.targetConsensus) : undefined;
+    if (!r || consensus === undefined || !(consensus > 0)) throw new ProviderError("not_found");
+    return { data: { consensus, median: num(r.targetMedian), high: num(r.targetHigh), low: num(r.targetLow) }, fetchedAt };
+  });
+}
+
+export interface Grades {
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strongSell: number;
+  consensus?: string;
+}
+
+export function fmpGrades(symbol: string): Promise<Result<Grades>> {
+  return attempt("grades-consensus", async () => {
+    const { rows, fetchedAt } = await get("grades-consensus", { symbol }, TTL.fundamentals);
+    const r = rows[0];
+    if (!r) throw new ProviderError("not_found");
+    const n = (k: string) => Math.max(0, Math.round(num(r[k]) ?? 0));
+    const data: Grades = { strongBuy: n("strongBuy"), buy: n("buy"), hold: n("hold"), sell: n("sell"), strongSell: n("strongSell"), consensus: str(r.consensus) };
+    if (data.strongBuy + data.buy + data.hold + data.sell + data.strongSell === 0) throw new ProviderError("not_found");
+    return { data, fetchedAt };
+  });
 }

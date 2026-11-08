@@ -8,6 +8,34 @@
       "when": 1794019981334,
       "tag": "0000_securities",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794022640706,
+      "tag": "0001_sector_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794023867437,
+      "tag": "0002_reload_company_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794065442337,
+      "tag": "0003_insiders",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794065916535,
+      "tag": "0004_reload_metrics_for_comps",
+      "breakpoints": true
     }
   ]
 }

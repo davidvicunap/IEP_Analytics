@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
+import es from "@/lib/i18n/es";
+import en from "@/lib/i18n/en";
 import type { Lang } from "@/lib/format";
 import AppChrome from "@/components/AppChrome";
 import { isDemo } from "@/lib/data";
@@ -41,7 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-dvh flex flex-col">
-        <I18nProvider initialLang={lang}>
+        <I18nProvider initialLang={lang} dict={lang === "en" ? en : es}>
           <AppChrome demo={isDemo()}>{children}</AppChrome>
         </I18nProvider>
       </body>

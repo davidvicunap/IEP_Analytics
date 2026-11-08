@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
+import { buttonClass } from "@/components/ui";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const { t } = useI18n();
@@ -15,10 +16,10 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
       <p className="text-sm text-muted">{t.errors.text}</p>
       {error.digest && <p className="num text-[11px] text-muted">ref: {error.digest}</p>}
       <div className="flex justify-center gap-3 pt-2">
-        <button type="button" onClick={reset} className="h-10 px-4 rounded-lg bg-accent text-accent-fg text-sm font-semibold">
+        <button type="button" onClick={reset} className={buttonClass("primary")}>
           {t.errors.retry}
         </button>
-        <Link href="/" className="h-10 px-4 rounded-lg border border-line bg-panel text-sm font-semibold inline-flex items-center">
+        <Link href="/" className={buttonClass("secondary")}>
           {t.errors.home}
         </Link>
       </div>

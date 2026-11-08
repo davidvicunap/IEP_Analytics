@@ -26,7 +26,7 @@ export function parseCompanyTickers(json: unknown): Omit<NewSecurity, "updatedAt
   const [iCik, iName, iTicker, iExchange] = [col("cik"), col("name"), col("ticker"), col("exchange")];
 
   const bySymbol = new Map<string, Omit<NewSecurity, "updatedAt">>();
-  for (const row of data) {
+  for (const [rank, row] of data.entries()) {
     if (!Array.isArray(row)) continue;
     const cik = Number(row[iCik]);
     const name = typeof row[iName] === "string" ? row[iName].trim() : "";
@@ -34,7 +34,7 @@ export function parseCompanyTickers(json: unknown): Omit<NewSecurity, "updatedAt
     const exchange = typeof row[iExchange] === "string" ? row[iExchange].trim().toUpperCase() : "";
     if (!Number.isInteger(cik) || cik <= 0 || !name || !/^[A-Z][A-Z.\-]{0,9}$/.test(symbol)) continue;
     if (!LISTED_EXCHANGES.has(exchange)) continue;
-    if (!bySymbol.has(symbol)) bySymbol.set(symbol, { symbol, cik, name, exchange, active: true, source: "SEC" });
+    if (!bySymbol.has(symbol)) bySymbol.set(symbol, { symbol, cik, name, exchange, rank, active: true, source: "SEC" });
   }
   return [...bySymbol.values()];
 }
@@ -47,4 +47,62 @@ export async function fetchCompanyTickers(): Promise<Omit<NewSecurity, "updatedA
   });
   if (!res.ok) throw new Error(`sec: HTTP ${res.status}`);
   return parseCompanyTickers(await res.json());
+}
+
+// ---- Rate-limited JSON fetch ----------------------------------------------
+
+const MIN_INTERVAL_MS = 125; // ≤ 8 requests/second per process, under the SEC's 10/s limit
+let nextSlot = 0;
+
+/** Waits for a request slot so one process never exceeds the SEC rate limit. */
+async function secSlot(): Promise<void> {
+  const now = Date.now();
+  const at = Math.max(now, nextSlot);
+  nextSlot = at + MIN_INTERVAL_MS;
+  if (at > now) await new Promise((r) => setTimeout(r, at - now));
+}
+
+export class SecHttpError extends Error {
+  constructor(readonly status: number, url: string) {
+    super(`sec: HTTP ${status} for ${url}`);
+  }
+}
+
+/** Raw text (Form 4 XML) with the same pacing and identification as JSON requests. */
+export async function secText(url: string, timeoutMs = 15_000): Promise<string> {
+  await secSlot();
+  const res = await fetch(url, {
+    headers: { "User-Agent": secUserAgent(), Accept: "application/xml,text/xml,*/*" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new SecHttpError(res.status, url);
+  return res.text();
+}
+
+export async function secJson(url: string, timeoutMs = 20_000): Promise<unknown> {
+  await secSlot();
+  const res = await fetch(url, {
+    headers: { "User-Agent": secUserAgent(), Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new SecHttpError(res.status, url);
+  return res.json();
+}
+
+// ---- Submissions: industry classification ----------------------------------
+
+export function submissionsUrl(cik: number): string {
+  return `https://data.sec.gov/submissions/CIK${String(cik).padStart(10, "0")}.json`;
+}
+
+/** SIC code and description from a submissions payload; nulls when the filer has none. */
+export function parseSubmissions(json: unknown): { sic: number | null; sicDescription: string | null } {
+  const d = (json ?? {}) as { sic?: unknown; sicDescription?: unknown };
+  const sic = Number(d.sic);
+  return {
+    sic: Number.isInteger(sic) && sic > 0 ? sic : null,
+    sicDescription: typeof d.sicDescription === "string" && d.sicDescription.trim() ? d.sicDescription.trim() : null,
+  };
 }

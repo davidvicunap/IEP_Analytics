@@ -1,6 +1,6 @@
 // Deterministic simulated data used when no FMP_API_KEY is configured (DEMO mode).
 // Numbers are illustrative only.
-import type { AnnualIncome, Candle, Fundamentals, NewsItem, Profile, Quote, SearchResult } from "./types";
+import type { AnnualIncome, Candle, Fundamentals, Profile, Quote, SearchResult } from "./types";
 
 interface Seed {
   name: string;
@@ -156,21 +156,6 @@ export function mockIncome(symbol: string): AnnualIncome[] {
     rev = rev / (1 + 0.02 + r() * 0.15);
   }
   return out;
-}
-
-export function mockNews(symbol: string): NewsItem[] {
-  const now = Date.now();
-  const titles = [
-    `${symbol}: analysts weigh in ahead of earnings (demo)`,
-    `What investors should watch in ${symbol} this quarter (demo)`,
-    `${symbol} shares move as sector rotates (demo)`,
-  ];
-  return titles.map((title, i) => ({
-    title,
-    url: "https://site.financialmodelingprep.com/developer/docs",
-    publisher: "Demo Wire",
-    publishedDate: new Date(now - i * 9 * 3600e3).toISOString(),
-  }));
 }
 
 export function mockSearch(query: string): SearchResult[] {
