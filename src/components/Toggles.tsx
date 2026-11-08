@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { MoonIcon, SunIcon } from "./icons";
 
-const btn = "h-10 min-w-10 px-2 rounded-md border border-line bg-panel hover:bg-panel-2 text-sm font-semibold";
+const btn = "grid place-items-center h-11 min-w-11 px-2 rounded-lg border border-line bg-panel hover:bg-panel-2 text-sm font-semibold";
 
 export function LangToggle() {
   const { lang, setLang, t } = useI18n();
@@ -40,7 +41,7 @@ export function ThemeToggle() {
   const label = `${t.app.theme}: ${theme === "dark" ? t.app.themeLight : t.app.themeDark}`;
   return (
     <button type="button" className={btn} onClick={toggle} aria-label={label} title={label}>
-      <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+      {theme === "light" ? <MoonIcon /> : <SunIcon />}
     </button>
   );
 }

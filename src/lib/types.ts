@@ -37,6 +37,15 @@ export interface QuoteEntry {
   error?: DataIssue;
 }
 
+/** /api/quotes response: provenance travels with the numbers. */
+export interface QuotesResponse {
+  source: DataSource;
+  limit: number;
+  quotes: (Quote & { fetchedAt?: string })[];
+  missing: { symbol: string; error: DataIssue }[];
+  skipped: string[]; // over the per-request limit: ask again for these
+}
+
 export interface Profile {
   symbol: string;
   companyName: string;

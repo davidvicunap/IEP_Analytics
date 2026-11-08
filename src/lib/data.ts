@@ -54,14 +54,39 @@ export function getQuote(symbol: string): Promise<Result<Quote>> {
   return isDemo() ? demoResult("quote", mock.mockQuote(symbol)) : fmp.fmpQuote(symbol);
 }
 
-/** Quotes in request order; a symbol that fails keeps its place with the reason. */
-export async function getQuotes(symbols: string[]): Promise<QuoteEntry[]> {
-  const list = [...new Set(symbols.map(normalizeSymbol).filter((s): s is string => !!s))].slice(0, 30);
-  const results = await Promise.all(list.map(getQuote));
-  return list.map((symbol, i) => {
+/** Most symbols one quotes request may ask for; callers page through longer lists. */
+export const QUOTES_PER_REQUEST = 30;
+const QUOTE_CONCURRENCY = 6;
+
+/** Runs `fn` over `items` with at most `limit` calls in flight, keeping the order. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Quotes in request order; a symbol that fails keeps its place with the reason. At most
+ * QUOTES_PER_REQUEST symbols: the rest are returned in `skipped` instead of being dropped
+ * silently, so the client can ask for them in another request.
+ */
+export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { skipped?: string[] }> {
+  const all = [...new Set(symbols.map(normalizeSymbol).filter((s): s is string => !!s))];
+  const list = all.slice(0, QUOTES_PER_REQUEST);
+  const results = await mapLimit(list, QUOTE_CONCURRENCY, getQuote);
+  const entries: QuoteEntry[] & { skipped?: string[] } = list.map((symbol, i) => {
     const r = results[i];
     return r.ok ? { symbol, quote: r.data, fetchedAt: r.fetchedAt } : { symbol, error: r.error };
   });
+  if (all.length > list.length) entries.skipped = all.slice(list.length);
+  return entries;
 }
 
 export type StockDetails = Omit<StockBundle, "quote" | "quoteFetchedAt">;

@@ -89,6 +89,9 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Keep focused or linked elements clear of the sticky header and the phone nav. */
+  scroll-padding-top: 5rem;
+  scroll-padding-bottom: 5.5rem;
 }
 
 body {
@@ -96,7 +99,6 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 
 .num {
