@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import type { DataIssue } from "@/lib/types";
-import { IssueNote } from "./ui";
+import { IssueNote, buttonClass } from "./ui";
 
 /** Full-page state when the data provider fails: says why, never "not found". */
 export default function DataUnavailable({ issue, symbol }: { issue: DataIssue; symbol?: string }) {
@@ -21,11 +21,11 @@ export default function DataUnavailable({ issue, symbol }: { issue: DataIssue; s
         <button
           type="button"
           onClick={() => router.refresh()}
-          className="h-10 px-4 rounded-lg bg-accent text-accent-fg text-sm font-semibold"
+          className={buttonClass("primary")}
         >
           {t.errors.retry}
         </button>
-        <Link href="/" className="h-10 px-4 rounded-lg border border-line bg-panel text-sm font-semibold inline-flex items-center">
+        <Link href="/" className={buttonClass("secondary")}>
           {t.errors.home}
         </Link>
       </div>

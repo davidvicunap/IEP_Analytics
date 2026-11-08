@@ -4,37 +4,20 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtPrice } from "@/lib/format";
-import { useQuotes, type QuoteView } from "@/lib/useQuotes";
-import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
+import { useQuotes } from "@/lib/useQuotes";
+import { sortItems, type Sort } from "@/lib/watchlistSort";
+import { useHydrated, useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import TickerSearch from "./TickerSearch";
 import { CloseIcon, RefreshIcon, StarIcon } from "./icons";
 import { QuoteRowsSkeleton } from "./QuoteList";
-import { Badge, Change, EmptyState, Panel, Provenance, StatusMessage, buttonClass, toast } from "./ui";
-
-type Sort = "saved" | "changeDesc" | "changeAsc" | "symbol";
-
-export function sortItems(items: QuoteView[], sort: Sort): QuoteView[] {
-  if (sort === "saved") return items;
-  const out = [...items];
-  // Rows without a price go last whatever the order, so gaps don't look like extremes.
-  const chg = (v: QuoteView) => v.quote?.changePercent;
-  if (sort === "symbol") out.sort((a, b) => a.symbol.localeCompare(b.symbol));
-  else
-    out.sort((a, b) => {
-      const x = chg(a);
-      const y = chg(b);
-      if (x === undefined) return y === undefined ? 0 : 1;
-      if (y === undefined) return -1;
-      return sort === "changeDesc" ? y - x : x - y;
-    });
-  return out;
-}
+import { Badge, Change, EmptyState, Panel, Provenance, Skeleton, StatusMessage, buttonClass, toast } from "./ui";
 
 export default function WatchlistView() {
   const { t, lang } = useI18n();
   const { list, remove, add, persistent } = useWatchlist();
   const q = useQuotes(list);
   const [sort, setSort] = useState<Sort>("saved");
+  const hydrated = useHydrated();
   const rows = useMemo(() => sortItems(q.items, sort), [q.items, sort]);
   const failed = q.items.filter((i) => !i.quote && i.error).length;
   const latest = q.items.map((i) => i.quote?.asOf ?? i.fetchedAt).filter((x): x is string => !!x).sort().at(-1);
@@ -58,7 +41,12 @@ export default function WatchlistView() {
       </div>
 
       <Panel>
-        {list.length === 0 ? (
+        {!hydrated ? (
+          <>
+            <Skeleton className="h-11 w-56 mb-2" />
+            <QuoteRowsSkeleton n={4} />
+          </>
+        ) : list.length === 0 ? (
           <EmptyState title={t.ux.emptyTitle}>
             <p className="inline-flex flex-wrap items-center justify-center gap-1">
               {t.ux.emptyHowA}
@@ -94,7 +82,7 @@ export default function WatchlistView() {
             {q.loading ? (
               <>
                 <p role="status" className="sr-only">{t.ux.loading}</p>
-                <QuoteRowsSkeleton n={Math.min(list.length, 8)} />
+                <QuoteRowsSkeleton n={Math.min(list.length, 30)} />
               </>
             ) : (
               <ul className="divide-y divide-line">

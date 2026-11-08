@@ -90,7 +90,7 @@ export function Segmented<T extends string>({
           aria-pressed={value === o.value}
           title={o.title}
           onClick={() => onChange(o.value)}
-          className={`h-10 sm:h-8 min-w-11 sm:min-w-9 px-3 rounded-md text-xs font-semibold transition-colors ${
+          className={`h-11 sm:h-8 min-w-11 sm:min-w-9 px-3 rounded-md text-xs font-semibold transition-colors ${
             value === o.value ? "bg-panel text-fg shadow-sm ring-1 ring-line" : "text-muted hover:text-fg"
           }`}
         >
@@ -108,7 +108,7 @@ export function ToggleChip({ on, onClick, children }: { on: boolean; onClick: ()
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-10 sm:h-9 px-3 rounded-full border text-xs font-semibold transition-colors ${
+      className={`inline-flex items-center gap-1.5 h-11 sm:h-9 px-3 rounded-full border text-xs font-semibold transition-colors ${
         on ? "border-accent bg-accent/10 text-fg" : "border-line bg-panel text-muted hover:text-fg"
       }`}
     >
@@ -285,10 +285,10 @@ export function Dot({ level }: { level: Level }) {
 }
 
 /** Expandable "What is this?" explanation; works with touch and keyboard. */
-export function Explain({ children, label }: { children: React.ReactNode; label?: string }) {
+export function Explain({ children, label, className = "mt-2" }: { children: React.ReactNode; label?: string; className?: string }) {
   const { t } = useI18n();
   return (
-    <details className="group mt-2 text-sm">
+    <details className={`group text-sm ${className}`}>
       <summary className="cursor-pointer select-none text-info text-xs inline-flex items-center gap-1 min-h-8 rounded">
         <InfoIcon size={14} />
         {label ?? t.chart.whatIs}

@@ -17,7 +17,7 @@ const dbMock = vi.hoisted(() => ({ db: null as unknown, search: vi.fn() }));
 vi.mock("@/db/client", () => ({ getDb: () => dbMock.db }));
 vi.mock("./securities", () => ({ searchSecurities: dbMock.search }));
 
-import { demoAllowed, getQuote, getQuotes, isDemo, searchSymbols } from "./data";
+import { demoAllowed, getQuote, getQuotes, isDemo, mapLimit, searchSymbols } from "./data";
 import * as fmp from "./fmp";
 
 afterEach(() => vi.unstubAllEnvs());
@@ -80,5 +80,28 @@ describe("searchSymbols", () => {
     dbMock.search.mockResolvedValueOnce([]);
     await searchSymbols("zzzz");
     expect(spy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("getQuotes over the per-request limit", () => {
+  it("answers the first 30 and returns the rest as skipped, never dropping them silently", async () => {
+    vi.stubEnv("FMP_API_KEY", "real-key");
+    const list = Array.from({ length: 35 }, (_, i) => `S${String.fromCharCode(65 + (i % 26))}${i >= 26 ? "Z" : ""}`);
+    const entries = await getQuotes(list);
+    expect(entries).toHaveLength(30);
+    expect(entries.skipped).toEqual(list.slice(30));
+  });
+
+  it("runs at most N tasks at a time, keeping the order", async () => {
+    let inFlight = 0;
+    let max = 0;
+    const out = await mapLimit(Array.from({ length: 20 }, (_, i) => i), 6, async (i) => {
+      max = Math.max(max, ++inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return i * 2;
+    });
+    expect(max).toBe(6);
+    expect(out).toEqual(Array.from({ length: 20 }, (_, i) => i * 2)); // order kept
   });
 });

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Component, Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { fill, useI18n } from "@/lib/i18n";
+import { DeepI18n, fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtDate, fmtNum, fmtPct, fmtPrice } from "@/lib/format";
 import {
   RULES,
@@ -20,13 +20,17 @@ import ChartPlaceholder from "./ChartPlaceholder";
 import type { StockSections } from "@/lib/data";
 import type { AnnualIncome, Candle, DataSource, Fundamentals, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
-import FinancialStatements from "./FinancialStatements";
-import ChartTab from "./ChartTab";
-import NewsPanel, { OfficialReleases } from "./NewsPanel";
-import FilingsPanel from "./FilingsPanel";
-import InsidersPanel from "./InsidersPanel";
-import FundamentalsPanel from "./fundamentals/FundamentalsPanel";
-import ValuationPanel from "./ValuationPanel";
+import { OfficialReleases } from "./OfficialReleases";
+
+// Tabs other than the overview load their code on first visit (then stay mounted).
+const tabLoading = () => <Skeleton className="h-96" />;
+const ChartTab = dynamic(() => import("./ChartTab"), { loading: tabLoading });
+const FundamentalsPanel = dynamic(() => import("./fundamentals/FundamentalsPanel"), { loading: tabLoading });
+const ValuationPanel = dynamic(() => import("./ValuationPanel"), { loading: tabLoading });
+const FinancialStatements = dynamic(() => import("./FinancialStatements"), { loading: tabLoading });
+const FilingsPanel = dynamic(() => import("./FilingsPanel"), { loading: tabLoading });
+const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoading });
+const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
 import { ExternalIcon, InfoIcon } from "./icons";
 import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton } from "./ui";
 
@@ -157,18 +161,29 @@ export default function StockView({ quote, quoteFetchedAt, sections }: { quote: 
           <ChartTabSection symbol={quote.symbol} exchange={quote.exchange} history={sections.history} chart={chart} setChart={setChart} />
         </Section>,
       )}
-      {panel("fundamentals", <FundamentalsPanel symbol={quote.symbol} price={quote.price} />)}
-      {panel("valuation", <ValuationPanel symbol={quote.symbol} />)}
+      {panel("fundamentals", <Deep><FundamentalsPanel symbol={quote.symbol} price={quote.price} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={quote.symbol} /></Deep>)}
       {panel(
         "financials",
         <Section fallback={<Skeleton className="h-96" />}>
-          <FinancialsSection symbol={quote.symbol} source={sections.source} income={sections.income} />
+          <DeepI18n>
+            <FinancialsSection symbol={quote.symbol} source={sections.source} income={sections.income} />
+          </DeepI18n>
         </Section>,
       )}
       {panel("filings", <FilingsPanel symbol={quote.symbol} />)}
-      {panel("insiders", <InsidersPanel symbol={quote.symbol} />)}
+      {panel("insiders", <Deep><InsidersPanel symbol={quote.symbol} /></Deep>)}
       {panel("news", <NewsPanel symbol={quote.symbol} exchange={quote.exchange} onSeeAllFilings={() => setTab("filings")} />)}
     </div>
+  );
+}
+
+/** A tab whose text lives in the deep dictionary: waits for it like for its code. */
+function Deep({ children }: { children: React.ReactNode }) {
+  return (
+    <Section fallback={<Skeleton className="h-96" />}>
+      <DeepI18n>{children}</DeepI18n>
+    </Section>
   );
 }
 
@@ -334,15 +349,21 @@ function FinancialsSection({ symbol, source, income }: { symbol: string; source:
 
 // ---- Summary: every sentence with the number behind it -----------------------------------
 
+/** Sized like a typical five-point summary, so the chart below doesn't jump when it lands. */
 function SummarySkeleton() {
   return (
     <Panel>
       <Skeleton className="h-3 w-32 mb-4" />
       <div className="space-y-3">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-10" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-5" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-6 w-20" />
+          </div>
         ))}
       </div>
+      <Skeleton className="h-8 mt-4" />
     </Panel>
   );
 }
@@ -391,7 +412,7 @@ function Summary({ sections, goTo }: { sections: StockSections; goTo: (t: Tab) =
               <Dot level={p.level} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm">{t.summary[p.key]}</p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+                <p className="mt-0.5 text-xs text-muted leading-relaxed">
                   {p.metric && p.value !== undefined && (
                     <span className="num font-semibold text-fg">
                       {t.metrics[p.metric].short} {METRIC_FORMAT(p.metric, p.value, lang)}
@@ -402,16 +423,11 @@ function Summary({ sections, goTo }: { sections: StockSections; goTo: (t: Tab) =
                       {fill(t.insights.trendEvidence, { c: fmtPrice(p.trend.close, lang), s: fmtPrice(p.trend.sma200, lang) })}
                     </span>
                   )}
-                  <span aria-hidden="true">·</span>
-                  <span>{period(p)}</span>
-                  {src.ok && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span>{fill(t.insights.sourceAt, { s: sections.source === "DEMO" ? t.insights.demoShort : "FMP", d: fmtAsOf(src.fetchedAt, lang) })}</span>
-                    </>
-                  )}
+                  {" · "}
+                  {period(p)}
+                  {src.ok && ` · ${fill(t.insights.sourceAt, { s: sections.source === "DEMO" ? t.insights.demoShort : "FMP", d: fmtAsOf(src.fetchedAt, lang) })}`}
                 </p>
-                <Explain label={t.insights.why}>
+                <Explain label={t.insights.why} className="mt-0">
                   <p>
                     <LevelBadge level={p.level} />{" "}
                     {p.metric ? ruleText(p.metric, t, lang) : t.insights.ruleTrend}

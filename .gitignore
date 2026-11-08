@@ -7,3 +7,6 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# local e2e output
+.e2e/

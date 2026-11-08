@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { fill, useI18n } from "@/lib/i18n";
 import type { DataSource, QuoteEntry } from "@/lib/types";
-import { useRecent, useWatchlist } from "@/lib/watchlist";
+import { useHydrated, useRecent, useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
 import TickerSearch from "./TickerSearch";
 import { ChevronRightIcon, StarIcon } from "./icons";
@@ -39,11 +39,11 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
             {popular}
           </Panel>
         </div>
-        <div className="max-lg:contents lg:space-y-6 min-w-0">
-          <div className="order-2">
+        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-6 min-w-0">
+          <div className="order-2 lg:order-last">
             <MiniWatchlist />
           </div>
-          <Panel title={t.home.howTo} className="order-4">
+          <Panel title={t.home.howTo} className="order-4 lg:order-first">
             <ol className="space-y-2 text-sm list-decimal pl-5 marker:text-accent marker:font-bold">
               {t.home.steps.map((s) => (
                 <li key={s}>{s}</li>
@@ -94,6 +94,7 @@ function MiniWatchlist() {
   const shown = list.slice(0, MINI_LIMIT);
   const q = useQuotes(shown);
   const more = list.length - shown.length;
+  const hydrated = useHydrated();
   return (
     <Panel
       title={t.watchlist.title}
@@ -107,7 +108,9 @@ function MiniWatchlist() {
         ) : undefined
       }
     >
-      {list.length === 0 ? (
+      {!hydrated ? (
+        <QuoteRowsSkeleton n={3} dense />
+      ) : list.length === 0 ? (
         <EmptyState title={t.ux.emptyTitle}>
           <p className="inline-flex flex-wrap items-center justify-center gap-1">
             {t.ux.emptyHowA}

@@ -109,7 +109,9 @@ function targetProbe() {
     if (cs.visibility === "hidden") continue;
     // Inline links inside running text are exempt (WCAG 2.5.8 inline exception).
     if (el.tagName === "A" && cs.display === "inline") continue;
-    if (r.height < 43.5 || r.width < 24) small.push(`${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 24)}" ${Math.round(r.width)}×${Math.round(r.height)}`);
+    // Disclosure summaries ("What is this?") are secondary: 24×24 minimum (WCAG 2.5.8).
+    const min = el.tagName === "SUMMARY" ? 24 : 43.5;
+    if (r.height < min || r.width < 24) small.push(`${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 24)}" ${Math.round(r.width)}×${Math.round(r.height)}`);
   }
   return small;
 }

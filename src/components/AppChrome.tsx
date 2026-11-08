@@ -21,7 +21,7 @@ export default function AppChrome({ demo, children }: { demo: boolean; children:
         {t.ux.skip}
       </a>
       <Header demo={demo} />
-      <main id="main" tabIndex={-1} className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24 md:pb-10 outline-none">
+      <main id="main" tabIndex={-1} className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24 md:pb-10 outline-none min-h-[calc(100dvh-3.5rem)]">
         {children}
       </main>
       <Footer />

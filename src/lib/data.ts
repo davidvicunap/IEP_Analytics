@@ -34,13 +34,15 @@ function trace(kind: CallKind, symbol: string) {
   if (process.env.IEP_TRACE === "1") console.log(JSON.stringify({ event: "facade_call", kind, symbol, demo: isDemo() }));
 }
 
-async function demoDelay(kind: CallKind) {
-  const ms = Number(process.env.DEMO_LATENCY_MS ?? 0) * LATENCY_WEIGHT[kind];
+// DEMO_SLOW_SYMBOLS=IWM and DEMO_SLOW_MS=1500 make those symbols' quotes slow (provider tail latency).
+async function demoDelay(kind: CallKind, symbol?: string) {
+  let ms = Number(process.env.DEMO_LATENCY_MS ?? 0) * LATENCY_WEIGHT[kind];
+  if (kind === "quote" && symbol && (process.env.DEMO_SLOW_SYMBOLS ?? "").split(",").includes(symbol)) ms += Number(process.env.DEMO_SLOW_MS ?? 0);
   if (ms > 0) await new Promise((r) => setTimeout(r, ms));
 }
 
-async function demoResult<T>(kind: CallKind, value: T | null): Promise<Result<T>> {
-  await demoDelay(kind);
+async function demoResult<T>(kind: CallKind, value: T | null, symbol?: string): Promise<Result<T>> {
+  await demoDelay(kind, symbol);
   return demo(value);
 }
 
@@ -51,12 +53,12 @@ export function normalizeSymbol(raw: string): string | null {
 
 export function getQuote(symbol: string): Promise<Result<Quote>> {
   trace("quote", symbol);
-  return isDemo() ? demoResult("quote", mock.mockQuote(symbol)) : fmp.fmpQuote(symbol);
+  return isDemo() ? demoResult("quote", mock.mockQuote(symbol), symbol) : fmp.fmpQuote(symbol);
 }
 
 /** Most symbols one quotes request may ask for; callers page through longer lists. */
 export const QUOTES_PER_REQUEST = 30;
-const QUOTE_CONCURRENCY = 6;
+const QUOTE_CONCURRENCY = 10; // one round for the home sections and typical lists; bounded for 30
 
 /** Runs `fn` over `items` with at most `limit` calls in flight, keeping the order. */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {

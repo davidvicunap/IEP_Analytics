@@ -1,37 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
-import { filingDocUrl, filingIndexUrl, formGroup, xbrlViewerUrl, type Filing, type FilingsPayload, type FormGroup } from "@/lib/filings";
-import type { DataIssue, Result } from "@/lib/types";
+import { filingDocUrl, filingIndexUrl, formGroup, xbrlViewerUrl, type Filing, type FormGroup } from "@/lib/filingsShared";
+import type { DataIssue } from "@/lib/types";
 import { IssueNote, Panel } from "./ui";
 
 const PAGE = 100;
 const GROUPS: ("all" | FormGroup)[] = ["all", "annual", "quarterly", "current", "proxy", "insiders", "ownership", "registration", "other"];
 
-export function useFilings(symbol: string, older = false) {
-  const [state, setState] = useState<Result<FilingsPayload> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    fetch(`/api/sec/filings/${encodeURIComponent(symbol)}${older ? "?older=1" : ""}`)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<FilingsPayload> | null;
-        if (alive) setState(body ?? { ok: false, error: "upstream" });
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [symbol, older]);
-  return state;
-}
-
-/** Plain-language name for a form: our label, else the filer's own description, else the code. */
-export function useFormLabel() {
-  const { t } = useI18n();
-  return (f: Pick<Filing, "form" | "description">) => t.filings.forms[f.form] ?? (f.description && f.description !== f.form ? f.description : f.form);
-}
+export { useFilings, useFormLabel } from "./filingsHooks";
+import { useFilings, useFormLabel } from "./filingsHooks";
 
 export default function FilingsPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();

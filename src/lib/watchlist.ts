@@ -118,3 +118,12 @@ export function useRecent() {
   const clear = useCallback(() => recentStore.write([]), []);
   return { list, record, clear };
 }
+
+/** False during server rendering and hydration, true once browser storage can be read. */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}

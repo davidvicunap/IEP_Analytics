@@ -5,12 +5,12 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtDate, fmtNum } from "@/lib/format";
 import type { FinancialsPayload } from "@/lib/financials";
 import { filingUrl, type Cell, type LineKey, type Period, type StatementKey, type StatementSet } from "@/lib/secFinancials";
-import { filingDocUrl, xbrlViewerUrl, type Filing } from "@/lib/filings";
+import { filingDocUrl, xbrlViewerUrl, type Filing } from "@/lib/filingsShared";
 import {
   checkColumn, projectStatements, projectionDefaults, ttmColumn, type CheckIssue, type Column, type ProjectionAssumptions,
 } from "@/lib/statements";
 import type { AnnualIncome, DataIssue, Result } from "@/lib/types";
-import { useFilings } from "./FilingsPanel";
+import { useFilings } from "./filingsHooks";
 import { IssueNote, Panel } from "./ui";
 import { NumberField } from "./valuation/fields";
 

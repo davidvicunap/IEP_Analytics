@@ -82,9 +82,21 @@ export function QuoteRows({
   );
 }
 
-export function QuoteRowsSkeleton({ n, dense = false }: { n: number; dense?: boolean }) {
+/** Rows plus the note/source lines that follow them, so nothing moves when data lands. */
+export function QuoteRowsSkeleton({ n, dense = false, note = false, source = false }: { n: number; dense?: boolean; note?: boolean; source?: boolean }) {
   return (
-    <ul className="divide-y divide-line" aria-hidden="true">
+    <div aria-hidden="true">
+      <QuoteRowsSkeletonList n={n} dense={dense} />
+      {note && <Skeleton className="mt-3 h-4 w-11/12" />}
+      {note && <Skeleton className="mt-1 h-4 w-1/2 sm:hidden" />}
+      {source && <Skeleton className="mt-2 h-3.5 w-64 max-w-full" />}
+    </div>
+  );
+}
+
+function QuoteRowsSkeletonList({ n, dense = false }: { n: number; dense?: boolean }) {
+  return (
+    <ul className="divide-y divide-line">
       {Array.from({ length: n }, (_, i) => (
         <li key={i} className={`flex items-center gap-3 ${dense ? "min-h-12" : "min-h-14"}`}>
           <span className="flex-1 space-y-1.5">

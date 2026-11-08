@@ -19,12 +19,12 @@ export default function Home() {
   return (
     <HomeView
       markets={
-        <Suspense fallback={<QuoteRowsSkeleton n={INDEXES.length} />}>
+        <Suspense fallback={<QuoteRowsSkeleton n={INDEXES.length} note source />}>
           <Markets source={source} />
         </Suspense>
       }
       popular={
-        <Suspense fallback={<QuoteRowsSkeleton n={POPULAR.length} />}>
+        <Suspense fallback={<QuoteRowsSkeleton n={POPULAR.length} source />}>
           <Popular source={source} />
         </Suspense>
       }
