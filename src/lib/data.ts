@@ -3,7 +3,7 @@ import { getDb } from "@/db/client";
 import * as fmp from "./fmp";
 import { searchSecurities } from "./securities";
 import * as mock from "./mock";
-import type { DataSource, Quote, QuoteEntry, Result, SearchResult, StockBundle } from "./types";
+import type { AnnualIncome, Candle, DataSource, Fundamentals, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
 
 /**
  * Simulated prices must never reach real users: demo data is only allowed outside
@@ -89,28 +89,38 @@ export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { ski
   return entries;
 }
 
-export type StockDetails = Omit<StockBundle, "quote" | "quoteFetchedAt">;
+export interface StockSections {
+  source: DataSource;
+  profile: Promise<Result<Profile>>;
+  fundamentals: Promise<Result<Fundamentals>>;
+  income: Promise<Result<AnnualIncome[]>>; // oldest -> newest
+  history: Promise<Result<Candle[]>>; // oldest -> newest
+}
 
-/** Everything on the stock page except the quote, which the page loads first. */
-export async function getStockDetails(symbol: string): Promise<StockDetails> {
+/**
+ * Everything on the stock page except the quote, started in parallel and NOT awaited:
+ * each section of the page waits only for its own data. The promises never reject; a
+ * failure resolves to a typed Result.
+ */
+export function getStockSections(symbol: string): StockSections {
   for (const k of ["profile", "fundamentals", "income", "history"] as const) trace(k, symbol);
   if (isDemo()) {
-    const [profile, fundamentals, income, history] = await Promise.all([
-      demoResult("profile", mock.mockProfile(symbol)),
-      demoResult("fundamentals", mock.mockFundamentals(symbol)),
-      demoResult("income", mock.mockIncome(symbol)),
-      demoResult("history", mock.mockHistory(symbol)),
-    ]);
-    return { source: "DEMO", profile, fundamentals, income, history };
+    return {
+      source: "DEMO",
+      profile: demoResult("profile", mock.mockProfile(symbol)),
+      fundamentals: demoResult("fundamentals", mock.mockFundamentals(symbol)),
+      income: demoResult("income", mock.mockIncome(symbol)),
+      history: demoResult("history", mock.mockHistory(symbol)),
+    };
   }
   // News comes from TradingView and SEC 8-K filings in the browser, not from FMP's quota.
-  const [profile, fundamentals, income, history] = await Promise.all([
-    fmp.fmpProfile(symbol),
-    fmp.fmpFundamentals(symbol),
-    fmp.fmpIncome(symbol),
-    fmp.fmpHistory(symbol),
-  ]);
-  return { source: "FMP", profile, fundamentals, income, history };
+  return {
+    source: "FMP",
+    profile: fmp.fmpProfile(symbol),
+    fundamentals: fmp.fmpFundamentals(symbol),
+    income: fmp.fmpIncome(symbol),
+    history: fmp.fmpHistory(symbol),
+  };
 }
 
 export async function searchSymbols(query: string): Promise<Result<SearchResult[]>> {

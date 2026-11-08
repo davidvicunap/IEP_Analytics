@@ -39,7 +39,7 @@ export default function TrendBars({
       <figure aria-labelledby={captionId} className="m-0 mt-2">
         <div className="flex h-28 gap-1" aria-hidden="true">
           {values.map((v, i) => (
-            <div key={labels[i]} className="flex flex-1 flex-col" title={v === null ? labels[i] : `${labels[i]}: ${format(v)}`}>
+            <div key={labels[i]} className="flex flex-1 flex-col">
               <div className="flex items-end" style={{ height: `${top}%` }}>
                 {v !== null && v > 0 && <div className="w-full rounded-t-sm bg-accent" style={{ height: `${(v / pos) * 100}%`, minHeight: 1 }} />}
               </div>

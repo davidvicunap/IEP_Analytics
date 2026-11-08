@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getQuote, getStockDetails, normalizeSymbol } from "@/lib/data";
-import type { Quote } from "@/lib/types";
+import { getQuote, getStockSections, normalizeSymbol } from "@/lib/data";
 import StockView from "@/components/StockView";
-import StockSkeleton from "@/components/StockSkeleton";
 import DataUnavailable from "@/components/DataUnavailable";
 
 type Props = { params: Promise<{ ticker: string }> };
@@ -20,18 +17,12 @@ export default async function StockPage({ params }: Props) {
 
   // The quote is loaded before anything streams, so an unknown ticker gets a real
   // HTTP 404 and a provider failure gets its own message instead of "not found".
+  // Keep this above any Suspense/loading boundary: once streaming starts the status is 200.
   const quote = await getQuote(symbol);
   if (!quote.ok && quote.error === "not_found") notFound();
   if (!quote.ok) return <DataUnavailable issue={quote.error} symbol={symbol} />;
 
-  return (
-    <Suspense fallback={<StockSkeleton />}>
-      <StockDetails symbol={symbol} quote={quote.data} quoteFetchedAt={quote.fetchedAt} />
-    </Suspense>
-  );
-}
-
-async function StockDetails({ symbol, quote, quoteFetchedAt }: { symbol: string; quote: Quote; quoteFetchedAt: string }) {
-  const details = await getStockDetails(symbol);
-  return <StockView data={{ ...details, quote, quoteFetchedAt }} />;
+  // Everything else starts now and streams in: each section of the page waits only for
+  // its own data (see StockView's Suspense boundaries).
+  return <StockView quote={quote.data} quoteFetchedAt={quote.fetchedAt} sections={getStockSections(symbol)} />;
 }

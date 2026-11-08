@@ -16,8 +16,11 @@ export interface MetricScore {
   format: "x" | "pct";
 }
 
-/** Thresholds: [goodIf, badIf] — direction "low" means lower is better. */
-const RULES: Record<MetricKey, { dir: "low" | "high"; good: number; bad: number; format: "x" | "pct" }> = {
+/**
+ * Fixed rules of thumb (heuristics), the same for every company and sector: [goodIf, badIf],
+ * direction "low" means lower is better. The UI shows them next to every verdict.
+ */
+export const RULES: Record<MetricKey, { dir: "low" | "high"; good: number; bad: number; format: "x" | "pct" }> = {
   pe: { dir: "low", good: 15, bad: 30, format: "x" },
   ps: { dir: "low", good: 2, bad: 8, format: "x" },
   pb: { dir: "low", good: 3, bad: 10, format: "x" },
@@ -73,6 +76,8 @@ export interface Signal {
   value?: number;
   date?: string; // when the event happened (YYYY-MM-DD)
   days?: number; // sessions since the event
+  close?: number; // last close the signal was computed on
+  asOf?: string; // date of that close
 }
 
 export const CROSS_LOOKBACK = 30;
@@ -111,7 +116,8 @@ export function technicalSignals(history: Candle[]): Signal[] {
   const s50 = last(sma(closes, 50));
   const price = closes[closes.length - 1];
   if (s200 != null) {
-    out.push(price >= s200 ? { key: "aboveSma200", level: "good", value: s200 } : { key: "belowSma200", level: "bad", value: s200 });
+    const asOf = history[history.length - 1].time;
+    out.push(price >= s200 ? { key: "aboveSma200", level: "good", value: s200, close: price, asOf } : { key: "belowSma200", level: "bad", value: s200, close: price, asOf });
   }
   if (s50 != null && s200 != null) {
     const cross = recentCross(history);
@@ -142,6 +148,18 @@ export type SummaryKey =
 export interface SummaryPoint {
   key: SummaryKey;
   level: Level;
+  /** The number behind the sentence. */
+  metric?: MetricKey;
+  value?: number;
+  /** For the trend: last close vs its 200-day average. */
+  trend?: { close: number; sma200: number };
+}
+
+/** Metrics the summary tries to cover; the ones without data are listed, not hidden. */
+export const SUMMARY_METRICS: MetricKey[] = ["pe", "revenueGrowth", "netMargin", "debtToEquity"];
+
+export function missingSummaryMetrics(scores: MetricScore[]): MetricKey[] {
+  return SUMMARY_METRICS.filter((k) => !scores.some((s) => s.key === k));
 }
 
 /** 3–5 plain-language bullets that sum up the stock. */
@@ -151,15 +169,15 @@ export function summarize(scores: MetricScore[], signals: Signal[]): SummaryPoin
   const pe = by("pe");
   if (pe) {
     const key: SummaryKey = pe.value! <= 0 ? "valLoss" : pe.level === "good" ? "valCheap" : pe.level === "ok" ? "valFair" : "valExpensive";
-    out.push({ key, level: pe.level });
+    out.push({ key, level: pe.level, metric: "pe", value: pe.value });
   }
   const g = by("revenueGrowth");
-  if (g) out.push({ key: g.level === "good" ? "growFast" : g.level === "ok" ? "growSlow" : "growShrink", level: g.level });
+  if (g) out.push({ key: g.level === "good" ? "growFast" : g.level === "ok" ? "growSlow" : "growShrink", level: g.level, metric: "revenueGrowth", value: g.value });
   const m = by("netMargin");
-  if (m) out.push({ key: m.level === "good" ? "profitHigh" : m.level === "ok" ? "profitMid" : "profitLow", level: m.level });
+  if (m) out.push({ key: m.level === "good" ? "profitHigh" : m.level === "ok" ? "profitMid" : "profitLow", level: m.level, metric: "netMargin", value: m.value });
   const d = by("debtToEquity");
-  if (d) out.push({ key: d.level === "good" ? "debtLow" : d.level === "ok" ? "debtMid" : "debtHigh", level: d.level });
+  if (d) out.push({ key: d.level === "good" ? "debtLow" : d.level === "ok" ? "debtMid" : "debtHigh", level: d.level, metric: "debtToEquity", value: d.value });
   const t = signals.find((s) => s.key === "aboveSma200" || s.key === "belowSma200");
-  if (t) out.push({ key: t.key === "aboveSma200" ? "trendUp" : "trendDown", level: t.level });
+  if (t) out.push({ key: t.key === "aboveSma200" ? "trendUp" : "trendDown", level: t.level, trend: t.close !== undefined && t.value !== undefined ? { close: t.close, sma200: t.value } : undefined });
   return out;
 }

@@ -8,11 +8,13 @@ import { keyLevels, type KeyLevels } from "@/lib/levels";
 import type { Candle, DataIssue } from "@/lib/types";
 import type { ChartLevel } from "./PriceChart";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "./TradingViewWidget";
-import { Explain, IssueNote, Panel } from "./ui";
+import { Explain, IssueNote, Panel, Segmented } from "./ui";
+import ChartPlaceholder from "./ChartPlaceholder";
+import type { ChartSettings } from "@/lib/chartSettings";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
   ssr: false,
-  loading: () => <div className="h-[340px] rounded-lg bg-panel-2 animate-pulse" />,
+  loading: () => <ChartPlaceholder />,
 });
 
 type Lang = "es" | "en";
@@ -24,12 +26,16 @@ export default function ChartTab({
   history,
   historyIssue,
   signals,
+  chart,
+  onChart,
 }: {
   symbol: string;
   exchange?: string;
   history: Candle[];
   historyIssue: DataIssue | null;
   signals: React.ReactNode;
+  chart: ChartSettings;
+  onChart: (s: ChartSettings) => void;
 }) {
   const { t, lang } = useI18n();
   const theme = useResolvedTheme();
@@ -44,24 +50,23 @@ export default function ChartTab({
     [levels, showLevels],
   );
   const tv = tvSymbol(symbol, exchange);
-  const chip = (on: boolean) =>
-    `h-9 px-3 rounded-md text-xs font-semibold border ${on ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`;
 
   return (
     <div className="space-y-4">
       <Panel>
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div role="group" aria-label={t.chart.viewLabel} className="flex gap-1">
-            <button type="button" aria-pressed={view === "tv"} className={chip(view === "tv")} onClick={() => setView("tv")}>
-              {t.chart.tradingview}
-            </button>
-            <button type="button" aria-pressed={view === "simple"} className={chip(view === "simple")} onClick={() => setView("simple")}>
-              {t.chart.simple}
-            </button>
-          </div>
+          <Segmented
+            label={t.chart.viewLabel}
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "tv", label: t.chart.tradingview },
+              { value: "simple", label: t.chart.simple },
+            ]}
+          />
           {view === "simple" && levels && (
-            <label className="ml-auto inline-flex items-center gap-2 text-xs min-h-8">
-              <input type="checkbox" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
+            <label className="ml-auto inline-flex items-center gap-2 text-xs min-h-11 cursor-pointer">
+              <input type="checkbox" className="h-5 w-5 accent-[var(--accent)]" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
               {t.chart.levels.showOnChart}
             </label>
           )}
@@ -97,7 +102,7 @@ export default function ChartTab({
         ) : historyIssue ? (
           <IssueNote issue={historyIssue} />
         ) : (
-          <PriceChart history={history} levels={lines} />
+          <PriceChart history={history} levels={lines} settings={chart} onSettings={onChart} />
         )}
       </Panel>
 
