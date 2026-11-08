@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
 import "./globals.css";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { I18nProvider } from "@/lib/i18n";
 import es from "@/lib/i18n/es";
 import en from "@/lib/i18n/en";
@@ -20,8 +22,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0a0b0d" },
-    { media: "(prefers-color-scheme: light)", color: "#f6f7f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0d0f" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f6f7" },
   ],
 };
 
@@ -38,7 +40,7 @@ async function detectLang(): Promise<Lang> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const lang = await detectLang();
   return (
-    <html lang={lang} suppressHydrationWarning>
+    <html lang={lang} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

@@ -359,10 +359,103 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
   const card = p.locator("article", { hasText: "Beneficio neto" });
   await card.waitFor();
   assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
-  assert((await card.locator(".bg-accent").count()) === 2, "two bars above zero");
+  assert((await card.locator(".bg-series-1").count()) === 2, "two bars above zero");
   await card.getByText("Ver los datos").click();
   const cells = await card.locator("tbody td").allInnerTexts();
   assert(cells.some((c) => c.startsWith("−$")) && cells.includes("—"), `cells ${cells.join(",")}`);
+  await p.context().close();
+});
+
+// ---- Chart generator --------------------------------------------------------------------------
+
+// Small synthetic series (test data only): two companies with different fiscal years.
+function seriesFixture(symbol, scale) {
+  const keys = ["FY2021", "FY2022", "FY2023", "FY2024", "FY2025"];
+  const revenue = [100, 110, 125, 120, 140].map((v) => v * scale * 1e9);
+  const netIncome = [10, 12, -3, 14, 18].map((v) => v * scale * 1e9);
+  const values = { revenue, netIncome, netMargin: netIncome.map((n, i) => n / revenue[i]) };
+  const q = { keys: [], ends: [], values: {} };
+  return { ok: true, fetchedAt: "2026-11-07T12:00:00Z", data: { symbol, name: `${symbol} Inc.`, annual: { keys, ends: keys.map((k) => `${k.slice(2)}-12-31`), values }, quarterly: q } };
+}
+async function chartsPage(opts) {
+  const p = await page(opts);
+  await p.route(/\/api\/sec\/series\/([A-Z.]+)/, (r) => {
+    const s = r.request().url().split("/").pop();
+    if (s === "AAA") return r.fulfill(json(seriesFixture("AAA", 1)));
+    if (s === "BBB") return r.fulfill(json(seriesFixture("BBB", 2)));
+    return r.fulfill(json({ ok: false, error: "not_found" }, 404));
+  });
+  return p;
+}
+
+await test("charts: URL state, legend toggle, keyboard readout and CSV", async () => {
+  const p = await chartsPage();
+  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual&k=bar&r=5");
+  const chart = p.locator("svg[aria-roledescription=chart]");
+  await chart.waitFor();
+  assert((await chart.locator("path[fill]").count()) === 10, "2 companies × 5 years of bars");
+  // Legend hides and shows a series, without repainting the other.
+  const legendA = p.getByRole("button", { name: "AAA", exact: true });
+  await legendA.click();
+  assert((await legendA.getAttribute("aria-pressed")) === "false", "legend toggle");
+  assert((await chart.locator("path[fill]").count()) === 5, "hidden series removed");
+  await legendA.click();
+  // Keyboard: focus the chart and step through periods.
+  await chart.focus();
+  await p.keyboard.press("Home");
+  const tip = p.locator("[role=status]", { hasText: "FY2021" });
+  await tip.waitFor();
+  assert((await tip.innerText()).includes("$100B"), `readout ${await tip.innerText()}`);
+  // Options update the URL (shareable), growth uses the period before.
+  await p.getByRole("group", { name: "Mostrar" }).getByRole("button", { name: "Crecimiento" }).click();
+  await p.waitForURL(/t=growth/);
+  await p.keyboard.press("Tab");
+  await chart.focus();
+  await p.keyboard.press("End");
+  await p.locator("[role=status]", { hasText: "+16.7%" }).or(p.locator("[role=status]", { hasText: "16.7%" })).first().waitFor();
+  // CSV export has a header and one row per period.
+  const [dl] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: /CSV/ }).click()]);
+  const csv = readFileSync(await dl.path(), "utf8").trim().split("\n");
+  assert(csv[0] === "Periodo,AAA (%),BBB (%)", `csv header ${csv[0]}`);
+  assert(csv.length === 6, `csv rows ${csv.length}`);
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("charts: a company without filings is reported; units can't be mixed without a transform", async () => {
+  const p = await chartsPage({ lang: "en" });
+  await p.goto(base + "/charts?s=AAA,ZZZ&m=revenue,netMargin&f=annual&k=line");
+  await p.locator("svg[aria-roledescription=chart]").waitFor();
+  await p.getByText(/ZZZ.*:/).first().waitFor();
+  assert(!p.url().includes("netMargin") || (await p.getByRole("button", { name: /Revenue/ }).first().innerText()) === "Revenue", "mixed units dropped");
+  await p.getByRole("button", { name: /^Revenue/ }).first().click();
+  const margin = p.getByRole("checkbox", { name: /Net margin/ });
+  assert(await margin.isDisabled(), "different unit is disabled while showing values");
+  await p.keyboard.press("Escape");
+  await p.getByRole("group", { name: "Show" }).getByRole("button", { name: "Index 100" }).click();
+  await p.getByRole("button", { name: /^Revenue/ }).first().click();
+  await p.getByRole("checkbox", { name: /Net margin/ }).check();
+  await p.waitForURL(/m=revenue,netMargin/);
+  await p.context().close();
+});
+
+await test("charts: phone layout uses compact selects and never scrolls sideways", async () => {
+  const p = await chartsPage({ width: 360, height: 780, touch: true });
+  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual");
+  await p.locator("svg[aria-roledescription=chart]").waitFor();
+  await p.getByRole("combobox", { name: "Periodicidad" }).selectOption("quarterly");
+  await p.waitForURL(/f=quarterly/);
+  assert((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "horizontal overflow");
+  await axe(p);
+  await p.context().close();
+});
+
+await test("charts: monthly prices in demo mode say they're unavailable instead of inventing them", async () => {
+  const p = await chartsPage();
+  await p.goto(base + "/charts?s=AAA&m=pe&f=monthly");
+  await p.getByText("El historial de precios no está disponible en este momento.").waitFor();
+  assert((await p.locator("svg[aria-roledescription=chart]").count()) === 0, "no chart without data");
   await p.context().close();
 });
 

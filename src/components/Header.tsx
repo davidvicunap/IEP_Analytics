@@ -17,7 +17,7 @@ export function isTypingTarget(e: KeyboardEvent): boolean {
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable || !!el.closest?.("[contenteditable]:not([contenteditable=false])");
 }
 
-const iconBtn = "grid h-11 w-11 place-items-center rounded-lg border border-line bg-panel hover:bg-panel-2";
+const iconBtn = "grid h-11 w-11 place-items-center rounded-lg text-muted hover:text-fg hover:bg-panel-2";
 
 export default function Header({ demo }: { demo: boolean }) {
   const { t } = useI18n();
@@ -56,12 +56,12 @@ export default function Header({ demo }: { demo: boolean }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-sm border-b border-line pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md border-b border-line pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-2 sm:gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
-        <Link href="/" className="flex items-center gap-2 shrink-0 font-bold tracking-tight min-h-11" aria-label="IEP Analytics">
-          <LogoMark />
+        <Link href="/" className="flex items-center gap-2 shrink-0 min-h-11 text-[15px] font-semibold tracking-[-0.01em]" aria-label="IEP Analytics">
+          <LogoMark size={24} />
           <span className="hidden sm:inline">
-            IEP <span className="text-accent">Analytics</span>
+            IEP <span className="text-muted font-medium">Analytics</span>
           </span>
         </Link>
         <div className="flex-1 min-w-0">
@@ -74,6 +74,9 @@ export default function Header({ demo }: { demo: boolean }) {
         <nav aria-label={t.ux.mainNav} className="hidden md:flex items-center gap-1 text-sm">
           <NavLink href="/" active={onHome}>
             {t.nav.home}
+          </NavLink>
+          <NavLink href="/charts" active={path.startsWith("/charts")}>
+            {t.nav.charts}
           </NavLink>
           <NavLink href="/watchlist" active={path.startsWith("/watchlist")}>
             {t.nav.watchlist}
@@ -92,8 +95,10 @@ export default function Header({ demo }: { demo: boolean }) {
             {open ? <CloseIcon /> : <SearchIcon />}
           </button>
         )}
-        <LangToggle />
-        <ThemeToggle />
+        <div className="flex items-center gap-0.5">
+          <LangToggle />
+          <ThemeToggle />
+        </div>
       </div>
       {open && !onHome && (
         <div id="mobile-search" className="md:hidden border-t border-line px-3 py-2 bg-bg">
@@ -101,7 +106,8 @@ export default function Header({ demo }: { demo: boolean }) {
         </div>
       )}
       {demo && (
-        <p role="note" className="text-xs text-center py-1 bg-warn-bg text-warn border-t border-line px-4">
+        <p role="note" className="flex items-center justify-center gap-2 text-xs py-1.5 border-t border-line px-4 text-muted">
+          <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />
           {t.app.demo}
         </p>
       )}
@@ -114,8 +120,8 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`relative inline-flex items-center h-11 px-3 rounded-md hover:bg-panel-2 ${
-        active ? "text-fg font-semibold after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:rounded after:bg-accent" : "text-muted"
+      className={`inline-flex items-center h-9 px-3 rounded-md text-[14px] transition-colors ${
+        active ? "bg-panel-2 text-fg font-medium" : "text-muted hover:text-fg"
       }`}
     >
       {children}

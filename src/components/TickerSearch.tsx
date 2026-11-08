@@ -20,11 +20,18 @@ export default function TickerSearch({
   large = false,
   onDone,
   onEscape,
+  onSelect,
+  placeholder,
+  label,
 }: {
   autoFocus?: boolean;
   large?: boolean;
   onDone?: () => void;
   onEscape?: () => void;
+  /** Pick a symbol instead of opening its page (e.g. adding a company to a chart). */
+  onSelect?: (symbol: string) => void;
+  placeholder?: string;
+  label?: string;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -44,6 +51,11 @@ export default function TickerSearch({
     controller().setQuery("");
     inputRef.current?.blur();
     onDone?.();
+    if (onSelect) {
+      onSelect(symbol);
+      inputRef.current?.focus();
+      return;
+    }
     router.push(`/stock/${encodeURIComponent(symbol)}`);
   };
 
@@ -123,7 +135,7 @@ export default function TickerSearch({
       }}
     >
       <label htmlFor={`${id}-input`} className="sr-only">
-        {t.search.label}
+        {label ?? t.search.label}
       </label>
       <div className="relative">
         <SearchIcon size={large ? 22 : 18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -146,7 +158,7 @@ export default function TickerSearch({
           enterKeyHint="search"
           autoFocus={autoFocus}
           value={q}
-          placeholder={t.search.placeholder}
+          placeholder={placeholder ?? t.search.placeholder}
           onChange={(e) => {
             setQ(e.target.value);
             setOpen(true);
@@ -202,7 +214,7 @@ export default function TickerSearch({
                 onMouseMove={() => active !== i && setActive(i)}
                 className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer min-h-12 ${i === active ? "bg-panel-2" : ""}`}
               >
-                <span className="num font-bold text-accent w-16 shrink-0">{r.symbol}</span>
+                <span className="font-semibold text-fg w-16 shrink-0">{r.symbol}</span>
                 <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
                 {r.exchange && <span className="text-[10px] text-muted shrink-0">{r.exchange}</span>}
               </li>

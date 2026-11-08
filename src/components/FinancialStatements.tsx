@@ -151,7 +151,7 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
 
   const fin = state.data;
   const chip = (on: boolean) =>
-    `h-9 px-3 rounded-md text-xs font-semibold border ${on ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`;
+    `h-9 px-3 rounded-md text-[13px] font-medium border ${on ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`;
   const toggleProjection = () => {
     if (!projecting && !draft && defaults) setDraft(defaults.assumptions as unknown as Draft);
     setProjecting((x) => !x);
@@ -162,7 +162,7 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mr-auto">{t.fin.title}</h2>
+        <h2 className="section-title mr-auto">{t.fin.title}</h2>
         <div role="group" aria-label={t.fin.title} className="flex gap-1">
           <button type="button" className={chip(mode === "annual")} aria-pressed={mode === "annual"} onClick={() => setMode("annual")}>
             {t.fin.annual}
@@ -323,7 +323,7 @@ function ColumnHeader({ c, cik, byAccn, lang, divider }: { c: DisplayColumn; cik
       {c.kind === "projected" ? (
         <span className="text-info">{c.period.label}</span>
       ) : docHref ? (
-        <a href={docHref} target="_blank" rel="noopener noreferrer" className="text-info underline" title={t.fin.openFiling}>
+        <a href={docHref} target="_blank" rel="noopener noreferrer" className="link" title={t.fin.openFiling}>
           {c.period.label}
         </a>
       ) : (
@@ -339,14 +339,14 @@ function ColumnHeader({ c, cik, byAccn, lang, divider }: { c: DisplayColumn; cik
       {c.kind !== "projected" && (docHref || f?.inlineXbrl) && (
         <span className="block text-[10px] font-normal">
           {docHref && (
-            <a href={docHref} target="_blank" rel="noopener noreferrer" className="text-info underline" title={t.fin.docTitle}>
+            <a href={docHref} target="_blank" rel="noopener noreferrer" className="link" title={t.fin.docTitle}>
               {t.fin.doc}
             </a>
           )}
           {f?.inlineXbrl && (
             <>
               {" · "}
-              <a href={xbrlViewerUrl(cik, f)} target="_blank" rel="noopener noreferrer" className="text-info underline" title={t.fin.xbrlTitle}>
+              <a href={xbrlViewerUrl(cik, f)} target="_blank" rel="noopener noreferrer" className="link" title={t.fin.xbrlTitle}>
                 {t.fin.xbrl}
               </a>
             </>
@@ -504,8 +504,8 @@ function ProjectionEditor({
           <label htmlFor="proj-name" className="text-[11px] text-muted">{t.fin.projName}</label>
           <input id="proj-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="h-9 w-48 rounded-md border border-line bg-panel px-2 text-sm" />
         </div>
-        <button type="submit" disabled={!ready} className="h-9 px-3 rounded-md text-xs font-semibold bg-accent text-accent-fg disabled:opacity-50">{t.fin.projSave}</button>
-        <button type="button" onClick={() => setDraft(defaults as unknown as Draft)} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2">
+        <button type="submit" disabled={!ready} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50">{t.fin.projSave}</button>
+        <button type="button" onClick={() => setDraft(defaults as unknown as Draft)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
           {t.fin.projReset}
         </button>
       </form>

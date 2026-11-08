@@ -37,7 +37,7 @@ export default function MultipleChart({
   useEffect(() => {
     const el = ref.current;
     if (!el || points.length === 0) return;
-    const c = { bg: cssVar("--panel"), text: cssVar("--muted"), grid: cssVar("--border"), accent: cssVar("--accent"), info: cssVar("--info"), warn: cssVar("--warn") };
+    const c = { bg: cssVar("--panel"), text: cssVar("--muted"), grid: cssVar("--border"), accent: cssVar("--series-1"), info: cssVar("--info"), warn: cssVar("--warn") };
     const chart = createChart(el, {
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: c.bg }, textColor: c.text, fontSize: 11, attributionLogo: true },

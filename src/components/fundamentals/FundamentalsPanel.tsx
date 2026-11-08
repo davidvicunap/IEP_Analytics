@@ -12,6 +12,7 @@ import type { DataIssue, Result } from "@/lib/types";
 import { Explain, IssueNote, Panel } from "../ui";
 import RatiosPanel from "../RatiosPanel";
 import TrendBars from "./TrendBars";
+import { CheckIcon, CloseIcon } from "../icons";
 
 type Lang = "es" | "en";
 const pct = (v: number, lang: Lang, d = 1) => `${fmtNum(v * 100, lang, d)}%`;
@@ -81,18 +82,23 @@ export default function FundamentalsPanel({ symbol, price }: { symbol: string; p
 
 // ---- Quality ------------------------------------------------------------------------------
 
-const LEVEL_STYLE: Record<QualityLevel, string> = {
-  high: "bg-up-bg text-up",
-  mixed: "bg-warn-bg text-warn",
-  low: "bg-down-bg text-down",
-  na: "bg-panel-2 text-muted",
+const LEVEL_DOT: Record<QualityLevel, string> = {
+  high: "bg-up",
+  mixed: "bg-warn",
+  low: "bg-down",
+  na: "bg-line-strong",
 };
 const STATUS_STYLE: Record<QualityCheck["status"], string> = {
   pass: "bg-up-bg text-up",
   fail: "bg-down-bg text-down",
   na: "bg-panel-2 text-muted",
 };
-const STATUS_ICON: Record<QualityCheck["status"], string> = { pass: "✓", fail: "✗", na: "–" };
+const STATUS_TEXT: Record<QualityCheck["status"], string> = { pass: "text-up", fail: "text-down", na: "text-muted" };
+const STATUS_ICON: Record<QualityCheck["status"], React.ReactNode> = {
+  pass: <CheckIcon size={14} />,
+  fail: <CloseIcon size={14} />,
+  na: <span className="h-px w-2.5 bg-current" />,
+};
 
 function QualitySection({ q, lang }: { q: QualityPayload; lang: Lang }) {
   const { t } = useI18n();
@@ -106,29 +112,32 @@ function QualitySection({ q, lang }: { q: QualityPayload; lang: Lang }) {
     <Panel>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
-          <h2 className="text-base font-semibold">{Q.title}</h2>
+          <h2 className="section-title">{Q.title}</h2>
           <p className="mt-1 text-sm text-muted leading-relaxed">{Q.intro}</p>
         </div>
         {q.checks.length > 0 && (
-          <div className="rounded-lg border border-line bg-panel-2 px-4 py-3 text-center min-w-44">
-            <p className="num text-3xl font-bold" aria-hidden="true">
+          <div className="sm:text-right">
+            <p className="num text-3xl font-semibold tracking-tight leading-none" aria-hidden="true">
               {s.passed}
-              <span className="text-xl text-muted">/{judged}</span>
+              <span className="text-xl font-normal text-muted">/{judged}</span>
             </p>
-            <p className="text-xs text-muted">{fill(Q.score, { passed: s.passed, judged })}</p>
-            {s.na > 0 && <p className="text-[11px] text-muted">{fill(Q.scoreNa, { na: s.na })}</p>}
+            <p className="mt-1 text-xs text-muted">{fill(Q.score, { passed: s.passed, judged })}</p>
+            {s.na > 0 && <p className="text-xs text-muted">{fill(Q.scoreNa, { na: s.na })}</p>}
           </div>
         )}
       </div>
       {q.checks.length > 0 && (
-        <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${LEVEL_STYLE[s.level]}`}>{Q.level[s.level]}</p>
+        <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium">
+          <span className={`h-2 w-2 rounded-full ${LEVEL_DOT[s.level]}`} aria-hidden="true" />
+          {Q.level[s.level]}
+        </p>
       )}
       <p className="mt-2 text-xs text-muted">
         {first && last && fill(Q.years, { from: first.label, to: last.label })}
         {latest10k && (
           <>
             {" · "}
-            <a href={secIndexUrl(q.cik, latest10k.accn!)} target="_blank" rel="noopener noreferrer" className="text-info underline underline-offset-2">
+            <a href={secIndexUrl(q.cik, latest10k.accn!)} target="_blank" rel="noopener noreferrer" className="link">
               {Q.latest10k} ({latest10k.label})
             </a>
           </>
@@ -137,7 +146,7 @@ function QualitySection({ q, lang }: { q: QualityPayload; lang: Lang }) {
       {q.businessType === "reit" && <p className="mt-3 text-sm">{Q.reit}</p>}
       {(q.businessType === "bank" || q.businessType === "insurance") && <p className="mt-2 text-xs text-muted">{Q.financial}</p>}
       {q.checks.length > 0 && (
-        <ul className="mt-4 grid gap-3 md:grid-cols-2">
+        <ul className="mt-5 grid md:grid-cols-2 md:gap-x-8 border-t border-line md:border-t-0">
           {q.checks.map((c) => (
             <CheckItem key={c.key} c={c} lang={lang} />
           ))}
@@ -219,18 +228,18 @@ function CheckItem({ c, lang }: { c: QualityCheck; lang: Lang }) {
   const { t } = useI18n();
   const d = t.quality.checks[c.key];
   return (
-    <li className="rounded-lg border border-line p-3">
+    <li className="border-b border-line py-4 md:[&:nth-child(-n+2)]:border-t">
       <div className="flex gap-3">
-        <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold ${STATUS_STYLE[c.status]}`} aria-hidden="true">
+        <span className={`mt-px grid h-6 w-6 shrink-0 place-items-center rounded-full ${STATUS_STYLE[c.status]}`} aria-hidden="true">
           {STATUS_ICON[c.status]}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-x-2">
-            <h3 className="text-sm font-semibold">{d.title}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[c.status]}`}>{t.quality.status[c.status]}</span>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-sm font-medium">{d.title}</h3>
+            <span className={`shrink-0 text-xs font-medium ${STATUS_TEXT[c.status]}`}>{t.quality.status[c.status]}</span>
           </div>
-          <p className="text-[11px] text-muted">{fill(d.rule, { bar: barFor(c.key, lang) })}</p>
-          <p className="mt-1 text-sm">{checkText(c, lang, t)}</p>
+          <p className="mt-0.5 text-xs text-muted leading-relaxed">{fill(d.rule, { bar: barFor(c.key, lang) })}</p>
+          <p className="num mt-1.5 text-sm">{checkText(c, lang, t)}</p>
           <Explain>{d.why}</Explain>
         </div>
       </div>
@@ -533,7 +542,7 @@ function Trends({ q, lang }: { q: QualityPayload; lang: Lang }) {
   return (
     <Panel title={T.title}>
       <p className="-mt-1 mb-3 text-xs text-muted">{T.intro}</p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-x-6 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
         {q.trends.map(({ key, values }) => {
           const kind = KIND[key];
           const format = fmt(kind);

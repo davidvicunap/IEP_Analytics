@@ -13,12 +13,14 @@ import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, S
 
 export function Panel({
   title,
+  description,
   children,
   className = "",
   action,
   id,
 }: {
   title?: string;
+  description?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   action?: React.ReactNode;
@@ -27,11 +29,14 @@ export function Panel({
   return (
     <section id={id} className={`rounded-xl border border-line bg-panel p-4 sm:p-5 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
       {title && (
-        <div className="flex items-center justify-between gap-2 mb-3 min-h-6">
-          <h2 id={id ? `${id}-title` : undefined} className="text-xs font-semibold uppercase tracking-wider text-muted">
-            {title}
-          </h2>
-          {action}
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-3 min-h-6">
+            <h2 id={id ? `${id}-title` : undefined} className="section-title">
+              {title}
+            </h2>
+            {action}
+          </div>
+          {description && <p className="mt-0.5 text-[13px] text-muted leading-relaxed">{description}</p>}
         </div>
       )}
       {children}
@@ -44,13 +49,13 @@ export function Panel({
 type Variant = "primary" | "secondary" | "ghost";
 const VARIANT: Record<Variant, string> = {
   primary: "bg-accent text-accent-fg border-accent hover:brightness-110",
-  secondary: "bg-panel text-fg border-line hover:bg-panel-2",
+  secondary: "bg-panel text-fg border-line hover:border-line-strong hover:bg-panel-2",
   ghost: "bg-transparent text-fg border-transparent hover:bg-panel-2",
 };
 
 /** 44 px tall by default (comfortable touch target); `compact` is for dense desktop toolbars only. */
 export function buttonClass(variant: Variant = "secondary", compact = false, extra = "") {
-  return `inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+  return `inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
     compact ? "h-11 sm:h-9 px-3" : "h-11 px-4"
   } ${VARIANT[variant]} ${extra}`;
 }
@@ -82,7 +87,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className={`inline-flex rounded-lg border border-line bg-panel-2 p-0.5 ${className}`}>
+    <div role="group" aria-label={label} className={`${/\b(hidden|flex|grid|block)\b/.test(className) ? "" : "inline-flex "}rounded-lg border border-line bg-panel-2 p-0.5 ${className}`}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -90,8 +95,8 @@ export function Segmented<T extends string>({
           aria-pressed={value === o.value}
           title={o.title}
           onClick={() => onChange(o.value)}
-          className={`h-11 sm:h-8 min-w-11 sm:min-w-9 px-3 rounded-md text-xs font-semibold transition-colors ${
-            value === o.value ? "bg-panel text-fg shadow-sm ring-1 ring-line" : "text-muted hover:text-fg"
+          className={`h-11 sm:h-8 min-w-11 sm:min-w-9 px-3 rounded-md text-[13px] font-medium transition-colors ${
+            value === o.value ? "bg-panel text-fg shadow-[0_1px_2px_rgb(0_0_0/0.08)] ring-1 ring-line" : "text-muted hover:text-fg"
           }`}
         >
           {o.label}
@@ -108,11 +113,11 @@ export function ToggleChip({ on, onClick, children }: { on: boolean; onClick: ()
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-11 sm:h-9 px-3 rounded-full border text-xs font-semibold transition-colors ${
-        on ? "border-accent bg-accent/10 text-fg" : "border-line bg-panel text-muted hover:text-fg"
+      className={`inline-flex items-center gap-1.5 h-11 sm:h-8 px-3 rounded-full border text-[13px] font-medium transition-colors ${
+        on ? "border-line-strong bg-panel-2 text-fg" : "border-line bg-panel text-muted hover:text-fg"
       }`}
     >
-      <span className={`grid place-items-center h-4 w-4 rounded-full border ${on ? "border-accent bg-accent text-accent-fg" : "border-line"}`} aria-hidden="true">
+      <span className={`grid place-items-center h-4 w-4 rounded-full border ${on ? "border-fg bg-fg text-bg" : "border-line-strong"}`} aria-hidden="true">
         {on && <CheckIcon size={12} />}
       </span>
       {children}
@@ -132,7 +137,7 @@ const TONE: Record<Tone, string> = {
 };
 
 export function Badge({ tone = "neutral", children, className = "" }: { tone?: Tone; children: React.ReactNode; className?: string }) {
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${TONE[tone]} ${className}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${TONE[tone]} ${className}`}>{children}</span>;
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
@@ -166,8 +171,8 @@ export function StatusMessage({
 
 export function EmptyState({ title, children, action }: { title: string; children?: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed border-line px-4 py-6 text-center">
-      <p className="font-semibold">{title}</p>
+    <div className="rounded-lg bg-panel-2 px-4 py-6 text-center">
+      <p className="font-medium">{title}</p>
       {children && <div className="mt-1 text-sm text-muted">{children}</div>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
@@ -187,12 +192,13 @@ export function IssueNote({ issue, className = "" }: { issue: DataIssue; classNa
 // ---- Prices -----------------------------------------------------------------------------
 
 /** Price change with sign, arrow and color: the meaning never depends on color alone. */
-export function Change({ value, pct, className = "" }: { value?: number; pct: number; className?: string }) {
+export function Change({ value, pct, className = "", pill = false }: { value?: number; pct: number; className?: string; pill?: boolean }) {
   const { lang } = useI18n();
   const up = pct >= 0;
   const abs = value !== undefined ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${fmtPrice(Math.abs(value), lang).replace(/^\$/, "")} ` : "";
+  const tone = pill ? (up ? "bg-up-bg text-up rounded-md px-1.5 py-0.5 justify-end" : "bg-down-bg text-down rounded-md px-1.5 py-0.5 justify-end") : up ? "text-up" : "text-down";
   return (
-    <span className={`num inline-flex items-center gap-1 whitespace-nowrap ${up ? "text-up" : "text-down"} ${className}`}>
+    <span className={`num inline-flex items-center gap-1 whitespace-nowrap font-medium ${tone} ${className}`}>
       <DirectionGlyph up={up} />
       {abs}
       {value !== undefined ? `(${fmtPct(pct, lang, { sign: true }).replace("-", "−")})` : fmtPct(pct, lang, { sign: true }).replace("-", "−")}
@@ -214,7 +220,7 @@ export function Provenance({
 }) {
   const { t, lang } = useI18n();
   return (
-    <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted ${className}`}>
+    <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted ${className}`}>
       <span>
         {t.data.source}: {source === "DEMO" ? t.data.demoSource : "Financial Modeling Prep"}
       </span>
@@ -242,10 +248,10 @@ export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
     <Link
       href={`/stock/${q.symbol}`}
       prefetch={false}
-      className="block rounded-lg border border-line bg-panel hover:bg-panel-2 hover:border-accent/60 transition-colors p-3 min-w-0"
+      className="block rounded-lg border border-line bg-panel hover:bg-panel-2 hover:border-line-strong transition-colors p-3 min-w-0"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="num font-bold text-accent">{q.symbol}</span>
+        <span className="font-semibold text-fg">{q.symbol}</span>
         <span className="text-[11px] text-muted truncate">{label ?? q.name}</span>
       </div>
       <div className="num text-lg font-semibold mt-1">{fmtPrice(q.price, lang)}</div>
@@ -256,18 +262,18 @@ export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
 
 // ---- Scores -----------------------------------------------------------------------------
 
-const LEVEL_STYLE: Record<Level, string> = {
-  good: "bg-up-bg text-up",
-  ok: "bg-warn-bg text-warn",
-  bad: "bg-down-bg text-down",
-  neutral: "bg-info-bg text-info",
+const LEVEL_TEXT: Record<Level, string> = {
+  good: "text-fg",
+  ok: "text-fg",
+  bad: "text-fg",
+  neutral: "text-muted",
 };
 const LEVEL_DOT: Record<Level, string> = { good: "bg-up", ok: "bg-warn", bad: "bg-down", neutral: "bg-info" };
 
 export function LevelBadge({ level }: { level: Level }) {
   const { t } = useI18n();
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${LEVEL_STYLE[level]}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${LEVEL_TEXT[level]}`}>
       <LevelMark level={level} />
       {t.stock.scoreLegend[level]}
     </span>
@@ -276,12 +282,12 @@ export function LevelBadge({ level }: { level: Level }) {
 
 /** Colour plus shape: good ▲-ish circle, ok square, bad diamond, neutral ring. */
 export function LevelMark({ level, className = "" }: { level: Level; className?: string }) {
-  const shape = level === "ok" ? "rounded-[2px]" : level === "bad" ? "rotate-45 rounded-[2px]" : "rounded-full";
-  return <span className={`inline-block h-2.5 w-2.5 shrink-0 ${shape} ${LEVEL_DOT[level]} ${className}`} aria-hidden="true" />;
+  const shape = level === "ok" ? "rounded-[2px]" : level === "bad" ? "rotate-45 rounded-[1px]" : "rounded-full";
+  return <span className={`inline-block h-2 w-2 shrink-0 ${shape} ${LEVEL_DOT[level]} ${className}`} aria-hidden="true" />;
 }
 
 export function Dot({ level }: { level: Level }) {
-  return <LevelMark level={level} className="mt-1.5" />;
+  return <LevelMark level={level} className="mt-[7px]" />;
 }
 
 /** Expandable "What is this?" explanation; works with touch and keyboard. */
@@ -289,11 +295,10 @@ export function Explain({ children, label, className = "mt-2" }: { children: Rea
   const { t } = useI18n();
   return (
     <details className={`group text-sm ${className}`}>
-      <summary className="cursor-pointer select-none text-info text-xs inline-flex items-center gap-1 min-h-8 rounded">
-        <InfoIcon size={14} />
+      <summary className="cursor-pointer select-none text-muted hover:text-fg text-xs inline-flex items-center gap-1 min-h-7 rounded underline decoration-dotted decoration-line-strong underline-offset-4">
         {label ?? t.chart.whatIs}
       </summary>
-      <div className="mt-1.5 text-muted leading-relaxed">{children}</div>
+      <div className="mt-1.5 text-[13px] text-muted leading-relaxed">{children}</div>
     </details>
   );
 }
@@ -305,8 +310,8 @@ export function Comparison({ label, percentile, text }: { label: string; percent
       <dt className="font-medium">{label}</dt>
       {percentile !== undefined && (
         <div className="relative my-1 h-1.5 rounded-full bg-panel-2" aria-hidden="true">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-accent/40" style={{ width: `${percentile}%` }} />
-          <div className="absolute -top-0.5 h-2.5 w-1 rounded-full bg-accent" style={{ left: `calc(${percentile}% - 2px)` }} />
+          <div className="absolute inset-y-0 left-0 rounded-full bg-series-1/35" style={{ width: `${percentile}%` }} />
+          <div className="absolute -top-0.5 h-2.5 w-1 rounded-full bg-series-1" style={{ left: `calc(${percentile}% - 2px)` }} />
         </div>
       )}
       <dd className="text-muted">{text}</dd>
@@ -338,9 +343,9 @@ export function WatchButton({ symbol, className = "" }: { symbol: string; classN
       type="button"
       onClick={click}
       aria-pressed={on}
-      className={`${buttonClass(on ? "primary" : "secondary")} ${className}`}
+      className={`${buttonClass("secondary")} ${on ? "bg-panel-2" : ""} ${className}`}
     >
-      <StarIcon filled={on} size={18} />
+      <StarIcon filled={on} size={18} className={on ? "text-accent" : "text-muted"} />
       {on ? t.stock.removeWatch : t.stock.addWatch}
     </button>
   );

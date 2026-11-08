@@ -128,7 +128,7 @@ export default function DcfMaker({ v }: { v: ValuationPayload }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.maker.title}</h2>
+        <h2 className="section-title">{t.maker.title}</h2>
         <p className="text-sm">{t.maker.intro}</p>
         <p className="text-xs text-muted">
           {fill(t.maker.base, {
@@ -282,13 +282,13 @@ export default function DcfMaker({ v }: { v: ValuationPayload }) {
               className="h-9 w-48 rounded-md border border-line bg-panel px-2 text-sm"
             />
           </div>
-          <button type="submit" disabled={!result} className="h-9 px-3 rounded-md text-xs font-semibold bg-accent text-accent-fg disabled:opacity-50">
+          <button type="submit" disabled={!result} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50">
             {t.maker.save}
           </button>
-          <button type="button" onClick={() => setDraft(m.defaults)} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2">
+          <button type="button" onClick={() => setDraft(m.defaults)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
             {t.maker.reset}
           </button>
-          <button type="button" onClick={csv} disabled={!result} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2 disabled:opacity-50">
+          <button type="button" onClick={csv} disabled={!result} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2 disabled:opacity-50">
             {t.maker.csv}
           </button>
         </form>

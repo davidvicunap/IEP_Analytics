@@ -31,8 +31,9 @@ const FinancialStatements = dynamic(() => import("./FinancialStatements"), { loa
 const FilingsPanel = dynamic(() => import("./FilingsPanel"), { loading: tabLoading });
 const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoading });
 const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
-import { ExternalIcon, InfoIcon } from "./icons";
-import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton } from "./ui";
+import Link from "next/link";
+import { ChartIcon, ExternalIcon, InfoIcon } from "./icons";
+import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
   ssr: false,
@@ -145,8 +146,8 @@ export default function StockView({ quote, quoteFetchedAt, sections }: { quote: 
             tabIndex={tab === k ? 0 : -1}
             onClick={() => setTab(k)}
             onKeyDown={(e) => onTabKey(e, i)}
-            className={`shrink-0 h-11 px-3 sm:px-4 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              tab === k ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg"
+            className={`shrink-0 h-11 px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === k ? "border-fg text-fg" : "border-transparent text-muted hover:text-fg"
             }`}
           >
             {t.stock.tabs[k]}
@@ -198,18 +199,29 @@ function StockHeader({ quote, quoteFetchedAt, source, profile }: { quote: Quote;
           <Logo profile={profile} symbol={quote.symbol} />
         </Suspense>
         <div className="min-w-0 flex-1">
-          <h1 id="stock-title" className="text-xl sm:text-2xl font-bold leading-tight line-clamp-2 break-words">
+          <h1 id="stock-title" className="text-xl sm:text-2xl font-semibold tracking-[-0.015em] leading-tight line-clamp-2 break-words">
             {quote.name}
           </h1>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-muted">
-            <span className="num font-bold text-accent">{quote.symbol}</span>
+            <span className="font-medium text-fg">{quote.symbol}</span>
             {quote.exchange && <span>{quote.exchange}</span>}
             <Suspense fallback={null}>
               <Sector profile={profile} />
             </Suspense>
           </p>
         </div>
-        <WatchButton symbol={quote.symbol} className="shrink-0" />
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href={`/charts?s=${encodeURIComponent(quote.symbol)}&m=revenue&f=annual&k=bar&r=10`}
+            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+            title={t.stock.compareTitle}
+            aria-label={t.stock.compareTitle}
+          >
+            <ChartIcon size={16} />
+            <span className="hidden sm:inline">{t.stock.compare}</span>
+          </Link>
+          <WatchButton symbol={quote.symbol} />
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
         <p className="num text-3xl sm:text-4xl font-semibold leading-none">{fmtPrice(quote.price, lang)}</p>
@@ -225,7 +237,7 @@ function StockHeader({ quote, quoteFetchedAt, source, profile }: { quote: Quote;
 
 function Initial({ symbol }: { symbol: string }) {
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-panel-2 text-lg font-bold text-muted" aria-hidden="true">
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-panel-2 text-lg font-semibold text-muted" aria-hidden="true">
       {symbol[0]}
     </span>
   );
@@ -274,6 +286,11 @@ function Overview({
             <OverviewChart history={sections.history} chart={chart} setChart={setChart} />
           </Section>
         </Panel>
+        <div className="order-4">
+          <Section fallback={<Skeleton className="h-64" />}>
+            <KeyMetrics sections={sections} />
+          </Section>
+        </div>
         <div className="order-5">
           <Section fallback={<Skeleton className="h-40" />}>
             <Signals history={sections.history} />
@@ -288,11 +305,6 @@ function Overview({
         </div>
         <div className="order-3">
           <KeyStats quote={quote} />
-        </div>
-        <div className="order-4">
-          <Section fallback={<Skeleton className="h-64" />}>
-            <KeyMetrics sections={sections} />
-          </Section>
         </div>
         <div className="order-6">
           <Section fallback={<Skeleton className="h-32" />}>
@@ -400,7 +412,7 @@ function Summary({ sections, goTo }: { sections: StockSections; goTo: (t: Tab) =
   const asOf = (p: SummaryPoint) => (p.metric === "revenueGrowth" ? inc : p.metric ? f : h);
 
   return (
-    <Panel title={t.stock.summaryTitle} id="summary" className="border-accent/40">
+    <Panel title={t.stock.summaryTitle} id="summary">
       {points.length === 0 && (
         <StatusMessage>{!f.ok ? t.data.issues[f.error] : t.insights.noneYet}</StatusMessage>
       )}
@@ -440,14 +452,14 @@ function Summary({ sections, goTo }: { sections: StockSections; goTo: (t: Tab) =
         })}
       </ul>
       {missing.length > 0 && (
-        <p className="mt-3 flex gap-2 rounded-lg border border-dashed border-line px-3 py-2 text-xs text-muted">
+        <p className="mt-4 flex gap-2 rounded-lg bg-panel-2 px-3 py-2 text-xs text-muted">
           <InfoIcon size={16} className="mt-px" />
           <span>{fill(t.insights.missing, { list: missing.map((k) => t.metrics[k].short).join(", ") })}</span>
         </p>
       )}
-      <p className="mt-3 text-[11px] text-muted">
+      <p className="mt-4 text-xs text-muted leading-relaxed">
         {t.insights.heuristicNote}{" "}
-        <button type="button" className="text-info underline min-h-6" onClick={() => goTo("fundamentals")}>
+        <button type="button" className="link inline-flex items-center min-h-11 sm:min-h-6 text-left" onClick={() => goTo("fundamentals")}>
           {t.insights.seeSector}
         </button>
       </p>
@@ -480,17 +492,17 @@ function KeyMetrics({ sections }: { sections: StockSections }) {
   const by = new Map<MetricKey, MetricScore>(scores.map((s) => [s.key, s]));
   return (
     <Panel title={t.insights.metricsTitle} id="metrics">
-      <div className="space-y-3">
+      <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
         {GROUPS.map((g) => (
-          <div key={g.key}>
-            <h3 className="text-xs font-semibold text-muted mb-1">{t.insights.groups[g.key]}</h3>
-            <ul className="divide-y divide-line rounded-lg border border-line">
+          <div key={g.key} className="min-w-0">
+            <h3 className="control-label mb-1">{t.insights.groups[g.key]}</h3>
+            <ul className="divide-y divide-line border-y border-line">
               {g.metrics.map((k) => {
                 const s = by.get(k);
                 return (
                   <li key={k}>
                     <details className="group">
-                      <summary className="flex items-center gap-2 min-h-11 px-3 cursor-pointer">
+                      <summary className="flex items-center gap-2 min-h-11 cursor-pointer hover:bg-panel-2/60 -mx-2 px-2 rounded-md">
                         <span className="flex-1 min-w-0 text-sm">{t.metrics[k].name}</span>
                         {s ? (
                           <>
@@ -501,7 +513,7 @@ function KeyMetrics({ sections }: { sections: StockSections }) {
                           <Badge>{t.insights.noData}</Badge>
                         )}
                       </summary>
-                      <div className="px-3 pb-3 text-xs text-muted space-y-1">
+                      <div className="pb-3 text-xs text-muted leading-relaxed space-y-1">
                         <p>{t.metrics[k].what}</p>
                         {s && <p>{ruleText(k, t, lang)}</p>}
                         {!s && <p>{t.insights.noDataText}</p>}
@@ -514,8 +526,8 @@ function KeyMetrics({ sections }: { sections: StockSections }) {
           </div>
         ))}
       </div>
-      <Provenance source={sections.source} asOf={f.fetchedAt} className="mt-3" />
-      <p className="mt-1 text-[11px] text-muted">{t.insights.ttmNote}</p>
+      <Provenance source={sections.source} asOf={f.fetchedAt} className="mt-4" />
+      <p className="mt-1 text-xs text-muted">{t.insights.ttmNote}</p>
     </Panel>
   );
 }
@@ -549,7 +561,7 @@ function SignalsPanel({ history }: { history: Candle[] }) {
           </li>
         ))}
       </ul>
-      {last && <p className="mt-3 text-[11px] text-muted">{fill(t.insights.signalsBasis, { d: fmtDate(last.time, lang) })}</p>}
+      {last && <p className="mt-3 text-xs text-muted">{fill(t.insights.signalsBasis, { d: fmtDate(last.time, lang) })}</p>}
     </Panel>
   );
 }
@@ -581,7 +593,7 @@ function KeyStats({ quote: q }: { quote: Quote }) {
         <div className="mt-4">
           <p className="text-xs text-muted mb-1.5">{t.stock.yearRange}</p>
           <div
-            className="relative h-2 rounded-full bg-panel-2"
+            className="relative h-1.5 rounded-full bg-line"
             role="meter"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -589,8 +601,7 @@ function KeyStats({ quote: q }: { quote: Quote }) {
             aria-valuetext={fill(t.ux.rangePos, { p: fmtPct(pos, lang).replace(/\.00%$/, "%"), lo: fmtPrice(q.yearLow, lang), hi: fmtPrice(q.yearHigh, lang) })}
             aria-label={t.stock.positionIn52w}
           >
-            <div className="absolute inset-y-0 left-0 rounded-full bg-accent/30" style={{ width: `${pos}%` }} />
-            <span className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-accent border-2 border-panel" style={{ left: `${pos}%` }} />
+            <span className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-fg border-2 border-panel" style={{ left: `${pos}%` }} />
           </div>
           <div className="flex justify-between num text-xs text-muted mt-1">
             <span>{fmtPrice(q.yearLow, lang)}</span>
@@ -623,7 +634,7 @@ function About({ profile }: { profile: Promise<Result<Profile>> }) {
           <>
             <dt className="text-muted">{t.stock.website}</dt>
             <dd className="min-w-0">
-              <a className="inline-flex items-center gap-1 text-info underline break-all" href={d.website} target="_blank" rel="noopener noreferrer">
+              <a className="inline-flex items-center gap-1 link break-all" href={d.website} target="_blank" rel="noopener noreferrer">
                 {d.website.replace(/^https?:\/\//, "")}
                 <ExternalIcon size={14} />
               </a>
@@ -633,7 +644,7 @@ function About({ profile }: { profile: Promise<Result<Profile>> }) {
       </dl>
       {d.description && (
         <details className="mt-3 text-sm">
-          <summary className="cursor-pointer text-info text-xs inline-flex items-center min-h-8">{t.ux.readDescription}</summary>
+          <summary className="cursor-pointer link text-xs inline-flex items-center min-h-8">{t.ux.readDescription}</summary>
           <p className="mt-2 leading-relaxed text-muted">{d.description}</p>
         </details>
       )}

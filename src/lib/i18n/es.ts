@@ -3,6 +3,7 @@ import type { DeepDict } from "./esDeep";
 
 const es = {
   app: {
+    dataBy: "Datos:",
     tagline: "Análisis de acciones de EE.UU., explicado simple",
     disclaimer: "Solo con fines educativos. No es asesoría financiera.",
     demo: "Modo demo: datos simulados. Añade FMP_API_KEY para datos reales.",
@@ -12,7 +13,7 @@ const es = {
     themeDark: "Oscuro",
     themeLight: "Claro",
   },
-  nav: { home: "Inicio", watchlist: "Mi lista", search: "Buscar" },
+  nav: { home: "Inicio", watchlist: "Mi lista", search: "Buscar", charts: "Gráficos" },
   search: {
     placeholder: "Busca una acción: Apple, TSLA…",
     label: "Buscar una acción por nombre o ticker",
@@ -35,8 +36,8 @@ const es = {
     },
   },
   home: {
-    heroTitle: "Entiende una empresa en un minuto",
-    heroText: "Busca una acción de EE. UU. y te explicamos, en lenguaje simple, cómo va su precio, si gana dinero y qué tan cara está.",
+    heroTitle: "Acciones de EE. UU., explicadas con claridad",
+    heroText: "Busca una empresa por su nombre o ticker para ver cómo va su precio, cómo le va al negocio y qué tan cara está.",
     markets: "El mercado hoy",
     popular: "Empresas para explorar",
     howTo: "Cómo usarlo",
@@ -48,11 +49,18 @@ const es = {
     ],
     indexNames: { SPY: "S&P 500", QQQ: "Nasdaq 100", DIA: "Dow Jones", IWM: "Russell 2000" } as Record<string, string>,
     etfNames: { SPY: "ETF que sigue al S&P 500", QQQ: "ETF que sigue al Nasdaq 100", DIA: "ETF que sigue al Dow Jones", IWM: "ETF que sigue al Russell 2000" } as Record<string, string>,
+    etfLabel: "ETF",
+    chartsTitle: "Generador de gráficos",
+    chartsText: "Compara ingresos, márgenes o valoración de varias empresas en un solo gráfico.",
+    chartsOpen: "Crear un gráfico",
+    chartsPresets: { revenue: "Ingresos de Apple, Microsoft y Alphabet", margins: "Margen neto: Apple frente a Microsoft", pe: "P/E de NVIDIA, Microsoft y Apple (5 años)" },
     etfNote: "Son precios de fondos cotizados (ETF) que replican cada índice, no el valor del índice en puntos.",
   },
   stock: {
     tabs: { overview: "Resumen", chart: "Gráfico", fundamentals: "Fundamentales", valuation: "Valoración", financials: "Finanzas", filings: "Filings", insiders: "Insiders", news: "Noticias" },
     addWatch: "Seguir",
+    compare: "Comparar",
+    compareTitle: "Abrir en el generador de gráficos para compararla con otras empresas",
     removeWatch: "Siguiendo",
     summaryTitle: "En pocas palabras",
     keyStats: "Datos clave",
@@ -326,6 +334,7 @@ const es = {
     latest: "Últimos comunicados oficiales",
   },
   ux: {
+    compareList: "Comparar en gráficos",
     sectionsOf: "Secciones de {s}",
     vsPrevClose: "vs. cierre anterior",
     rangePos: "{p} del camino entre el mínimo {lo} y el máximo {hi}",

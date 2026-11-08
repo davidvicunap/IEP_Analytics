@@ -367,7 +367,7 @@ export default function PriceChart({
         </button>
       </div>
       <div id={`${captionId}-inds`} className={`${showInds ? "block" : "hidden"} sm:block mb-3`}>
-        <p className="hidden sm:block text-[11px] font-semibold uppercase tracking-wider text-muted mb-1.5">{t.chart.indicators}</p>
+        <p className="hidden sm:block control-label mb-1.5">{t.chart.indicators}</p>
         <div role="group" aria-label={t.chart.indicators} className="flex flex-wrap gap-2">
           {INDICATORS.map((k) => (
             <ToggleChip key={k} on={inds.includes(k)} onClick={() => toggle(k)}>
@@ -444,7 +444,7 @@ export default function PriceChart({
 function ControlGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted mb-1.5" aria-hidden="true">
+      <p className="control-label mb-1.5" aria-hidden="true">
         {label}
       </p>
       {children}
@@ -470,7 +470,7 @@ function ChartData({ history, lang }: { history: Candle[]; lang: "es" | "en" }) 
   }, [open, history, weekly]);
   return (
     <details className="mt-2 text-xs" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
-      <summary className="cursor-pointer select-none text-info inline-flex items-center min-h-8">{t.chart.dataTable}</summary>
+      <summary className="cursor-pointer select-none link inline-flex items-center min-h-8">{t.chart.dataTable}</summary>
       {open && (
         <div className="relative mt-1 max-h-72 overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label={t.chart.dataTable}>
           <table className="num w-full">

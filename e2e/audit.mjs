@@ -27,6 +27,7 @@ const PAGES = [
   { name: "chart", path: "/stock/AAPL", tab: "chart" },
   { name: "fundamentals", path: "/stock/AAPL", tab: "fundamentals" },
   { name: "news", path: "/stock/AAPL", tab: "news" },
+  { name: "charts", path: "/charts" },
   { name: "watchlist", path: "/watchlist" },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },

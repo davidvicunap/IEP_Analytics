@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { MoonIcon, SunIcon } from "./icons";
 
-const btn = "grid place-items-center h-11 min-w-11 px-2 rounded-lg border border-line bg-panel hover:bg-panel-2 text-sm font-semibold";
+const btn = "grid place-items-center h-11 min-w-11 px-2 rounded-lg text-muted hover:text-fg hover:bg-panel-2 text-[13px] font-medium";
 
 export function LangToggle() {
   const { lang, setLang, t } = useI18n();

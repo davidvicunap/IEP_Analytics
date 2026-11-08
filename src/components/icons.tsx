@@ -118,6 +118,27 @@ export const SlidersIcon = (p: IconProps) => (
     <circle cx="10" cy="17" r="2" />
   </Svg>
 );
+export const ChartIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 20h16" />
+    <path d="M7 16v-5M12 16V7M17 16v-8" />
+  </Svg>
+);
+export const DownloadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </Svg>
+);
+export const LinkIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Svg>
+);
+export const PlusIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
 export const TableIcon = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />

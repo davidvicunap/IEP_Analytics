@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { dataSource, getQuotes } from "@/lib/data";
 import HomeView, { MarketsSection, PopularSection } from "@/components/HomeView";
-import { QuoteRowsSkeleton } from "@/components/QuoteList";
+import { MarketCardsSkeleton, QuoteRowsSkeleton } from "@/components/QuoteList";
 
 const INDEXES = ["SPY", "QQQ", "DIA", "IWM"];
 const POPULAR = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM"];
@@ -19,7 +19,7 @@ export default function Home() {
   return (
     <HomeView
       markets={
-        <Suspense fallback={<QuoteRowsSkeleton n={INDEXES.length} note source />}>
+        <Suspense fallback={<MarketCardsSkeleton n={INDEXES.length} />}>
           <Markets source={source} />
         </Suspense>
       }
