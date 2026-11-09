@@ -119,7 +119,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.comps.title}</h2>
+        <h2 className="section-title">{t.comps.title}</h2>
         <p className="text-sm">{fill(t.comps.basis, { year: d.year })}</p>
         <p className="text-xs text-muted">{d.suggested ? t.comps.suggested : t.comps.custom}</p>
       </div>
@@ -148,21 +148,21 @@ export default function CompsView({ symbol }: { symbol: string }) {
           }}
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor="comps-add" className="text-[11px] text-muted">{t.comps.addLabel}</label>
+            <label htmlFor="comps-add" className="control-label">{t.comps.addLabel}</label>
             <input
               id="comps-add"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={t.comps.addPlaceholder}
               autoComplete="off"
-              className="h-9 w-40 rounded-md border border-line bg-panel px-2 text-sm uppercase"
+              className="h-11 sm:h-9 w-44 rounded-lg border border-line bg-panel px-3 text-sm uppercase placeholder:normal-case placeholder:text-muted"
             />
           </div>
-          <button type="submit" disabled={current.length >= MAX} className="h-9 px-3 rounded-md text-xs font-semibold bg-accent text-accent-fg disabled:opacity-50">
+          <button type="submit" disabled={current.length >= MAX} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50">
             {t.comps.add}
           </button>
           {!d.suggested && (
-            <button type="button" onClick={() => updatePeers(null)} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2">
+            <button type="button" onClick={() => updatePeers(null)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
               {t.comps.resetPeers}
             </button>
           )}
@@ -193,7 +193,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
                 type="button"
                 aria-pressed={stat === s}
                 onClick={() => setStat(s)}
-                className={`h-8 px-3 rounded-md text-xs font-semibold border ${stat === s ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`}
+                className={`h-8 px-3 rounded-md text-[13px] font-medium border ${stat === s ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`}
               >
                 {s === "median" ? t.comps.median : t.comps.mean}
               </button>
@@ -332,8 +332,8 @@ function FootballField({ ranges, price, lang }: { ranges: ReturnType<typeof impl
               <td className="px-2">
                 <div className="relative h-4" aria-hidden="true">
                   <div className="absolute top-1.5 h-1 left-0 right-0 rounded bg-panel-2" />
-                  <div className="absolute top-0.5 h-3 rounded bg-accent/40" style={{ left: x(r.low), width: `calc(${x(r.high)} - ${x(r.low)})` }} />
-                  <div className="absolute top-0 h-4 w-1 rounded bg-accent" style={{ left: `calc(${x(r.mid)} - 2px)` }} />
+                  <div className="absolute top-0.5 h-3 rounded bg-series-1/35" style={{ left: x(r.low), width: `calc(${x(r.high)} - ${x(r.low)})` }} />
+                  <div className="absolute top-0 h-4 w-1 rounded bg-series-1" style={{ left: `calc(${x(r.mid)} - 2px)` }} />
                   <div className="absolute -top-1 h-6 w-px bg-fg" style={{ left: x(price) }} />
                 </div>
               </td>

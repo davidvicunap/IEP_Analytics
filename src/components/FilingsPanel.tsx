@@ -51,12 +51,12 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
   const { cik, older: olderInfo } = state.data;
   const visible = filtered.slice(0, shown);
   const chip = (on: boolean) =>
-    `h-8 px-3 rounded-full text-xs font-semibold border ${on ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`;
+    `h-8 px-3 rounded-full text-[13px] font-medium border ${on ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`;
 
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.filings.title}</h2>
+        <h2 className="section-title">{t.filings.title}</h2>
         <p className="text-sm">{t.filings.intro}</p>
       </div>
 
@@ -114,13 +114,13 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
                     </td>
                     <td className="num py-2 whitespace-nowrap text-muted">{f.reportDate ? fmtDate(f.reportDate, lang) : "—"}</td>
                     <td className="py-2 pr-4 text-right whitespace-nowrap">
-                      <a className="text-info underline" href={filingDocUrl(cik, f)} target="_blank" rel="noopener noreferrer">{t.filings.doc}</a>
+                      <a className="link" href={filingDocUrl(cik, f)} target="_blank" rel="noopener noreferrer">{t.filings.doc}</a>
                       <span className="text-muted"> · </span>
-                      <a className="text-info underline" href={filingIndexUrl(cik, f.accn)} target="_blank" rel="noopener noreferrer">{t.filings.index}</a>
+                      <a className="link" href={filingIndexUrl(cik, f.accn)} target="_blank" rel="noopener noreferrer">{t.filings.index}</a>
                       {f.inlineXbrl && (
                         <>
                           <span className="text-muted"> · </span>
-                          <a className="text-info underline" href={xbrlViewerUrl(cik, f)} target="_blank" rel="noopener noreferrer" title={t.filings.xbrlTitle}>
+                          <a className="link" href={xbrlViewerUrl(cik, f)} target="_blank" rel="noopener noreferrer" title={t.filings.xbrlTitle}>
                             {t.filings.xbrl}
                           </a>
                         </>
@@ -134,12 +134,12 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {filtered.length > shown && (
-            <button type="button" onClick={() => setShown((n) => n + PAGE)} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2">
+            <button type="button" onClick={() => setShown((n) => n + PAGE)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
               {fill(t.filings.more, { n: filtered.length - shown })}
             </button>
           )}
           {olderInfo.available && !olderInfo.loaded && (
-            <button type="button" onClick={() => setOlder(true)} className="h-9 px-3 rounded-md text-xs font-semibold border border-line bg-panel hover:bg-panel-2">
+            <button type="button" onClick={() => setOlder(true)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
               {fill(t.filings.older, { date: olderInfo.from ? fmtDate(olderInfo.from, lang) : "—" })}
             </button>
           )}

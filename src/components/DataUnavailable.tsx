@@ -12,9 +12,9 @@ export default function DataUnavailable({ issue, symbol }: { issue: DataIssue; s
   const router = useRouter();
   return (
     <div className="max-w-md mx-auto py-12 space-y-4 text-center">
-      <h1 className="text-xl font-bold">
+      <h1 className="text-xl font-semibold tracking-[-0.015em]">
         {t.data.unavailableTitle}
-        {symbol && <span className="num text-accent"> · {symbol}</span>}
+        {symbol && <span className="num text-fg"> · {symbol}</span>}
       </h1>
       <IssueNote issue={issue} className="justify-center text-left" />
       <div className="flex justify-center gap-3 pt-2">

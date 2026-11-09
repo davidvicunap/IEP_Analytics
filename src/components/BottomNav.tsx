@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { HomeIcon, StarIcon } from "./icons";
+import { ChartIcon, HomeIcon, StarIcon } from "./icons";
 
 /** Phone navigation. Hidden while a text field has focus, so it never rides on the keyboard. */
 export default function BottomNav() {
@@ -24,23 +24,23 @@ export default function BottomNav() {
   }, []);
   const items = [
     { href: "/", label: t.nav.home, Icon: HomeIcon, active: path === "/" },
+    { href: "/charts", label: t.nav.charts, Icon: ChartIcon, active: path.startsWith("/charts") },
     { href: "/watchlist", label: t.nav.watchlist, Icon: StarIcon, active: path.startsWith("/watchlist") },
   ];
   return (
     <nav
       aria-label={t.ux.mainNav}
-      className={`md:hidden fixed bottom-0 inset-x-0 z-30 bg-panel/95 backdrop-blur-sm border-t border-line pb-[env(safe-area-inset-bottom)] ${typing ? "hidden" : ""}`}
+      className={`md:hidden fixed bottom-0 inset-x-0 z-30 bg-panel/90 backdrop-blur-md border-t border-line pb-[env(safe-area-inset-bottom)] ${typing ? "hidden" : ""}`}
     >
-      <ul className="grid grid-cols-2">
+      <ul className="grid grid-cols-3">
         {items.map(({ href, label, Icon, active }) => (
           <li key={href}>
             <Link
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex flex-col items-center justify-center h-14 text-xs gap-0.5 ${active ? "text-accent font-semibold" : "text-muted"}`}
+              className={`relative flex flex-col items-center justify-center h-14 text-[11px] gap-1 ${active ? "text-fg font-medium" : "text-muted"}`}
             >
-              {active && <span className="absolute top-0 h-0.5 w-10 rounded-b bg-accent" aria-hidden="true" />}
-              <Icon size={22} />
+              <Icon size={22} className={active ? "text-accent" : ""} />
               {label}
             </Link>
           </li>

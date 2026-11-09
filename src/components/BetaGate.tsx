@@ -63,13 +63,13 @@ export default function BetaGate({ next }: { next: string }) {
       </header>
       <main id="main" className="flex-1 flex items-center justify-center py-10">
         <div className="w-full max-w-md rounded-xl border border-line bg-panel p-6 sm:p-8">
-          <div className="flex items-center gap-2 font-bold tracking-tight text-lg">
+          <div className="flex items-center gap-2 font-semibold tracking-tight text-lg">
             <LogoMark size={28} />
             <span>
-              IEP <span className="text-accent">Analytics</span>
+              IEP <span className="font-normal text-muted">Analytics</span>
             </span>
           </div>
-          <h1 className="mt-6 text-2xl font-bold">{t.beta.title}</h1>
+          <h1 className="mt-6 text-2xl font-semibold tracking-[-0.02em]">{t.beta.title}</h1>
           <p className="mt-2 text-sm text-muted">{t.beta.text}</p>
           <form onSubmit={submit} className="mt-6 space-y-3" noValidate>
             <label htmlFor={`${id}-code`} className="block text-sm font-medium">

@@ -84,8 +84,8 @@ export default function HistoryView({ v }: { v: ValuationPayload }) {
                 type="button"
                 aria-pressed={m.key === key}
                 onClick={() => select(m.key)}
-                className={`h-9 px-3 rounded-md text-xs font-semibold border ${
-                  m.key === key ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"
+                className={`h-9 px-3 rounded-md text-[13px] font-medium border ${
+                  m.key === key ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"
                 }`}
               >
                 {h.short[m.key]}
@@ -166,7 +166,7 @@ function MultipleDetail({ row, v, lang }: { row: MultipleRow; v: ValuationPayloa
               />
               <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted" aria-hidden="true">
                 <li className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-4 rounded bg-accent" />
+                  <span className="h-0.5 w-4 rounded bg-series-1" />
                   {h.short[key]}
                 </li>
                 <li className="inline-flex items-center gap-1.5">
@@ -256,7 +256,7 @@ function MonthlyData({ k, points, lang }: { k: MultipleKey; points: { date: stri
   const h = t.valuation.history;
   return (
     <details className="mt-2 text-xs">
-      <summary className="cursor-pointer select-none text-info min-h-8 inline-flex items-center">{h.dataTable}</summary>
+      <summary className="cursor-pointer select-none link min-h-8 inline-flex items-center">{h.dataTable}</summary>
       <div className="relative mt-1 max-h-64 overflow-y-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label={h.dataTable}>
         <table className="num w-full">
           <caption className="sr-only">{t.valuation.names[k]}</caption>
@@ -338,7 +338,7 @@ function SummaryTable({
                       type="button"
                       onClick={() => onSelect(m.key)}
                       aria-current={m.key === selected ? "true" : undefined}
-                      className="min-h-8 text-info underline-offset-2 hover:underline"
+                      className="min-h-8 link"
                     >
                       {h.short[m.key]}
                     </button>

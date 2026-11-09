@@ -8,7 +8,7 @@ import { useQuotes } from "@/lib/useQuotes";
 import { sortItems, type Sort } from "@/lib/watchlistSort";
 import { useHydrated, useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import TickerSearch from "./TickerSearch";
-import { CloseIcon, RefreshIcon, StarIcon } from "./icons";
+import { ChartIcon, CloseIcon, RefreshIcon, StarIcon } from "./icons";
 import { QuoteRowsSkeleton } from "./QuoteList";
 import { Badge, Change, EmptyState, Panel, Provenance, Skeleton, StatusMessage, buttonClass, toast } from "./ui";
 
@@ -31,7 +31,7 @@ export default function WatchlistView() {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h1 className="text-2xl font-bold">{t.watchlist.title}</h1>
+        <h1 className="text-[26px] font-semibold tracking-[-0.02em] leading-tight">{t.watchlist.title}</h1>
         {list.length > 0 && (
           <p className="text-xs text-muted num">{fill(t.ux.countOf, { n: list.length, max: WATCHLIST_LIMIT })}</p>
         )}
@@ -73,7 +73,16 @@ export default function WatchlistView() {
                   ))}
                 </select>
               </label>
-              <button type="button" onClick={q.refresh} disabled={q.refreshing || q.loading} className={buttonClass("ghost", true, "ml-auto text-muted")}>
+              {list.length > 1 && (
+                <Link
+                  href={`/charts?s=${list.slice(0, 5).map(encodeURIComponent).join(",")}&m=revenue&f=annual&t=growth&k=line&r=10`}
+                  className={buttonClass("ghost", true, "ml-auto text-muted")}
+                >
+                  <ChartIcon size={16} />
+                  {t.ux.compareList}
+                </Link>
+              )}
+              <button type="button" onClick={q.refresh} disabled={q.refreshing || q.loading} className={buttonClass("ghost", true, list.length > 1 ? "text-muted" : "ml-auto text-muted")}>
                 <RefreshIcon size={16} className={q.refreshing ? "animate-spin motion-reduce:animate-none" : ""} />
                 {q.refreshing ? t.ux.refreshing : t.ux.refresh}
               </button>
@@ -90,7 +99,7 @@ export default function WatchlistView() {
                   <li key={r.symbol} className="flex items-center gap-2">
                     <Link href={`/stock/${encodeURIComponent(r.symbol)}`} prefetch={false} className="flex flex-1 min-w-0 items-center gap-3 min-h-14 py-2 -ml-2 pl-2 rounded-lg hover:bg-panel-2">
                       <span className="min-w-0 flex-1">
-                        <span className="num block font-bold text-accent leading-tight">{r.symbol}</span>
+                        <span className="num block font-semibold text-fg leading-tight">{r.symbol}</span>
                         <span className="block truncate text-xs text-muted">{r.quote?.name ?? (r.error ? t.data.issuesShort[r.error] : "")}</span>
                       </span>
                       <span className="num text-xs text-muted w-20 text-right hidden md:block">
@@ -116,7 +125,7 @@ export default function WatchlistView() {
             )}
 
             {q.issue && (
-              <StatusMessage tone="warn" className="mt-3" action={q.issue === "beta_expired" ? <Link href="/beta?next=/watchlist" className="text-sm font-semibold text-accent underline">{t.ux.signInAgain}</Link> : undefined}>
+              <StatusMessage tone="warn" className="mt-3" action={q.issue === "beta_expired" ? <Link href="/beta?next=/watchlist" className="link text-sm font-medium">{t.ux.signInAgain}</Link> : undefined}>
                 {t.ux.requestIssues[q.issue]}
                 {q.retryAt && ` ${fill(t.ux.retryAt, { time: fmtAsOf(new Date(q.retryAt).toISOString(), lang) })}`}
               </StatusMessage>

@@ -69,7 +69,7 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.ratios.title}</h2>
+        <h2 className="section-title">{t.ratios.title}</h2>
         <p className="text-sm">
           {d.sicDescription ? (
             <>
@@ -79,7 +79,7 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
           ) : (
             <span className="text-muted">{t.ratios.noSic}</span>
           )}
-          {typeLabel && <span className="ml-2 rounded-full bg-info-bg text-info px-2 py-0.5 text-[11px] font-semibold">{typeLabel}</span>}
+          {typeLabel && <span className="ml-2 rounded-md bg-panel-2 text-muted px-1.5 py-0.5 text-[11px] font-medium">{typeLabel}</span>}
         </p>
         {d.period && <p className="text-xs text-muted">{d.period.label}</p>}
       </div>
@@ -170,7 +170,7 @@ function History({ r, lang }: { r: RatioRow; lang: Lang }) {
   if (points.length < 2) return null;
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer select-none text-info min-h-6 inline-flex items-center">{t.ratios.seeHistory}</summary>
+      <summary className="cursor-pointer select-none link min-h-6 inline-flex items-center">{t.ratios.seeHistory}</summary>
       <table className="num mt-1 w-full">
         <caption className="sr-only">{t.ratios.names[r.key]}</caption>
         <thead>

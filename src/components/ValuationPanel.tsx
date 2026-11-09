@@ -38,7 +38,7 @@ export default function ValuationPanel({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mr-auto">{t.valuation.title}</h2>
+        <h2 className="section-title mr-auto">{t.valuation.title}</h2>
         <div role="group" aria-label={t.valuation.title} className="flex gap-1">
           {VIEWS.map((k) => (
             <button
@@ -46,7 +46,7 @@ export default function ValuationPanel({ symbol }: { symbol: string }) {
               type="button"
               aria-pressed={view === k}
               onClick={() => setView(k)}
-              className={`h-9 px-4 rounded-md text-xs font-semibold border ${view === k ? "bg-accent text-accent-fg border-accent" : "border-line bg-panel hover:bg-panel-2"}`}
+              className={`h-9 px-4 rounded-md text-[13px] font-medium border ${view === k ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`}
             >
               {label(k)}
             </button>

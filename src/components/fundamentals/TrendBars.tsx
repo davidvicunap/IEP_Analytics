@@ -32,25 +32,25 @@ export default function TrendBars({
   const top = (pos / span) * 100;
 
   return (
-    <article className="rounded-lg border border-line bg-panel p-3 flex flex-col">
+    <article className="border-t border-line pt-3 flex flex-col">
       <h3 className="text-sm font-medium">{title}</h3>
       <p className="num text-lg font-semibold">{headline}</p>
-      {note && <p className="text-[11px] text-muted">{note}</p>}
+      {note && <p className="text-xs text-muted">{note}</p>}
       <figure aria-labelledby={captionId} className="m-0 mt-2">
-        <div className="flex h-28 gap-1" aria-hidden="true">
+        <div className="flex h-28 gap-[2px]" aria-hidden="true">
           {values.map((v, i) => (
             <div key={labels[i]} className="flex flex-1 flex-col">
               <div className="flex items-end" style={{ height: `${top}%` }}>
-                {v !== null && v > 0 && <div className="w-full rounded-t-sm bg-accent" style={{ height: `${(v / pos) * 100}%`, minHeight: 1 }} />}
+                {v !== null && v > 0 && <div className="w-full rounded-t-[3px] bg-series-1" style={{ height: `${(v / pos) * 100}%`, minHeight: 1 }} />}
               </div>
               <div className="border-t border-line" />
               <div className="flex items-start" style={{ height: `${100 - top}%` }}>
-                {v !== null && v < 0 && <div className="w-full rounded-b-sm bg-down" style={{ height: `${(-v / neg) * 100}%`, minHeight: 1 }} />}
+                {v !== null && v < 0 && <div className="w-full rounded-b-[3px] bg-down" style={{ height: `${(-v / neg) * 100}%`, minHeight: 1 }} />}
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-1 flex gap-1 text-[10px] text-muted" aria-hidden="true">
+        <div className="mt-1 flex gap-[2px] text-[10px] text-muted" aria-hidden="true">
           {labels.map((l) => (
             <span key={l} className="flex-1 text-center num">
               {l.slice(-2)}
@@ -62,7 +62,7 @@ export default function TrendBars({
         </figcaption>
       </figure>
       <details className="mt-auto pt-2 text-xs">
-        <summary className="cursor-pointer select-none text-info min-h-8 inline-flex items-center">{t.trends.table}</summary>
+        <summary className="cursor-pointer select-none link min-h-8 inline-flex items-center">{t.trends.table}</summary>
         <table className="num mt-1 w-full">
           <caption className="sr-only">{title}</caption>
           <thead>

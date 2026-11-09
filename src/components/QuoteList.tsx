@@ -6,7 +6,6 @@ import { useI18n } from "@/lib/i18n";
 import { fmtPrice } from "@/lib/format";
 import { quotesClient } from "@/lib/quotesClient";
 import type { DataIssue, DataSource, Quote, QuoteEntry } from "@/lib/types";
-import { ChevronRightIcon } from "./icons";
 import { Badge, Change, Provenance, Skeleton } from "./ui";
 
 export interface Row {
@@ -27,7 +26,7 @@ export function latestAsOf(rows: Row[]): string | undefined {
 }
 
 /**
- * Aligned quote rows: ticker and name on the left, price and change on the right.
+ * Aligned quote rows: company on the left, price and the day's change on the right.
  * A quote that failed keeps its row and says why, so the layout never collapses.
  */
 export function QuoteRows({
@@ -43,7 +42,7 @@ export function QuoteRows({
 }) {
   const { t, lang } = useI18n();
   return (
-    <ul className="divide-y divide-line" aria-label={caption}>
+    <ul className="-mx-2" aria-label={caption}>
       {rows.map((r) => {
         const name = labels?.[r.symbol] ?? r.quote?.name;
         return (
@@ -51,29 +50,25 @@ export function QuoteRows({
             <Link
               href={`/stock/${encodeURIComponent(r.symbol)}`}
               prefetch={false}
-              className={`group flex items-center gap-3 -mx-2 px-2 rounded-lg hover:bg-panel-2 ${dense ? "min-h-12 py-1.5" : "min-h-14 py-2"}`}
+              className={`flex items-center gap-3 px-2 rounded-lg hover:bg-panel-2 transition-colors ${dense ? "min-h-12 py-1.5" : "min-h-14 py-2"}`}
             >
               <span className="min-w-0 flex-1">
-                <span className="num block font-bold text-accent leading-tight">{r.symbol}</span>
-                {name && <span className="block truncate text-xs text-muted">{name}</span>}
+                <span className="block font-semibold leading-tight">{r.symbol}</span>
+                {name && <span className="block truncate text-[13px] text-muted">{name}</span>}
               </span>
-              {r.quote ? (
-                <span className="text-right shrink-0">
-                  <span className="num block font-semibold leading-tight">{fmtPrice(r.quote.price, lang)}</span>
-                  <Change pct={r.quote.changePercent} className="text-xs" />
-                </span>
-              ) : (
-                <span className="text-right shrink-0 text-xs text-muted">
-                  <span className="num block text-base leading-tight">—</span>
-                  {r.error ? t.data.issuesShort[r.error] : t.ux.loading}
-                </span>
-              )}
               {r.stale && (
                 <Badge tone="warn" className="shrink-0">
                   {t.ux.stale}
                 </Badge>
               )}
-              <ChevronRightIcon size={16} className="text-muted opacity-0 group-hover:opacity-100 hidden sm:block" />
+              {r.quote ? (
+                <>
+                  <span className="num text-right font-medium">{fmtPrice(r.quote.price, lang)}</span>
+                  <Change pct={r.quote.changePercent} pill className="w-[4.75rem] text-[13px]" />
+                </>
+              ) : (
+                <span className="text-right text-xs text-muted">{r.error ? t.data.issuesShort[r.error] : t.ux.loading}</span>
+              )}
             </Link>
           </li>
         );
@@ -82,7 +77,54 @@ export function QuoteRows({
   );
 }
 
-/** Rows plus the note/source lines that follow them, so nothing moves when data lands. */
+/** Index ETFs as compact cards: the index name first, then the ETF that tracks it. */
+export function MarketCards({ rows, indexNames, etfLabel }: { rows: Row[]; indexNames: Record<string, string>; etfLabel: string }) {
+  const { t, lang } = useI18n();
+  return (
+    <ul className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+      {rows.map((r) => (
+        <li key={r.symbol} className="min-w-0">
+          <Link
+            href={`/stock/${encodeURIComponent(r.symbol)}`}
+            prefetch={false}
+            className="block h-full rounded-lg border border-line px-3 py-2.5 hover:border-line-strong hover:bg-panel-2 transition-colors"
+          >
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="truncate text-[13px] font-medium">{indexNames[r.symbol] ?? r.symbol}</span>
+              <span className="shrink-0 text-[11px] text-muted">
+                {etfLabel} {r.symbol}
+              </span>
+            </span>
+            {r.quote ? (
+              <span className="mt-1.5 flex items-baseline justify-between gap-2">
+                <span className="num text-[17px] font-semibold tracking-tight">{fmtPrice(r.quote.price, lang)}</span>
+                <Change pct={r.quote.changePercent} className="text-[13px]" />
+              </span>
+            ) : (
+              <span className="mt-1.5 block text-[13px] text-muted">{r.error ? t.data.issuesShort[r.error] : t.ux.loading}</span>
+            )}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function MarketCardsSkeleton({ n }: { n: number }) {
+  return (
+    <div aria-hidden="true">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+        {Array.from({ length: n }, (_, i) => (
+          <Skeleton key={i} className="h-[66px] rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="mt-3 h-4 w-11/12" />
+      <Skeleton className="mt-1 h-4 w-1/2 sm:hidden" />
+      <Skeleton className="mt-2 h-4 w-64 max-w-full" />
+    </div>
+  );
+}
+
 export function QuoteRowsSkeleton({ n, dense = false, note = false, source = false }: { n: number; dense?: boolean; note?: boolean; source?: boolean }) {
   return (
     <div aria-hidden="true">
@@ -120,12 +162,14 @@ export function ServerQuotes({
   labels,
   caption,
   note,
+  cards,
 }: {
   entries: QuoteEntry[];
   source: DataSource;
   labels?: Record<string, string>;
   caption?: string;
   note?: string;
+  cards?: { indexNames: Record<string, string>; etfLabel: string };
 }) {
   useState(() => {
     if (typeof window !== "undefined") quotesClient.prime(entries, source);
@@ -133,7 +177,7 @@ export function ServerQuotes({
   const asOf = latestAsOf(entries);
   return (
     <>
-      <QuoteRows rows={entries} labels={labels} caption={caption} />
+      {cards ? <MarketCards rows={entries} {...cards} /> : <QuoteRows rows={entries} labels={labels} caption={caption} />}
       {note && <p className="mt-3 text-xs text-muted">{note}</p>}
       {asOf && <Provenance source={source} asOf={asOf} className="mt-2" />}
     </>

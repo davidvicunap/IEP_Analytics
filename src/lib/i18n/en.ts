@@ -2,6 +2,7 @@ import type { CoreDict } from "./es";
 
 const en: CoreDict = {
   app: {
+    dataBy: "Data:",
     tagline: "US stock analysis, explained simply",
     disclaimer: "For educational purposes only. Not financial advice.",
     demo: "Demo mode: simulated data. Add FMP_API_KEY for real data.",
@@ -11,7 +12,7 @@ const en: CoreDict = {
     themeDark: "Dark",
     themeLight: "Light",
   },
-  nav: { home: "Home", watchlist: "Watchlist", search: "Search" },
+  nav: { home: "Home", watchlist: "Watchlist", search: "Search", charts: "Charts" },
   search: {
     placeholder: "Search a stock: Apple, TSLA…",
     label: "Search a stock by name or ticker",
@@ -34,8 +35,8 @@ const en: CoreDict = {
     },
   },
   home: {
-    heroTitle: "Understand a company in a minute",
-    heroText: "Search a US stock and we explain, in plain language, how its price is doing, whether it makes money and how expensive it is.",
+    heroTitle: "US stocks, explained clearly",
+    heroText: "Search a company by name or ticker to see how its price is doing, how the business is doing and how expensive it is.",
     markets: "The market today",
     popular: "Companies to explore",
     howTo: "How to use it",
@@ -47,11 +48,18 @@ const en: CoreDict = {
     ],
     indexNames: { SPY: "S&P 500", QQQ: "Nasdaq 100", DIA: "Dow Jones", IWM: "Russell 2000" } as Record<string, string>,
     etfNames: { SPY: "ETF tracking the S&P 500", QQQ: "ETF tracking the Nasdaq 100", DIA: "ETF tracking the Dow Jones", IWM: "ETF tracking the Russell 2000" } as Record<string, string>,
+    etfLabel: "ETF",
+    chartsTitle: "Chart builder",
+    chartsText: "Compare revenue, margins or valuation across companies in one chart.",
+    chartsOpen: "Create a chart",
+    chartsPresets: { revenue: "Revenue: Apple, Microsoft and Alphabet", margins: "Net margin: Apple vs Microsoft", pe: "P/E of NVIDIA, Microsoft and Apple (5 years)" },
     etfNote: "These are prices of exchange-traded funds (ETFs) that track each index, not index levels in points.",
   },
   stock: {
     tabs: { overview: "Overview", chart: "Chart", fundamentals: "Fundamentals", valuation: "Valuation", financials: "Financials", filings: "Filings", insiders: "Insiders", news: "News" },
     addWatch: "Follow",
+    compare: "Compare",
+    compareTitle: "Open in the chart generator to compare it with other companies",
     removeWatch: "Following",
     summaryTitle: "In a nutshell",
     keyStats: "Key stats",
@@ -325,6 +333,7 @@ const en: CoreDict = {
     latest: "Latest official releases",
   },
   ux: {
+    compareList: "Compare in charts",
     sectionsOf: "{s} sections",
     vsPrevClose: "vs. previous close",
     rangePos: "{p} of the way between the low of {lo} and the high of {hi}",

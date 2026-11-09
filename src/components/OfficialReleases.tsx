@@ -30,14 +30,14 @@ export function OfficialReleases({ symbol, limit, onSeeAll }: { symbol: string; 
               {f.items.length ? f.items.map((i) => t.filings.items[i] ?? i).filter((x) => x !== t.filings.items["9.01"]).join(" · ") || label(f) : label(f)}
               <span className="text-muted text-xs"> · {f.form}</span>
             </span>
-            <a href={filingDocUrl(state.data.cik, f)} target="_blank" rel="noopener noreferrer" className="text-info underline text-xs">
+            <a href={filingDocUrl(state.data.cik, f)} target="_blank" rel="noopener noreferrer" className="link text-xs">
               {t.news.open}
             </a>
           </li>
         ))}
       </ul>
       {onSeeAll && (
-        <button type="button" onClick={onSeeAll} className="mt-2 min-h-8 text-xs text-info underline">
+        <button type="button" onClick={onSeeAll} className="mt-2 min-h-8 text-xs link">
           {t.news.all}
         </button>
       )}

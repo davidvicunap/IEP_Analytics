@@ -60,7 +60,7 @@ export default function InsidersPanel({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">{t.insiders.title}</h2>
+        <h2 className="section-title">{t.insiders.title}</h2>
         <p className="text-sm">{fill(t.insiders.window, { from: fmtDate(s.from, lang), to: fmtDate(s.to, lang) })}</p>
         {pending > 0 && (
           <p role="status" className="text-xs text-warn">{fill(t.insiders.partial, { n: pending })}</p>
@@ -186,7 +186,7 @@ function LatestTable({ rows, lang }: { rows: InsiderRow[]; lang: Lang }) {
                   <td className="text-right">{r.price !== null ? money(r.shares * r.price) : "—"}</td>
                   <td className="text-right">{r.ownedAfter !== null ? fmtNum(r.ownedAfter, lang, 0) : "—"}</td>
                   <td className="text-right pr-4">
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-info underline whitespace-nowrap">
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="link whitespace-nowrap">
                       {t.insiders.open}
                     </a>
                   </td>
