@@ -206,6 +206,7 @@ const en: CoreDict = {
   data: {
     source: "Source",
     updated: "Updated",
+    betaExpired: "Your beta access expired. Sign in again to see this section.",
     demoSource: "simulated data (demo)",
     lastFiling: "Latest annual report",
     unavailableTitle: "Data unavailable",

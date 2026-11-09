@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtNum } from "@/lib/format";
 import type { RatioGroup, RatioKey } from "@/lib/ratios";
 import type { RatioRow, RatiosPayload } from "@/lib/ratiosData";
 import type { Level } from "@/lib/scoring";
-import type { DataIssue, Result } from "@/lib/types";
+import { useResource } from "@/lib/useResource";
 import { Comparison, Explain, IssueNote, LevelBadge, Panel } from "./ui";
 
 const GROUPS: RatioGroup[] = ["profitability", "returns", "health", "growth"];
@@ -28,23 +27,9 @@ export function ratioLevel(r: Pick<RatioRow, "better" | "sector" | "own">): Leve
 
 export default function RatiosPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
-  const [state, setState] = useState<Result<RatiosPayload> | null>(null);
+  const { state, retry } = useResource<RatiosPayload>(`/api/sec/ratios/${encodeURIComponent(symbol)}`);
 
-  useEffect(() => {
-    let alive = true;
-    setState(null);
-    fetch(`/api/sec/ratios/${encodeURIComponent(symbol)}`)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<RatiosPayload> | null;
-        if (alive) setState(body ?? { ok: false, error: "upstream" });
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [symbol]);
-
-  if (state === null) {
+  if (state.status === "loading") {
     return (
       <Panel title={t.ratios.title}>
         <p role="status" className="text-sm text-muted">{t.ratios.loading}</p>
@@ -54,10 +39,10 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
       </Panel>
     );
   }
-  if (!state.ok) {
+  if (state.status === "error") {
     return (
       <Panel title={t.ratios.title}>
-        <IssueNote issue={state.error as DataIssue} />
+        <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
   }

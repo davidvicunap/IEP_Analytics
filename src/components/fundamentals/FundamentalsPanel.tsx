@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtNum, fmtPrice } from "@/lib/format";
 import { THRESHOLDS, type QualityCheck, type QualityLevel } from "@/lib/quality";
@@ -9,6 +9,8 @@ import type { QualityPayload, TrendKey } from "@/lib/qualityData";
 import type { AnalystsPayload } from "@/lib/analysts";
 import type { Grades } from "@/lib/fmp";
 import type { DataIssue, Result } from "@/lib/types";
+import type { Resource } from "@/lib/resource";
+import { useResource } from "@/lib/useResource";
 import { Explain, IssueNote, Panel } from "../ui";
 import RatiosPanel from "../RatiosPanel";
 import TrendBars from "./TrendBars";
@@ -20,47 +22,23 @@ const spct = (v: number, lang: Lang, d = 1) => `${v > 0 ? "+" : v < 0 ? "−" : 
 const money = (v: number) => (v < 0 ? `−$${fmtBig(-v)}` : `$${fmtBig(v)}`);
 const secIndexUrl = (cik: number, accn: string) => `https://www.sec.gov/Archives/edgar/data/${cik}/${accn.replace(/-/g, "")}/`;
 
-const ISSUES = new Set<DataIssue>(["not_configured", "not_found", "plan_restricted", "rate_limited", "unauthorized", "upstream"]);
-
-/** GET a Result<T>; anything that isn't one (a gate response, a broken body) becomes an issue. */
-function useResult<T>(url: string): Result<T> | null {
-  const [state, setState] = useState<Result<T> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    setState(null);
-    fetch(url)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<T> | { error?: string } | null;
-        let r: Result<T>;
-        if (body && "ok" in body) r = body;
-        else r = { ok: false, error: res.status === 401 ? "unauthorized" : ISSUES.has(body?.error as DataIssue) ? (body!.error as DataIssue) : "upstream" };
-        if (alive) setState(r);
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [url]);
-  return state;
-}
-
 /** Fundamentals for a long-term investor: quality, growth, expectations and 10-year trends. */
 export default function FundamentalsPanel({ symbol, price }: { symbol: string; price: number }) {
   const { t, lang } = useI18n();
-  const quality = useResult<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`);
-  const analysts = useResult<AnalystsPayload>(`/api/analysts/${encodeURIComponent(symbol)}`);
-  const q = quality?.ok ? quality.data : null;
+  const { state: quality, retry: retryQuality } = useResource<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`);
+  const { state: analysts, retry: retryAnalysts } = useResource<AnalystsPayload>(`/api/analysts/${encodeURIComponent(symbol)}`);
+  const q = quality.status === "ok" ? quality.data : null;
 
   return (
     <div className="space-y-4">
-      {quality === null ? (
+      {quality.status === "loading" ? (
         <Panel>
           <p role="status" className="text-sm text-muted">{t.quality.loading}</p>
           <div className="mt-3 h-48 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />
         </Panel>
-      ) : !quality.ok ? (
+      ) : quality.status === "error" ? (
         <Panel title={t.quality.title}>
-          <IssueNote issue={quality.error} />
+          <IssueNote issue={quality.issue} onRetry={retryQuality} />
         </Panel>
       ) : (
         <QualitySection q={quality.data} lang={lang} />
@@ -68,10 +46,10 @@ export default function FundamentalsPanel({ symbol, price }: { symbol: string; p
 
       <div className="grid gap-4 lg:grid-cols-2">
         {q && <PastGrowth q={q} lang={lang} />}
-        <ExpectedGrowthPanel q={q} analysts={analysts} lang={lang} />
+        <ExpectedGrowthPanel q={q} analysts={analysts} onRetry={retryAnalysts} lang={lang} />
       </div>
 
-      <AnalystsSection analysts={analysts} price={price} lastFiscal={q?.lastFiscal ?? null} lang={lang} />
+      <AnalystsSection analysts={analysts} onRetry={retryAnalysts} price={price} lastFiscal={q?.lastFiscal ?? null} lang={lang} />
 
       {q && q.trends.length > 0 && <Trends q={q} lang={lang} />}
 
@@ -295,16 +273,16 @@ function partIssue(r: Result<unknown>, t: ReturnType<typeof useI18n>["t"]): Reac
   return <IssueNote issue={r.error} />;
 }
 
-function ExpectedGrowthPanel({ q, analysts, lang }: { q: QualityPayload | null; analysts: Result<AnalystsPayload> | null; lang: Lang }) {
+function ExpectedGrowthPanel({ q, analysts, onRetry, lang }: { q: QualityPayload | null; analysts: Resource<AnalystsPayload>; onRetry: () => void; lang: Lang }) {
   const { t } = useI18n();
   const G = t.growth;
-  const est = analysts?.ok && analysts.data.estimates.ok ? analysts.data.estimates.data : null;
+  const est = analysts.status === "ok" && analysts.data.estimates.ok ? analysts.data.estimates.data : null;
   const exp = useMemo(() => (est ? expectedGrowth(est, q?.lastFiscal ?? null) : null), [est, q]);
   const past = (key: "revenue" | "eps") => q?.growth.find((g) => g.key === key)?.cagr[5] ?? null;
 
   let body: React.ReactNode;
-  if (analysts === null) body = <div className="h-24 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />;
-  else if (!analysts.ok) body = <IssueNote issue={analysts.error} />;
+  if (analysts.status === "loading") body = <div className="h-24 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />;
+  else if (analysts.status === "error") body = <IssueNote issue={analysts.issue} onRetry={onRetry} />;
   else if (!analysts.data.estimates.ok) body = partIssue(analysts.data.estimates, t);
   else if (!exp || (!exp.revenueCagr && !exp.epsCagr)) body = <p className="text-sm text-muted">{G.none}</p>;
   else
@@ -340,18 +318,20 @@ const GRADE_STYLE: Record<(typeof GRADE_KEYS)[number], string> = {
 
 function AnalystsSection({
   analysts,
+  onRetry,
   price,
   lastFiscal,
   lang,
 }: {
-  analysts: Result<AnalystsPayload> | null;
+  analysts: Resource<AnalystsPayload>;
+  onRetry: () => void;
   price: number;
   lastFiscal: QualityPayload["lastFiscal"];
   lang: Lang;
 }) {
   const { t } = useI18n();
   const A = t.analysts;
-  if (analysts === null) {
+  if (analysts.status === "loading") {
     return (
       <Panel title={A.title}>
         <p role="status" className="text-sm text-muted">{A.loading}</p>
@@ -359,10 +339,10 @@ function AnalystsSection({
       </Panel>
     );
   }
-  if (!analysts.ok) {
+  if (analysts.status === "error") {
     return (
       <Panel title={A.title}>
-        <IssueNote issue={analysts.error} />
+        <IssueNote issue={analysts.issue} onRetry={onRetry} />
       </Panel>
     );
   }

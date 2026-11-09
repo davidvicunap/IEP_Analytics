@@ -25,7 +25,7 @@ import {
 } from "@/lib/chartMetrics";
 import { parseConfig, writeConfig, type ChartConfig as Config } from "@/lib/chartConfig";
 import type { FundamentalSeriesPayload, MarketSeriesPayload } from "@/lib/seriesData";
-import type { DataIssue, Result } from "@/lib/types";
+import { sharedLoader, type ViewIssue } from "@/lib/resource";
 import TickerSearch from "../TickerSearch";
 import { ChevronDownIcon, CloseIcon, DownloadIcon, LinkIcon, TableIcon } from "../icons";
 import { Panel, Segmented, Skeleton, StatusMessage, buttonClass, toast } from "../ui";
@@ -35,29 +35,8 @@ const SLOTS = ["--series-1", "--series-2", "--series-3", "--series-4", "--series
 
 // ---- Data ------------------------------------------------------------------------------
 
-type Loaded<T> = Result<T> | { ok: false; error: "beta_expired" };
-const fundCache = new Map<string, Promise<Loaded<FundamentalSeriesPayload>>>();
-const marketCache = new Map<string, Promise<Loaded<MarketSeriesPayload>>>();
-
-function load<T>(cache: Map<string, Promise<Loaded<T>>>, url: string): Promise<Loaded<T>> {
-  let p = cache.get(url);
-  if (!p) {
-    p = fetch(url)
-      .then(async (res) => {
-        if (res.status === 401) return { ok: false as const, error: "beta_expired" as const };
-        const body = (await res.json().catch(() => null)) as Result<T> | null;
-        return body && "ok" in body ? body : { ok: false as const, error: "upstream" as const };
-      })
-      .catch(() => ({ ok: false as const, error: "upstream" as const }));
-    p.then((r) => {
-      if (!r.ok) cache.delete(url); // failures aren't kept: the next view asks again
-    });
-    cache.set(url, p);
-  }
-  return p;
-}
-
-type SymbolState = { status: "loading" } | { status: "ok"; series: PeriodSeries; name?: string; note?: MarketSeriesPayload["multiples"]; fetchedAt: string } | { status: "error"; error: DataIssue | "beta_expired" };
+// One shared request per URL (see lib/resource.ts); failures aren't kept, so the next view asks again.
+type SymbolState = { status: "loading" } | { status: "ok"; series: PeriodSeries; name?: string; note?: MarketSeriesPayload["multiples"]; fetchedAt: string } | { status: "error"; error: ViewIssue };
 
 function useSymbolData(symbols: string[], freq: Freq) {
   const [state, setState] = useState<Record<string, SymbolState>>({});
@@ -72,11 +51,11 @@ function useSymbolData(symbols: string[], freq: Freq) {
     for (const s of list) {
       const done = (next: SymbolState) => alive && setState((prev) => ({ ...prev, [s]: next }));
       if (f === "monthly") {
-        load(marketCache, `/api/charts/market/${encodeURIComponent(s)}`).then((r) =>
+        sharedLoader.load<MarketSeriesPayload>(`/api/charts/market/${encodeURIComponent(s)}`).then((r) =>
           done(r.ok ? { status: "ok", series: r.data.monthly, note: r.data.multiples, fetchedAt: r.fetchedAt } : { status: "error", error: r.error }),
         );
       } else {
-        load(fundCache, `/api/sec/series/${encodeURIComponent(s)}`).then((r) =>
+        sharedLoader.load<FundamentalSeriesPayload>(`/api/sec/series/${encodeURIComponent(s)}`).then((r) =>
           done(r.ok ? { status: "ok", series: r.data[f as "annual" | "quarterly"], name: r.data.name, fetchedAt: r.fetchedAt } : { status: "error", error: r.error }),
         );
       }
@@ -364,10 +343,10 @@ export default function ChartBuilder() {
         {(errors.length > 0 || symbols.some((s) => data[s]?.status === "ok" && freq === "monthly" && (data[s] as { note?: string }).note !== "ok")) && (
           <div className="mt-4 space-y-1.5">
             {errors.map((s) => {
-              const e = (data[s] as { error: DataIssue | "beta_expired" }).error;
+              const e = (data[s] as { error: ViewIssue }).error;
               return (
                 <StatusMessage key={s} tone="warn">
-                  <strong className="font-medium text-fg">{s}</strong>: {e === "beta_expired" ? t.ux.requestIssues.beta_expired : freq === "monthly" && e === "not_configured" ? C.marketUnavailable : t.data.issues[e]}
+                  <strong className="font-medium text-fg">{s}</strong>: {e === "beta_expired" ? t.data.betaExpired : freq === "monthly" && e === "not_configured" ? C.marketUnavailable : t.data.issues[e]}
                 </StatusMessage>
               );
             })}

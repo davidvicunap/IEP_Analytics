@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf } from "@/lib/format";
 import type { ValuationPayload } from "@/lib/valuationData";
-import type { DataIssue, Result } from "@/lib/types";
+import { useResource } from "@/lib/useResource";
 import { IssueNote, Panel } from "./ui";
 import CompsView from "./valuation/CompsView";
 import DcfMaker from "./valuation/DcfMaker";
@@ -17,21 +17,7 @@ const VIEWS: View[] = ["comps", "history", "dcf"];
 export default function ValuationPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
   const [view, setView] = useState<View>("comps");
-  const [state, setState] = useState<Result<ValuationPayload> | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    setState(null);
-    fetch(`/api/valuation/${encodeURIComponent(symbol)}`)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<ValuationPayload> | null;
-        if (alive) setState(body ?? { ok: false, error: "upstream" });
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [symbol]);
+  const { state, retry } = useResource<ValuationPayload>(`/api/valuation/${encodeURIComponent(symbol)}`);
 
   const label = (k: View) => (k === "history" ? t.valuation.history.view : t.comps.views[k]);
 
@@ -57,14 +43,14 @@ export default function ValuationPanel({ symbol }: { symbol: string }) {
       {view === "comps" && <CompsView symbol={symbol} />}
 
       {view !== "comps" &&
-        (state === null ? (
+        (state.status === "loading" ? (
           <Panel>
             <p role="status" className="text-sm text-muted">{t.valuation.loading}</p>
             <div className="mt-3 h-64 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />
           </Panel>
-        ) : !state.ok ? (
+        ) : state.status === "error" ? (
           <Panel>
-            <IssueNote issue={state.error as DataIssue} />
+            <IssueNote issue={state.issue} onRetry={retry} />
           </Panel>
         ) : view === "history" ? (
           <HistoryView v={state.data} />
@@ -72,7 +58,7 @@ export default function ValuationPanel({ symbol }: { symbol: string }) {
           <DcfMaker v={state.data} />
         ))}
 
-      {state?.ok && view !== "comps" && (
+      {state.status === "ok" && view !== "comps" && (
         <p className="text-[11px] text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
       )}
     </div>

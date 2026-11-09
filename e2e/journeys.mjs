@@ -366,6 +366,38 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
   await p.context().close();
 });
 
+// ---- Data tabs (the shared resource state machine, lib/resource.ts) -----------------------------
+
+await test("data tabs: an expired beta session asks to sign in again and comes back to the same tab", async () => {
+  const p = await page();
+  // The gate answers 401 without our envelope; before, most tabs showed an empty message.
+  await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
+  await p.goto(base + "/stock/AAPL?tab=fundamentals");
+  await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
+  const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
+  const href = await link.getAttribute("href");
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dfundamentals", `href ${href}`);
+  assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
+  await axe(p);
+  await p.context().close();
+});
+
+await test("data tabs: a failed read offers a retry that asks again in place", async () => {
+  const p = await page();
+  let calls = 0;
+  await p.route(/\/api\/sec\/insiders\//, (r) =>
+    ++calls === 1 ? r.fulfill({ status: 502, contentType: "text/html", body: "<html>bad gateway</html>" }) : r.fulfill(json({ ok: false, error: "not_configured" }, 503)),
+  );
+  await p.goto(base + "/stock/AAPL?tab=insiders");
+  await p.getByText("El proveedor de datos no responde. Inténtalo de nuevo más tarde.").waitFor();
+  await p.getByRole("button", { name: "Reintentar" }).click();
+  await p.getByText("La fuente de datos no está configurada.").waitFor();
+  assert(calls === 2, `calls ${calls}`);
+  assert((await p.getByRole("button", { name: "Reintentar" }).count()) === 0, "no retry for a permanent issue");
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
 // ---- Chart generator --------------------------------------------------------------------------
 
 // Small synthetic series (test data only): two companies with different fiscal years.

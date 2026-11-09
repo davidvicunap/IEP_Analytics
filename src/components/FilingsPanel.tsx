@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
 import { filingDocUrl, filingIndexUrl, formGroup, xbrlViewerUrl, type Filing, type FormGroup } from "@/lib/filingsShared";
-import type { DataIssue } from "@/lib/types";
+import { shown as shownData } from "@/lib/resource";
 import { IssueNote, Panel } from "./ui";
 
 const PAGE = 100;
@@ -16,24 +16,32 @@ import { useFilings, useFormLabel } from "./filingsHooks";
 export default function FilingsPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
   const [older, setOlder] = useState(false);
-  const state = useFilings(symbol, older);
+  const { state, retry } = useFilings(symbol, older);
+  const current = shownData(state); // stays on screen while older filings load
   const [group, setGroup] = useState<"all" | FormGroup>("all");
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState(PAGE);
   const label = useFormLabel();
 
   const filtered = useMemo(() => {
-    if (!state?.ok) return [];
+    if (!current) return [];
     const q = query.trim().toLowerCase();
-    return state.data.filings.filter((f) => {
+    return current.data.filings.filter((f) => {
       if (group !== "all" && formGroup(f.form) !== group) return false;
       if (!q) return true;
       const text = `${f.form} ${label(f)} ${f.items.map((i) => t.filings.items[i] ?? i).join(" ")}`.toLowerCase();
       return text.includes(q);
     });
-  }, [state, group, query, label, t]);
+  }, [current, group, query, label, t]);
 
-  if (state === null) {
+  if (state.status === "error") {
+    return (
+      <Panel title={t.filings.title}>
+        <IssueNote issue={state.issue} onRetry={retry} />
+      </Panel>
+    );
+  }
+  if (!current) {
     return (
       <Panel title={t.filings.title}>
         <p role="status" className="text-sm text-muted">{t.filings.loading}</p>
@@ -41,14 +49,8 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
       </Panel>
     );
   }
-  if (!state.ok) {
-    return (
-      <Panel title={t.filings.title}>
-        <IssueNote issue={state.error as DataIssue} />
-      </Panel>
-    );
-  }
-  const { cik, older: olderInfo } = state.data;
+  const { cik, older: olderInfo } = current.data;
+  const loadingOlder = state.status === "loading";
   const visible = filtered.slice(0, shown);
   const chip = (on: boolean) =>
     `h-8 px-3 rounded-full text-[13px] font-medium border ${on ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`;
@@ -139,8 +141,14 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
             </button>
           )}
           {olderInfo.available && !olderInfo.loaded && (
-            <button type="button" onClick={() => setOlder(true)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
-              {fill(t.filings.older, { date: olderInfo.from ? fmtDate(olderInfo.from, lang) : "—" })}
+            <button
+              type="button"
+              onClick={() => setOlder(true)}
+              disabled={loadingOlder}
+              aria-busy={loadingOlder}
+              className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2 disabled:opacity-60"
+            >
+              {loadingOlder ? t.filings.loading : fill(t.filings.older, { date: olderInfo.from ? fmtDate(olderInfo.from, lang) : "—" })}
             </button>
           )}
         </div>
