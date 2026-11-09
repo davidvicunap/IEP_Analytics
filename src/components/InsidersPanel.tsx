@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import type { InsiderSummary, Role } from "@/lib/form4";
 import type { InsiderRow, InsidersPayload } from "@/lib/insiders";
-import type { DataIssue, Result } from "@/lib/types";
+import { useResource } from "@/lib/useResource";
 import { Explain, IssueNote, Panel } from "./ui";
 
 type Lang = "es" | "en";
@@ -14,29 +13,13 @@ const money = (v: number) => (v < 0 ? `−$${fmtBig(-v)}` : `$${fmtBig(v)}`);
 
 export default function InsidersPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
-  const [state, setState] = useState<Result<InsidersPayload> | null>(null);
+  // Keep reading while filings are pending; each pass downloads the next batch.
+  const { state, retry } = useResource<InsidersPayload>(`/api/sec/insiders/${encodeURIComponent(symbol)}`, {
+    again: (d) => d.pending > 0,
+    maxPasses: MAX_CONTINUES,
+  });
 
-  useEffect(() => {
-    let alive = true;
-    let passes = 0;
-    setState(null);
-    const load = () =>
-      fetch(`/api/sec/insiders/${encodeURIComponent(symbol)}`)
-        .then(async (res) => {
-          const body = (await res.json().catch(() => null)) as Result<InsidersPayload> | null;
-          if (!alive) return;
-          setState(body ?? { ok: false, error: "upstream" });
-          // Keep reading while filings are pending; each pass downloads the next batch.
-          if (body?.ok && body.data.pending > 0 && ++passes < MAX_CONTINUES) setTimeout(load, 1000);
-        })
-        .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    load();
-    return () => {
-      alive = false;
-    };
-  }, [symbol]);
-
-  if (state === null) {
+  if (state.status === "loading") {
     return (
       <Panel title={t.insiders.title}>
         <p role="status" className="text-sm text-muted">{t.insiders.loading}</p>
@@ -46,10 +29,10 @@ export default function InsidersPanel({ symbol }: { symbol: string }) {
       </Panel>
     );
   }
-  if (!state.ok) {
+  if (state.status === "error") {
     return (
       <Panel title={t.insiders.title}>
-        <IssueNote issue={state.error as DataIssue} />
+        <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
   }

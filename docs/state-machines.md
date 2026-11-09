@@ -1,0 +1,86 @@
+# State machines
+
+Every piece of state in IEP Analytics that moves through distinct phases, where it lives, and how it is tested. Read this before adding a data view, a background job or anything that waits on the network.
+
+**Rule:** a view never invents its own loading/error flags. It uses one of the machines below, so every screen fails, retries and recovers the same way.
+
+## The one to reuse: remote resource
+
+`src/lib/resource.ts` (pure) + `src/lib/useResource.ts` (React). One read of one of our JSON APIs.
+
+```
+            start                     settle(ok)
+  (mount) ────────▶ loading ──────────────────────▶ ok ──┐ settle(ok), background pass
+                      ▲   │ settle(error)                 │ (state stays ok; a failed pass
+                      │   ▼                               │  keeps the data and stops)
+       retry / new URL└── error                    ◀──────┘
+```
+
+- **States:** `loading { previous }`, `ok { data, fetchedAt }`, `error { issue }`.
+  - `previous` keeps the last data on screen while a new URL loads, when the view asks for `keepPrevious`.
+- **Issues** (`ViewIssue`): every `DataIssue` plus `beta_expired`.
+  - **`beta_expired`** is the beta gate's bare 401. `IssueNote` turns it into "sign in again" with a link back to the same tab.
+  - **`upstream` and `rate_limited`** are the only retryable issues. `IssueNote` shows "Try again" for them when given `onRetry`.
+- **Reading responses** (`toViewResult`):
+  - Our `Result` envelope is trusted whatever the status.
+  - A bare 401 means `beta_expired`, because data routes never answer 401 themselves.
+  - A bare 429 means `rate_limited`.
+  - Anything unreadable becomes `upstream`. Never cast to `DataIssue`.
+- **Requests:**
+  - Each new URL or `retry()` aborts the previous request, so an older answer can't overwrite a newer one.
+  - `shared: true` makes one request per URL for every view. Successes are kept; failures are dropped so the next view asks again.
+- **Background passes:** `again(data)` plus `maxPasses` re-read in the background, as insiders do while filings are pending. The timer is cleared on unmount.
+- **Used by:**
+  - Stock tabs: Ratios, Insiders, Valuation, Comps (`keepPrevious`), Financial statements, Fundamentals (quality and analysts).
+  - Filings, shared across four views: the Filings tab, Financials, News and the overview releases. The Filings tab keeps the current list while older filings load.
+  - The chart generator's per-company loader (`sharedLoader`).
+- **Tests:**
+  - `src/lib/resource.test.ts`: transitions, response reading, shared loader.
+  - `e2e/journeys.mjs` "data tabs…": an expired session asks to sign in again; a retry asks again in place.
+
+### Adding a data view
+
+```tsx
+const { state, retry } = useResource<MyPayload>(`/api/thing/${encodeURIComponent(symbol)}`);
+if (state.status === "loading") return <Skeleton />;
+if (state.status === "error") return <IssueNote issue={state.issue} onRetry={retry} />;
+return <View data={state.data} asOf={state.fetchedAt} />;
+```
+
+The route returns `Result<T>`, with the HTTP status from the issue: `not_found` → 404, `not_configured` → 503, everything else → 502.
+
+## Catalog
+
+| Machine | Where | States → transitions | Tests |
+|---|---|---|---|
+| Remote resource | `lib/resource.ts`, `lib/useResource.ts` | above | `resource.test.ts`, journeys "data tabs" |
+| Search | `lib/search.ts` (`SearchController`), `components/TickerSearch.tsx` | `idle → loading → success \| empty \| error`; a newer term aborts the older; Enter resolves to a ticker, `"wait"` (still loading) or nothing | `search.test.ts`, journeys "search:" |
+| Quotes | `lib/quotesClient.ts`, `lib/useQuotes.ts` | Per list: `loading` (nothing shown) ⇄ `refreshing` (values shown); `issue` = `beta_expired \| rate_limited \| offline \| upstream` with `retryAt`. Per symbol: value + `stale` when the latest refresh failed. Runs every 60 s while visible and online; newest request wins | `quotesClient.test.ts`, journeys "watchlist:" |
+| Chart generator data | `components/charts/ChartBuilder.tsx` (`useSymbolData`) | Per company: `loading → ok \| error` (via `sharedLoader`); a company that is already loaded stays on screen when another is added | journeys "charts:" |
+| Chart generator config | `lib/chartConfig.ts`, `ChartBuilder.tsx` | Kept in component state (so updates are instant) and mirrored to the URL with `replaceState`. A URL changed from outside (Back, a link) replaces the state. Invalid params fall back to defaults | `chartConfig.test.ts`, journeys "charts:" |
+| Stock tabs | `components/StockView.tsx` | `?tab=` in the URL; each tab change is a history entry; a tab mounts on first visit and stays mounted (`visited`) | journeys "stock: tabs…" |
+| Price chart settings | `lib/chartSettings.ts` | Range, style and indicators in the URL (`replaceState`, no history spam) | `chartSettings.test.ts`, journeys "stock:" |
+| Price chart lifecycle | `components/PriceChart.tsx` | Created once; data, settings and theme update it in place; destroyed on unmount | journeys "chart keeps one canvas set…" |
+| Trend chart readout | `components/charts/TrendChart.tsx` | `active` period from pointer or keyboard (←/→/Home/End, Esc clears); focus shows the last period | journeys "charts:" |
+| Watchlist and recents | `lib/watchlist.ts` | External stores over `localStorage` (limit, dedupe, corrupted data cleaned); removal shows an undo toast that puts the item back in place | `watchlist.test.ts`, journeys "watchlist:" |
+| Hydration | `lib/watchlist.ts` (`useHydrated`) | `server (false) → client (true)`; browser-only data renders a sized skeleton until hydrated, so there's no layout shift | journeys "slow network" |
+| Toasts | `components/ui.tsx` (`toast`) | Queue: shown → dismissed (timer, action or close) | journeys "watchlist: remove, undo…" |
+| Beta form | `components/BetaGate.tsx` | `idle → checking → (redirect) \| invalid \| closed \| rate_limited \| error`; typing returns to `idle` | — (the codes and tokens behind it: `beta.test.ts`) |
+| Beta gate | `src/proxy.ts`, `lib/beta.ts` | Per request: rate limit → open path → valid invite token → else 401 (API) or redirect to `/beta?next=` (pages) | `beta.test.ts`, `infra.test.ts` |
+| Section errors | `StockView.tsx` (`SectionBoundary`) | `ok → failed` (render error): that section shows a message; the rest of the page keeps working | — |
+| Projections editor | `components/FinancialStatements.tsx` | `off ⇄ editing(draft)`: the draft starts from defaults on first open and is kept when closed; saved scenarios live in `localStorage` | — |
+| DCF inputs | `components/valuation/DcfMaker.tsx` | `draft` → validated `result` (or none); defaults restorable; scenarios in `localStorage` | `dcfModel.test.ts` |
+| Comps peers | `components/valuation/CompsView.tsx` | Peers and hand-typed market caps per symbol in `localStorage`; a change re-reads comps with `keepPrevious` (table dimmed, `aria-busy`) | `comps.test.ts`, `compsData.test.ts` |
+| Language | `lib/i18n/index.tsx` | Cookie → server picks the core dictionary; switching loads core and deep text, then swaps; deep text (stock tabs) suspends under `<DeepI18n>` until loaded | journeys "language switch…" |
+| FMP calls | `lib/fmp.ts`, `lib/quota.ts` | Each call → data or `ProviderError(kind)`; daily counter logs once at 80 % and 100 % of the limit | `fmp.test.ts`, `infra.test.ts` |
+| Market multiples | `lib/seriesData.ts` | `ok \| sharesMismatch \| noFilings`. Multiples are only shown when the SEC share count is within 10 % of the quote; never in demo mode | — |
+| Securities list | `scripts/db-setup.ts`, `/api/cron/securities` | Loaded at build when empty or older than 7 days; refreshed by the daily cron | `securities.test.ts` |
+| Health | `/api/health` | Per dependency: `ok \| not_configured \| error`; overall ok unless one is `error` | — |
+
+## Conventions
+
+- **States are a discriminated union** (`status` or `ok`), not several booleans. If two flags can't both be true, they are one state.
+- **The newest request wins:** abort or ignore older ones. Never write to state after unmount.
+- **Never fill a failure with made-up data:** show the issue and, when it's transient, a retry. Keep last good values on screen only when marked as stale.
+- **Pure first:** put transitions in `src/lib/*.ts` and test them there. Components only render states.
+- **Tests:** a new machine gets unit tests for its transitions and, when users can see it, a journey in `e2e/journeys.mjs`.

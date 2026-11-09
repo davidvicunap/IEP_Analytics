@@ -9,7 +9,8 @@ import { filingDocUrl, xbrlViewerUrl, type Filing } from "@/lib/filingsShared";
 import {
   checkColumn, projectStatements, projectionDefaults, ttmColumn, type CheckIssue, type Column, type ProjectionAssumptions,
 } from "@/lib/statements";
-import type { AnnualIncome, DataIssue, Result } from "@/lib/types";
+import type { AnnualIncome, Result } from "@/lib/types";
+import { useResource } from "@/lib/useResource";
 import { useFilings } from "./filingsHooks";
 import { IssueNote, Panel } from "./ui";
 import { NumberField } from "./valuation/fields";
@@ -75,40 +76,26 @@ function complete(d: Draft): ProjectionAssumptions | null {
 
 export default function FinancialStatements({ symbol, fmpIncome }: { symbol: string; fmpIncome?: Result<AnnualIncome[]> }) {
   const { t, lang } = useI18n();
-  const [state, setState] = useState<Result<FinancialsPayload> | null>(null);
   const [mode, setMode] = useState<"annual" | "quarterly">("annual");
   const [projecting, setProjecting] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const filings = useFilings(symbol);
-
-  useEffect(() => {
-    let alive = true;
-    setState(null);
-    fetch(`/api/sec/financials/${encodeURIComponent(symbol)}`)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<FinancialsPayload> | null;
-        if (alive) setState(body ?? { ok: false, error: "upstream" });
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [symbol]);
+  const { state: filings } = useFilings(symbol);
+  const { state, retry } = useResource<FinancialsPayload>(`/api/sec/financials/${encodeURIComponent(symbol)}`);
 
   const byAccn = useMemo(() => {
     const m = new Map<string, Filing>();
-    if (filings?.ok) for (const f of filings.data.filings) m.set(f.accn, f);
+    if (filings.status === "ok") for (const f of filings.data.filings) m.set(f.accn, f);
     return m;
   }, [filings]);
 
   const defaults = useMemo(() => {
-    if (!state?.ok) return null;
+    if (state.status !== "ok") return null;
     return projectionDefaults(state.data.annual, state.data.shares.points.at(-1)?.value ?? null);
   }, [state]);
 
   // Columns to show: actual periods, then TTM (annual view), then projections when asked.
   const columns = useMemo<DisplayColumn[]>(() => {
-    if (!state?.ok) return [];
+    if (state.status !== "ok") return [];
     const fin = state.data;
     const set = mode === "annual" ? fin.annual : fin.quarterly;
     const fmp = fmpIncome?.ok ? new Map(fmpIncome.data.map((r) => [`FY${r.year}`, r])) : new Map<string, AnnualIncome>();
@@ -133,7 +120,7 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
     return cols;
   }, [state, mode, fmpIncome, projecting, draft, defaults]);
 
-  if (state === null) {
+  if (state.status === "loading") {
     return (
       <Panel title={t.fin.title}>
         <p role="status" className="text-sm text-muted">{t.fin.loading}</p>
@@ -141,10 +128,10 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
       </Panel>
     );
   }
-  if (!state.ok) {
+  if (state.status === "error") {
     return (
       <Panel title={t.fin.title}>
-        <IssueNote issue={state.error as DataIssue} />
+        <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
   }

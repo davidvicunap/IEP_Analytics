@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtNum, fmtPrice } from "@/lib/format";
 import { compsRow, impliedValues, peerStats, type CompsMultiple, type CompsRow } from "@/lib/comps";
 import type { CompsPayload } from "@/lib/compsData";
-import type { DataIssue, Result } from "@/lib/types";
+import { shown as shownData } from "@/lib/resource";
+import { useResource } from "@/lib/useResource";
 import { IssueNote, Panel } from "../ui";
 import { NumberField } from "./fields";
 
@@ -43,23 +44,13 @@ export default function CompsView({ symbol }: { symbol: string }) {
   const [peers, setPeers] = useState<string[] | null>(() => store.get<string[]>(peersKey));
   const [manual, setManual] = useState<Record<string, number>>(() => store.get<Record<string, number>>(manualKey) ?? {});
   const [stat, setStat] = useState<"median" | "mean">("median");
-  const [state, setState] = useState<Result<CompsPayload> | null>(null);
   const [draft, setDraft] = useState("");
 
-  useEffect(() => {
-    let alive = true;
-    const qs = new URLSearchParams({ symbol });
-    if (peers) qs.set("peers", peers.join(","));
-    fetch(`/api/valuation/comps?${qs}`)
-      .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as Result<CompsPayload> | null;
-        if (alive) setState(body ?? { ok: false, error: "upstream" });
-      })
-      .catch(() => alive && setState({ ok: false, error: "upstream" }));
-    return () => {
-      alive = false;
-    };
-  }, [symbol, peers]);
+  const qs = new URLSearchParams({ symbol });
+  if (peers) qs.set("peers", peers.join(","));
+  const { state, retry } = useResource<CompsPayload>(`/api/valuation/comps?${qs}`, { keepPrevious: true });
+  const onScreen = shownData(state); // the last answer stays while new peers load
+  const updating = state.status === "loading" && onScreen !== null;
 
   const updatePeers = (next: string[] | null) => {
     setPeers(next);
@@ -76,8 +67,8 @@ export default function CompsView({ symbol }: { symbol: string }) {
   };
 
   const view = useMemo(() => {
-    if (!state?.ok) return null;
-    const d = state.data;
+    if (!onScreen) return null;
+    const d = onScreen.data;
     const target = compsRow({ ...d.target, marketCapSource: d.target.marketCap ? "market" : null });
     const rows: CompsRow[] = d.peers.map((p) => {
       const typed = manual[p.symbol];
@@ -85,9 +76,9 @@ export default function CompsView({ symbol }: { symbol: string }) {
       return compsRow({ ...p, marketCap, marketCapSource: p.marketCap ? "market" : typed ? "manual" : null });
     });
     return { d, target, rows };
-  }, [state, manual]);
+  }, [onScreen, manual]);
 
-  if (state === null) {
+  if (state.status === "loading" && !onScreen) {
     return (
       <Panel title={t.comps.title}>
         <p role="status" className="text-sm text-muted">{t.comps.loading}</p>
@@ -95,10 +86,10 @@ export default function CompsView({ symbol }: { symbol: string }) {
       </Panel>
     );
   }
-  if (!state.ok || !view) {
+  if (state.status === "error" || !view) {
     return (
       <Panel title={t.comps.title}>
-        <IssueNote issue={(state.ok ? "upstream" : state.error) as DataIssue} />
+        <IssueNote issue={state.status === "error" ? state.issue : "upstream"} onRetry={retry} />
       </Panel>
     );
   }
@@ -117,7 +108,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
   const implied = impliedValues(target, rows, d.target.price, stat).filter((v) => shown.includes(v.multiple));
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 transition-opacity ${updating ? "opacity-60" : ""}`} aria-busy={updating}>
       <div className="space-y-1">
         <h2 className="section-title">{t.comps.title}</h2>
         <p className="text-sm">{fill(t.comps.basis, { year: d.year })}</p>

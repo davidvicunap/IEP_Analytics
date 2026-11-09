@@ -5,7 +5,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPct, fmtPrice } from "@/lib/format";
 import type { Level } from "@/lib/scoring";
-import type { DataIssue, DataSource, Quote } from "@/lib/types";
+import { isRetryable, type ViewIssue } from "@/lib/resource";
+import type { DataSource, Quote } from "@/lib/types";
 import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
 
@@ -180,10 +181,27 @@ export function EmptyState({ title, children, action }: { title: string; childre
 }
 
 /** Explains why a section has no data. */
-export function IssueNote({ issue, className = "" }: { issue: DataIssue; className?: string }) {
+export function IssueNote({ issue, onRetry, className = "" }: { issue: ViewIssue; onRetry?: () => void; className?: string }) {
   const { t } = useI18n();
+  if (issue === "beta_expired") {
+    // Only reached after a client request, so `location` is available; return to this view.
+    const next = typeof window === "undefined" ? "/" : window.location.pathname + window.location.search;
+    return (
+      <StatusMessage
+        tone="warn"
+        className={className}
+        action={<a href={`/beta?next=${encodeURIComponent(next)}`} className="link text-sm font-medium">{t.ux.signInAgain}</a>}
+      >
+        {t.data.betaExpired}
+      </StatusMessage>
+    );
+  }
   return (
-    <StatusMessage tone={issue === "rate_limited" || issue === "upstream" ? "warn" : "info"} className={className}>
+    <StatusMessage
+      tone={isRetryable(issue) ? "warn" : "info"}
+      className={className}
+      action={onRetry && isRetryable(issue) ? <button type="button" onClick={onRetry} className={buttonClass("secondary", true)}>{t.errors.retry}</button> : undefined}
+    >
       {t.data.issues[issue]}
     </StatusMessage>
   );

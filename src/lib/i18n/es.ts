@@ -207,6 +207,7 @@ const es = {
   data: {
     source: "Fuente",
     updated: "Actualizado",
+    betaExpired: "Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.",
     demoSource: "datos simulados (demo)",
     lastFiling: "Último informe anual",
     unavailableTitle: "Datos no disponibles",

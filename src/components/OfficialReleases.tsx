@@ -4,21 +4,20 @@ import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
 import { filingDocUrl, formGroup, type Filing } from "@/lib/filingsShared";
-import type { DataIssue } from "@/lib/types";
 import { useFilings, useFormLabel } from "./filingsHooks";
 import { IssueNote } from "./ui";
 
 /** Latest official releases (8-K) — shared by the News tab and the overview. */
 export function OfficialReleases({ symbol, limit, onSeeAll }: { symbol: string; limit: number; onSeeAll?: () => void }) {
   const { t, lang } = useI18n();
-  const state = useFilings(symbol);
+  const { state, retry } = useFilings(symbol);
   const label = useFormLabel();
   const releases: Filing[] = useMemo(
-    () => (state?.ok ? state.data.filings.filter((f) => formGroup(f.form) === "current").slice(0, limit) : []),
+    () => (state.status === "ok" ? state.data.filings.filter((f) => formGroup(f.form) === "current").slice(0, limit) : []),
     [state, limit],
   );
-  if (state === null) return <div className="h-24 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />;
-  if (!state.ok) return <IssueNote issue={state.error as DataIssue} />;
+  if (state.status === "loading") return <div className="h-24 rounded-lg bg-panel-2 animate-pulse" aria-hidden="true" />;
+  if (state.status === "error") return <IssueNote issue={state.issue} onRetry={retry} />;
   if (releases.length === 0) return <p className="text-sm text-muted">{t.news.none}</p>;
   return (
     <div>
