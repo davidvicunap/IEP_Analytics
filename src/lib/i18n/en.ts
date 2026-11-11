@@ -119,6 +119,8 @@ const en: CoreDict = {
     simple: "Simple",
     tvTitle: "{s} interactive chart (TradingView)",
     tvAttribution: "{s} chart by TradingView",
+    fullscreen: "Full screen",
+    exitFullscreen: "Exit full screen",
     tvHelp: "Drag to move, scroll or pinch to zoom, use the left toolbar to draw lines and “Indicators” at the top to add averages, RSI or MACD.",
     levels: {
       title: "Support and resistance",

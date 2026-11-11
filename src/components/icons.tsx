@@ -175,3 +175,26 @@ export function LogoMark({ size = 26 }: { size?: number }) {
     </svg>
   );
 }
+export const ExpandIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </Svg>
+);
+export const TagIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Svg>
+);
+export const ColumnsIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
+    <path d="M9.5 4.5v15M14.5 4.5v15" />
+  </Svg>
+);
+export const FileTextIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14 3.5H6.5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V8z" />
+    <path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16h7" />
+  </Svg>
+);

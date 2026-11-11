@@ -75,7 +75,8 @@ export default function ChartTab({
           <>
             <TradingViewWidget
               widget="advanced-chart"
-              height={560}
+              heightClass="h-[min(72vh,720px)] min-h-[420px]"
+              fullscreen={{ enter: t.chart.fullscreen, exit: t.chart.exitFullscreen }}
               title={fill(t.chart.tvTitle, { s: symbol })}
               attribution={fill(t.chart.tvAttribution, { s: symbol })}
               attributionHref={`https://www.tradingview.com/symbols/${tv.replace(":", "-")}/`}

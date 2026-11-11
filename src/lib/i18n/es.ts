@@ -119,6 +119,8 @@ const es = {
     simple: "Simple",
     tvTitle: "Gráfico interactivo de {s} (TradingView)",
     tvAttribution: "Gráfico de {s} por TradingView",
+    fullscreen: "Pantalla completa",
+    exitFullscreen: "Salir de pantalla completa",
     tvHelp: "Arrastra para moverte, usa la rueda o pellizca para hacer zoom, la barra izquierda para dibujar líneas y «Indicadores» arriba para añadir medias, RSI o MACD.",
     levels: {
       title: "Soportes y resistencias",
