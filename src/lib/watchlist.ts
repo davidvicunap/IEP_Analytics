@@ -7,6 +7,7 @@
 // - When storage is unavailable (private mode, blocked cookies) the list lives in memory
 //   for the session and the UI can say so.
 import { useCallback, useSyncExternalStore } from "react";
+import { DEFAULT_COLUMNS, parseColumns, parseTags, pruneTags, toggleColumn, toggleTag, type Column, type Tags } from "./watchDashboard";
 
 /** The most a watchlist can hold. Quotes are fetched 30 at a time, so 100 means 4 requests. */
 export const WATCHLIST_LIMIT = 100;
@@ -126,4 +127,67 @@ export function useHydrated(): boolean {
     () => true,
     () => false,
   );
+}
+
+// ---- Dashboard settings: tags per stock and the columns shown --------------------------------
+
+function createJsonStore<T>(key: string, parse: (raw: unknown) => T, fallback: T) {
+  let cache: T | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    read(): T {
+      if (cache !== null) return cache;
+      try {
+        const raw = localStorage.getItem(key);
+        cache = raw ? parse(JSON.parse(raw)) : fallback;
+      } catch {
+        cache = fallback;
+      }
+      return cache;
+    },
+    write(value: T) {
+      cache = value;
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // storage unavailable: kept in memory for this session
+      }
+      listeners.forEach((l) => l());
+    },
+    subscribe(cb: () => void) {
+      listeners.add(cb);
+      const onStorage = (e: StorageEvent) => {
+        if (e.key === key || e.key === null) {
+          cache = null;
+          cb();
+        }
+      };
+      window.addEventListener("storage", onStorage);
+      return () => {
+        listeners.delete(cb);
+        window.removeEventListener("storage", onStorage);
+      };
+    },
+  };
+}
+
+const NO_TAGS: Tags = {};
+const tagStore = createJsonStore<Tags>("iep.watchtags", parseTags, NO_TAGS);
+const columnStore = createJsonStore<Column[]>("iep.watchcols", parseColumns, DEFAULT_COLUMNS);
+
+export function useWatchTags() {
+  const tags = useSyncExternalStore(tagStore.subscribe, tagStore.read, () => NO_TAGS);
+  const toggle = useCallback((symbol: string, tag: string) => tagStore.write(toggleTag(tagStore.read(), symbol, tag)), []);
+  const prune = useCallback((list: string[]) => {
+    const cur = tagStore.read();
+    const next = pruneTags(cur, list);
+    if (next !== cur) tagStore.write(next);
+  }, []);
+  return { tags, toggle, prune };
+}
+
+export function useWatchColumns() {
+  const columns = useSyncExternalStore(columnStore.subscribe, columnStore.read, () => DEFAULT_COLUMNS);
+  const toggle = useCallback((c: Column) => columnStore.write(toggleColumn(columnStore.read(), c)), []);
+  return { columns, toggle };
 }

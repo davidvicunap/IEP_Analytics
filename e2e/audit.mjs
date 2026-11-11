@@ -31,6 +31,7 @@ const PAGES = [
   { name: "research", path: "/research" },
   { name: "screener", path: "/screener" },
   { name: "notebook", path: "/stock/AAPL", tab: "research" },
+  { name: "reader", path: "/stock/AAPL/report" },
   { name: "watchlist", path: "/watchlist" },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },

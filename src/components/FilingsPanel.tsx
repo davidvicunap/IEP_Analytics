@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
@@ -116,6 +117,14 @@ export default function FilingsPanel({ symbol }: { symbol: string }) {
                     </td>
                     <td className="num py-2 whitespace-nowrap text-muted">{f.reportDate ? fmtDate(f.reportDate, lang) : "—"}</td>
                     <td className="py-2 pr-4 text-right whitespace-nowrap">
+                      {f.form === "10-K" && (
+                        <>
+                          <Link className="link font-medium" href={`/stock/${encodeURIComponent(symbol)}/report?accn=${encodeURIComponent(f.accn)}`} title={t.filings.readTitle}>
+                            {t.filings.read}
+                          </Link>
+                          <span className="text-muted"> · </span>
+                        </>
+                      )}
                       <a className="link" href={filingDocUrl(cik, f)} target="_blank" rel="noopener noreferrer">{t.filings.doc}</a>
                       <span className="text-muted"> · </span>
                       <a className="link" href={filingIndexUrl(cik, f.accn)} target="_blank" rel="noopener noreferrer">{t.filings.index}</a>

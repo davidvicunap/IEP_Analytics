@@ -177,10 +177,10 @@ await test("watchlist: 45 saved stocks are all priced, in pages of at most 30", 
   });
   await p.goto(base + "/watchlist");
   await p.getByText("45 de 100").waitFor();
-  await p.waitForFunction(() => document.querySelectorAll("main li a[href^='/stock/']").length === 45);
+  await p.waitForFunction(() => document.querySelectorAll("main tbody th a[href^='/stock/']").length === 45);
   await p.waitForTimeout(500);
   assert(sizes.every((n) => n <= 30) && sizes.reduce((a, b) => a + b, 0) === 45, `pages ${sizes}`);
-  const priced = await p.locator("main li").filter({ hasText: "$" }).count();
+  const priced = await p.locator("main tbody tr").filter({ hasText: "$" }).count();
   assert(priced === 45, `priced rows ${priced}`);
   await p.context().close();
 });
@@ -234,7 +234,7 @@ await test("watchlist: a list changed during fetching shows only the current lis
   await p.getByRole("button", { name: "Quitar MSFT de la lista" }).waitFor({ timeout: 8000 });
   await p.getByRole("button", { name: "Quitar MSFT de la lista" }).click();
   await p.waitForTimeout(1600);
-  const rows = await p.locator("main ul li a[href^='/stock/']").allInnerTexts();
+  const rows = await p.locator("main tbody th a[href^='/stock/']").allInnerTexts();
   assert(rows.length === 2 && !rows.join(" ").includes("MSFT"), `rows: ${rows.join(" | ")}`);
   await p.context().close();
 });
@@ -257,6 +257,181 @@ await test("watchlist: corrupted storage is cleaned up, not fatal", async () => 
   const p = await page({ watchlist: ["aapl", "AAPL", 7, "<b>", "ko"] });
   await p.goto(base + "/watchlist");
   await p.getByText("2 de 100").waitFor();
+  await p.context().close();
+});
+
+const snapshot = (symbol, o = {}) => ({
+  symbol,
+  cik: 1,
+  quality: { ok: true, data: { passed: o.passed ?? 5, failed: o.failed ?? 4, na: 0, level: o.level ?? "mixed", fiscal: "FY2026" } },
+  filings: {
+    ok: true,
+    data: {
+      report: { accn: "0000000001-26-000001", form: "10-K", filed: "2026-02-01", reportDate: "2025-12-31", primaryDocument: "a.htm", items: [] },
+      latest: { accn: "0000000001-26-000002", form: "8-K", filed: o.filed ?? "2026-10-01", reportDate: null, primaryDocument: "b.htm", items: ["2.02"] },
+    },
+  },
+  insiders: o.insiders ?? { ok: true, data: { from: "", to: "", bought: o.bought ?? 0, sold: o.sold ?? 0, buyers: 0, sellers: 0, pending: o.pending ?? 0, checkedAt: "2026-11-01T00:00:00Z" } },
+});
+
+await test("watchlist dashboard: SEC columns load per row, sort with gaps last, and a failed row says why and retries", async () => {
+  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
+  let koFails = true;
+  await p.route(/\/api\/sec\/snapshot\//, (r) => {
+    const s = decodeURIComponent(r.request().url().split("/snapshot/")[1]);
+    if (s === "KO" && koFails) return r.fulfill(json({ ok: false, error: "rate_limited" }, 502));
+    const o = s === "AAPL" ? { passed: 8, failed: 1, level: "high", sold: 2.4e7 } : { passed: 3, failed: 6, level: "low", bought: 1.2e6, pending: 2 };
+    return r.fulfill(json({ ok: true, data: snapshot(s, o), fetchedAt: new Date().toISOString() }));
+  });
+  await p.goto(base + "/watchlist");
+  await p.getByText("8/9").waitFor();
+  await p.getByText("Compras $1.2M").waitFor();
+  await p.getByText("parcial").waitFor(); // insider filings still to read
+  await p.getByText("No pudimos cargar los datos de la SEC de 1 de 3 acciones", { exact: false }).waitFor();
+  const order = async () => (await p.locator("main tbody th a[href^='/stock/']").allInnerTexts()).map((t) => t.split("\n")[0]);
+  await p.getByRole("button", { name: "Ordenar por Calidad" }).click();
+  assert((await order()).join() === "AAPL,MSFT,KO", `quality desc: ${await order()}`);
+  await p.getByRole("button", { name: "Ordenar por Calidad" }).click();
+  assert((await order()).join() === "MSFT,AAPL,KO", `quality asc keeps the gap last: ${await order()}`);
+  assert((await p.locator("th[aria-sort='ascending']").count()) === 1, "aria-sort not set");
+  await p.getByRole("button", { name: "Volver al orden guardado" }).click();
+  assert((await order()).join() === "AAPL,MSFT,KO", "saved order not restored");
+  koFails = false;
+  await p.getByRole("button", { name: "Reintentar" }).click();
+  await p.waitForFunction(() => document.querySelectorAll("main tbody tr").length === 3 && !document.body.innerText.includes("No pudimos cargar los datos de la SEC"));
+  await axe(p);
+  await p.context().close();
+});
+
+await test("watchlist dashboard: tags filter the list and columns can be hidden, both remembered", async () => {
+  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
+  await p.goto(base + "/watchlist");
+  await p.getByRole("button", { name: "Editar etiquetas de MSFT" }).click();
+  await p.getByLabel("Nueva etiqueta").fill("  Dividendos ");
+  await p.getByRole("button", { name: "Añadir", exact: true }).click();
+  await p.getByRole("button", { name: "Listo" }).click();
+  await p.getByRole("button", { name: "Editar etiquetas de KO" }).click();
+  await p.getByRole("button", { name: "Dividendos", exact: true }).click(); // the existing tag, one click
+  await p.getByRole("button", { name: "Listo" }).click();
+  await p.getByRole("group", { name: "Filtrar por etiqueta" }).getByRole("button", { name: /Dividendos/ }).click();
+  await p.waitForFunction(() => document.querySelectorAll("main tbody th a[href^='/stock/']").length === 2);
+  await p.locator("summary", { hasText: "Columnas" }).click();
+  await p.getByRole("checkbox", { name: /Directivos/ }).uncheck();
+  await p.reload();
+  assert((await p.getByRole("button", { name: "Ordenar por Directivos (12 m)" }).count()) === 0, "hidden column came back");
+  const tags = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchtags")));
+  assert(JSON.stringify(tags) === JSON.stringify({ MSFT: ["Dividendos"], KO: ["Dividendos"] }), `tags ${JSON.stringify(tags)}`);
+  await p.context().close();
+});
+
+await test("watchlist dashboard: phone keeps the page from scrolling sideways", async () => {
+  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"], width: 320, height: 640, touch: true });
+  await p.goto(base + "/watchlist");
+  await p.locator("main tbody tr").first().waitFor();
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(over <= 0, `page overflows by ${over}px`);
+  await p.context().close();
+});
+
+// ---- Filing reader ------------------------------------------------------------------------------
+
+const report = (section) => {
+  const reports = [
+    { accn: "0000320193-26-000026", form: "10-K", filed: "2026-11-03", reportDate: "2026-09-26", primaryDocument: "a.htm" },
+    { accn: "0000320193-25-000079", form: "10-K", filed: "2025-10-31", reportDate: "2025-09-27", primaryDocument: "b.htm" },
+  ];
+  const para = (t) => ({ k: "p", t });
+  const content =
+    section === "risks"
+      ? {
+          key: "risks",
+          chars: 900,
+          truncated: false,
+          blocks: [
+            para("The following summarizes factors that could have a material adverse effect."),
+            { k: "p", t: "Global economic conditions could hurt the Company’s results.", e: true },
+            para("Body of an unchanged risk."),
+            { k: "p", t: "Issues related to artificial intelligence may result in reputational harm.", e: true, mark: "new" },
+            para("Body of a new risk."),
+            { k: "p", t: "The Company depends on component suppliers in Asia.", e: true, mark: "changed" },
+            para("Body of a reworded risk."),
+          ],
+        }
+      : section === "mdna"
+        ? null
+        : { key: section, chars: 300, truncated: true, blocks: [para("Apple designs smartphones."), { k: "table", rows: [["2026", "2025"], ["Net sales", "$416,161", "$391,035"]] }] };
+  return {
+    symbol: "AAPL",
+    cik: 320193,
+    name: "Apple Inc.",
+    filing: reports[0],
+    reports,
+    section,
+    content,
+    risks: section === "risks" ? { prior: reports[1], diff: { added: [content.blocks[3].t], changed: [{ now: content.blocks[5].t, before: "The Company depends on suppliers." }], removed: ["Pandemic risks."], same: 1, total: 3, totalBefore: 3 } } : null,
+    risksNote: null,
+  };
+};
+
+await test("filing reader: sections in the URL, risk changes flagged, only-changed filter, honest gaps", async () => {
+  const p = await page({ width: 390, height: 844, touch: true });
+  const asked = [];
+  await p.route(/\/api\/sec\/report\//, (r) => {
+    const u = new URL(r.request().url());
+    asked.push(`${u.searchParams.get("s")}|${u.searchParams.get("accn") ?? ""}`);
+    r.fulfill(json({ ok: true, data: report(u.searchParams.get("s")), fetchedAt: new Date().toISOString() }));
+  });
+  await p.goto(base + "/stock/AAPL/report");
+  await p.getByRole("heading", { level: 1, name: "Apple Inc.: informe anual 10-K" }).waitFor();
+  await p.getByText("Apple designs smartphones.").waitFor();
+  await p.getByText("Esta sección es muy larga", { exact: false }).waitFor();
+  await p.getByRole("button", { name: "Riesgos", exact: true }).tap();
+  await p.waitForURL(/s=risks/);
+  await p.getByText("1 nuevos").waitFor();
+  await p.locator("h3", { hasText: "artificial intelligence" }).getByText("Nuevo").waitFor();
+  await p.getByLabel("Mostrar solo riesgos nuevos y reformulados").check();
+  assert((await p.getByText("Body of an unchanged risk.").count()) === 0, "unchanged risk still shown");
+  await p.getByText("Body of a reworded risk.").waitFor();
+  await axe(p);
+  await p.getByRole("button", { name: "Análisis de la dirección" }).tap();
+  await p.getByText("No encontramos esta sección en este informe", { exact: false }).waitFor();
+  await p.getByLabel("Informe", { exact: true }).selectOption("0000320193-25-000079");
+  await p.waitForURL(/accn=0000320193-25-000079/);
+  await p.goBack();
+  await p.waitForURL((u) => !u.search.includes("accn"));
+  assert(asked.includes("mdna|0000320193-25-000079"), `requests: ${asked}`);
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(over <= 0, `page overflows by ${over}px`);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("filing reader: a failed read says why and retries in place", async () => {
+  const p = await page();
+  let fail = true;
+  await p.route(/\/api\/sec\/report\//, (r) => (fail ? r.fulfill(json({ ok: false, error: "upstream" }, 502)) : r.fulfill(json({ ok: true, data: report("business"), fetchedAt: new Date().toISOString() }))));
+  await p.goto(base + "/stock/AAPL/report");
+  await p.getByRole("button", { name: "Reintentar" }).waitFor();
+  fail = false;
+  await p.getByRole("button", { name: "Reintentar" }).click();
+  await p.getByText("Apple designs smartphones.").waitFor();
+  await p.context().close();
+});
+
+await test("chart: TradingView keeps its full height after its script resizes the container", async () => {
+  const p = await page();
+  // Stand-in for TradingView's script: like the real one, it rewrites the container to 100 % and adds an iframe.
+  await p.route(/s3\.tradingview\.com\/.*advanced-chart/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "text/javascript",
+      body: `(()=>{const c=document.currentScript.parentElement;c.style.cssText="height:100%;width:100%";const f=document.createElement("iframe");f.style.cssText="display:block;height:100%;width:100%";c.replaceChildren(f);})();`,
+    }),
+  );
+  await p.goto(base + "/stock/AAPL?tab=chart");
+  await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
+  const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
+  assert(h >= 400, `chart is ${h}px tall`);
   await p.context().close();
 });
 
