@@ -13,7 +13,7 @@ const en: CoreDict = {
     themeDark: "Dark",
     themeLight: "Light",
   },
-  nav: { home: "Home", watchlist: "Watchlist", search: "Search", charts: "Charts", research: "Research" },
+  nav: { home: "Home", watchlist: "Watchlist", search: "Search", charts: "Charts", research: "Research", screener: "Screener" },
   search: {
     placeholder: "Search a stock: Apple, TSLA…",
     label: "Search a stock by name or ticker",
@@ -409,6 +409,17 @@ const en: CoreDict = {
     noDataText: "The provider doesn't have this figure for this company. “No data” is neither a good nor a bad result.",
     ttmNote: "Trailing-twelve-month (TTM) ratios from the provider; growth compares the last two fiscal years.",
     signalsBasis: "Computed from daily closes up to {d}.",
+  },
+  quarter: {
+    title: "Latest quarter",
+    period: "{q} · ended {d}",
+    cols: { metric: "Figure", now: "This quarter", vs: "vs. {q}" },
+    metrics: { revenue: "Revenue", grossMargin: "Gross margin", operatingMargin: "Operating margin", netIncome: "Net income", eps: "Diluted EPS", freeCashFlow: "Free cash flow" },
+    pts: "{v} pts",
+    headline: "Revenue {v} versus the same quarter a year ago.",
+    report: "{f} report",
+    release: "Earnings release",
+    note: "Comparing with the same quarter a year earlier removes seasonality. SEC figures, split-adjusted; “—” when the report doesn't give the quarter's figure.",
   },
   research: {
     tab: "My research",

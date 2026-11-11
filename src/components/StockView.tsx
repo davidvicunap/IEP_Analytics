@@ -21,6 +21,7 @@ import type { StockIdentity, StockSections } from "@/lib/data";
 import type { AnnualIncome, Candle, DataIssue, DataSource, Fundamentals, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
 import { OfficialReleases } from "./OfficialReleases";
+import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -348,6 +349,9 @@ function Overview({
             <OverviewChart history={sections.history} chart={chart} setChart={setChart} />
           </Section>
         </Panel>
+        <div className="order-3 min-w-0">
+          <QuarterCard symbol={symbol} />
+        </div>
         <div className="order-4">
           <Section fallback={<Skeleton className="h-64" />}>
             <KeyMetrics sections={sections} />

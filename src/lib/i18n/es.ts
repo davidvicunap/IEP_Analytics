@@ -13,7 +13,7 @@ const es = {
     themeDark: "Oscuro",
     themeLight: "Claro",
   },
-  nav: { home: "Inicio", watchlist: "Mi lista", search: "Buscar", charts: "Gráficos", research: "Mi análisis" },
+  nav: { home: "Inicio", watchlist: "Mi lista", search: "Buscar", charts: "Gráficos", research: "Mi análisis", screener: "Buscador" },
   search: {
     placeholder: "Busca una acción: Apple, TSLA…",
     label: "Buscar una acción por nombre o ticker",
@@ -409,6 +409,17 @@ const es = {
     noDataText: "El proveedor no tiene este dato para esta empresa. «Sin datos» no es un resultado bueno ni malo.",
     ttmNote: "Ratios de los últimos 12 meses (TTM) según el proveedor; el crecimiento compara los dos últimos años fiscales.",
     signalsBasis: "Calculado con los cierres diarios hasta el {d}.",
+  },
+  quarter: {
+    title: "Último trimestre",
+    period: "{q} · cerró el {d}",
+    cols: { metric: "Dato", now: "Este trimestre", vs: "vs. {q}" },
+    metrics: { revenue: "Ingresos", grossMargin: "Margen bruto", operatingMargin: "Margen operativo", netIncome: "Beneficio neto", eps: "BPA diluido", freeCashFlow: "Flujo de caja libre" },
+    pts: "{v} pts",
+    headline: "Ingresos {v} frente al mismo trimestre de hace un año.",
+    report: "Informe {f}",
+    release: "Comunicado de resultados",
+    note: "Compararlo con el mismo trimestre del año anterior evita el efecto de la temporada. Cifras de la SEC, ajustadas por splits; «—» cuando el informe no da el dato del trimestre.",
   },
   research: {
     tab: "Mi análisis",

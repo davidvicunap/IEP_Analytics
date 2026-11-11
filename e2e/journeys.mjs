@@ -430,9 +430,10 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   await p.goto(base + "/stock/KO?tab=research");
   const thesis = p.getByLabel("Thesis");
   await thesis.waitFor();
-  await thesis.fill("Pricing power and a global distribution moat.");
+  const thesisText = `Pricing power and a global distribution moat (${Date.now()}).`; // unique: the demo store outlives a run
+  await thesis.fill(thesisText);
   await p.getByLabel("Bull case").fill("Brand\nDividend growth");
-  await p.getByLabel("Fair value").fill("75");
+  await p.getByLabel("Fair value", { exact: true }).fill("75");
   await p.getByText("Unsaved changes").waitFor();
   await p.getByRole("button", { name: "Save" }).click();
   await p.getByText(/^Saved ·/).waitFor();
@@ -440,16 +441,17 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   await p.getByTestId("fair-value-line").getByText("Your fair value: $75.00").waitFor();
   await p.getByRole("region", { name: "Your fair value over time" }).getByText("By hand").waitFor();
   // A dated note, then a reload: everything is still there.
-  await p.getByLabel("New note").fill("Q3: volumes up in Latin America");
+  const note = `Q3: volumes up in Latin America (${Date.now()})`;
+  await p.getByLabel("New note").fill(note);
   await p.getByRole("button", { name: "Add note" }).click();
-  await p.getByText("Q3: volumes up in Latin America").waitFor();
+  await p.getByText(note).waitFor();
   await p.reload();
   await p.getByLabel("Thesis").waitFor();
   assert((await p.getByLabel("Thesis").inputValue()).startsWith("Pricing power"), "thesis not kept");
   await axe(p);
   // The overview card and the list page show it too.
   await p.getByRole("tab", { name: "Overview" }).click();
-  await p.locator("#research-card").getByText("Pricing power and a global distribution moat.").waitFor();
+  await p.locator("#research-card").getByText(thesisText).waitFor();
   await p.goto(base + "/research");
   const row = p.getByRole("link", { name: /KO/ });
   await row.getByText("$75.00").waitFor();
@@ -465,15 +467,93 @@ await test("research notebook: an edit from an outdated tab is refused, not sile
     await p.goto(base + "/stock/PEP?tab=research");
     await p.getByLabel("Thesis").waitFor();
   }
-  await b.getByLabel("Thesis").fill("Written in tab B");
+  const run = Date.now(); // the demo store lives as long as the server: make this run's text unique
+  await b.getByLabel("Thesis").fill(`Written in tab B ${run}`);
   await b.getByRole("button", { name: "Save" }).click();
   await b.getByText(/^Saved ·/).waitFor();
-  await a.getByLabel("Thesis").fill("Written in tab A");
+  await a.getByLabel("Thesis").fill(`Written in tab A ${run}`);
   await a.getByRole("button", { name: "Save" }).click();
   await a.getByText(/changed on another device/).waitFor();
-  assert((await a.getByLabel("Thesis").inputValue()) === "Written in tab A", "draft lost");
+  assert((await a.getByLabel("Thesis").inputValue()) === `Written in tab A ${run}`, "draft lost");
   await a.getByRole("button", { name: "Reload" }).waitFor();
   await a.context().close();
+});
+
+// ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------
+
+const screenRow = (symbol, rank, industry, ratios) => ({
+  symbol, name: `${symbol} Inc.`, cik: rank, rank, sic: 7372, industry, type: "general", revenue: 1e9 * (10 - rank),
+  ratios: { revenueGrowth: null, grossMargin: null, operatingMargin: null, netMargin: null, fcfMargin: null, roic: null, roe: null, debtToEquity: null, epsGrowth: null, ...ratios },
+});
+
+await test("screener: quick screens, filters and sorting drive the request; results link to stocks", async () => {
+  const p = await page({ lang: "en" });
+  const asked = [];
+  await p.route(/\/api\/sec\/screener/, (r) => {
+    asked.push(new URL(r.request().url()).search);
+    r.fulfill(json({ ok: true, fetchedAt: "2026-11-08T07:00:00Z", data: { year: 2025, updatedAt: "2026-11-08T07:00:00Z", total: 4821, matched: 2, rows: [
+      screenRow("SOFT", 1, "SERVICES-PREPACKAGED SOFTWARE", { roic: 0.31, grossMargin: 0.8, debtToEquity: 0.1, fcfMargin: 0.35 }),
+      screenRow("CHIP", 2, "SEMICONDUCTORS & RELATED DEVICES", { roic: 0.22, grossMargin: 0.55, debtToEquity: 0.3, fcfMargin: 0.2 }),
+    ] } }));
+  });
+  await p.goto(base + "/screener");
+  await p.getByText("2 of 4,821 companies match").waitFor();
+  await p.getByRole("button", { name: "Quality" }).click();
+  await p.waitForURL(/roic=15/);
+  await p.waitForFunction(() => true);
+  await p.getByRole("button", { name: "Quality" }).and(p.locator("[aria-pressed=true]")).waitFor();
+  assert(asked.some((q) => q.includes("roic=15") && q.includes("gm=40") && q.includes("de=0.5")), `requests ${asked.join(" | ")}`);
+  // A threshold typed by hand, then a sort on a column.
+  await p.getByLabel("Revenue growth (min)").fill("10");
+  await p.waitForURL(/rg=10/);
+  await p.getByRole("button", { name: "Sort by ROIC" }).click();
+  await p.waitForURL(/dir=asc/);
+  assert((await p.locator("th[aria-sort=ascending]").count()) === 1, "sorted column not marked");
+  // Save the screen, clear, reopen it.
+  await p.getByRole("button", { name: "Save screen" }).click();
+  await p.getByLabel("Screen name").fill("My quality");
+  await p.getByLabel("Screen name").press("Enter");
+  await p.getByRole("button", { name: "Clear filters" }).click();
+  await p.waitForURL((u) => !u.search.includes("roic"));
+  await p.getByRole("button", { name: "My quality", exact: true }).click();
+  await p.waitForURL(/roic=15/);
+  const link = p.getByRole("link", { name: /SOFT/ });
+  assert((await link.getAttribute("href")) === "/stock/SOFT", "row link");
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("screener: on a phone the results scroll inside their box, never the page", async () => {
+  const p = await page({ width: 360, height: 780, touch: true });
+  await p.route(/\/api\/sec\/screener/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-08T07:00:00Z", data: { year: 2025, updatedAt: "2026-11-08T07:00:00Z", total: 10, matched: 1, rows: [screenRow("SOFT", 1, "SERVICES-PREPACKAGED SOFTWARE", { roic: 0.31 })] } })));
+  await p.goto(base + "/screener");
+  await p.getByRole("link", { name: /SOFT/ }).waitFor();
+  assert((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "horizontal overflow");
+  await axe(p);
+  await p.context().close();
+});
+
+await test("quarter in review: the latest quarter against a year ago and the quarter before, with its reports", async () => {
+  const p = await page({ lang: "en" });
+  const row = (key, now, yearAgo, prior, vsYearAgo, vsPrior) => ({ key, now, yearAgo, prior, vsYearAgo, vsPrior });
+  await p.route(/\/api\/sec\/quarter\//, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-08T07:00:00Z", data: { symbol: "AAPL", cik: 320193, review: {
+    quarter: "2026-Q3", label: "Q4 FY2026", end: "2026-09-26", yearAgoLabel: "Q4 FY2025", priorLabel: "Q3 FY2026",
+    filing: { accn: "0000320193-26-000026", form: "10-K", filed: "2026-10-30" },
+    rows: [row("revenue", 114.477e9, 102.466e9, 109.4e9, 0.1172, 0.0462), row("grossMargin", 0.4789, 0.4718, 0.5005, 0.0071, -0.0217), row("eps", null, null, 1.57, null, null)],
+  } } })));
+  await p.route(/\/api\/sec\/filings\//, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-08T07:00:00Z", data: { cik: 320193, older: { available: false, loaded: false, from: null }, filings: [
+    { accn: "0000320193-26-000025", form: "8-K", filed: "2026-10-30", reportDate: "2026-10-30", primaryDocument: "aapl-8k.htm", description: "8-K", items: ["2.02", "9.01"], inlineXbrl: true },
+  ] } })));
+  await p.goto(base + "/stock/AAPL");
+  const card = p.locator("#quarter");
+  await card.getByText("Revenue +11.7% versus the same quarter a year ago.").waitFor();
+  await card.getByText("+0.7 pts").waitFor(); // margins in points
+  assert((await card.getByRole("columnheader").allInnerTexts()).join("|").includes("vs. Q4 FY2025"), "year-ago column");
+  assert((await card.getByRole("link", { name: /10-K report/ }).getAttribute("href")).endsWith("/0000320193-26-000026-index.htm"), "10-K link");
+  assert((await card.getByRole("link", { name: /Earnings release/ }).getAttribute("href")).endsWith("/aapl-8k.htm"), "release link");
+  await axe(p);
+  await p.context().close();
 });
 
 // ---- Chart generator --------------------------------------------------------------------------
