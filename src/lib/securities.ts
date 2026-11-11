@@ -77,9 +77,9 @@ export async function searchSecurities(db: Db, query: string, limit = 10): Promi
   return rows.map((r) => ({ symbol: r.symbol, name: r.name, exchange: r.exchange ?? undefined }));
 }
 
-export async function getSecurity(db: Db, symbol: string): Promise<{ symbol: string; cik: number; name: string } | null> {
+export async function getSecurity(db: Db, symbol: string): Promise<{ symbol: string; cik: number; name: string; exchange: string | null } | null> {
   const [row] = await db
-    .select({ symbol: securities.symbol, cik: securities.cik, name: securities.name })
+    .select({ symbol: securities.symbol, cik: securities.cik, name: securities.name, exchange: securities.exchange })
     .from(securities)
     .where(eq(securities.symbol, symbol.toUpperCase()))
     .limit(1);

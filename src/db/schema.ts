@@ -95,3 +95,14 @@ export const insiderChecks = pgTable("insider_checks", {
   checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
   pending: integer("pending").notNull().default(0),
 });
+
+/**
+ * The last good quote we got for each symbol (FMP's own fields, as served to the page).
+ * Shown, clearly labelled with its time, when FMP can't answer: quota used up, not in the
+ * plan for now, or down.
+ */
+export const priceSnapshots = pgTable("price_snapshots", {
+  symbol: text("symbol").primaryKey(),
+  quote: jsonb("quote").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+});

@@ -23,7 +23,7 @@ const money = (v: number) => (v < 0 ? `−$${fmtBig(-v)}` : `$${fmtBig(v)}`);
 const secIndexUrl = (cik: number, accn: string) => `https://www.sec.gov/Archives/edgar/data/${cik}/${accn.replace(/-/g, "")}/`;
 
 /** Fundamentals for a long-term investor: quality, growth, expectations and 10-year trends. */
-export default function FundamentalsPanel({ symbol, price }: { symbol: string; price: number }) {
+export default function FundamentalsPanel({ symbol, price }: { symbol: string; price: number | null }) {
   const { t, lang } = useI18n();
   const { state: quality, retry: retryQuality } = useResource<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`);
   const { state: analysts, retry: retryAnalysts } = useResource<AnalystsPayload>(`/api/analysts/${encodeURIComponent(symbol)}`);
@@ -325,7 +325,7 @@ function AnalystsSection({
 }: {
   analysts: Resource<AnalystsPayload>;
   onRetry: () => void;
-  price: number;
+  price: number | null;
   lastFiscal: QualityPayload["lastFiscal"];
   lang: Lang;
 }) {
@@ -358,7 +358,7 @@ function AnalystsSection({
           <div className="grid gap-5 md:grid-cols-2">
             <div>
               <h3 className="text-sm font-semibold">{A.target}</h3>
-              <div className="mt-2">{target.ok ? <PriceTargetView t={target.data} price={price} lang={lang} /> : partIssue(target, t)}</div>
+              <div className="mt-2">{!target.ok ? partIssue(target, t) : price !== null ? <PriceTargetView t={target.data} price={price} lang={lang} /> : <p className="text-sm">{fill(A.targetNoPrice, { consensus: fmtPrice(target.data.consensus, lang) })}</p>}</div>
             </div>
             <div>
               <h3 className="text-sm font-semibold">{A.ratings}</h3>

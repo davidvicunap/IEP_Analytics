@@ -29,7 +29,8 @@ function view(symbol: string, latest: QuoteSlot | undefined): QuoteView {
   const cached = quotesClient.cache.get(symbol);
   const quote = cached?.quote;
   const error = latest?.error ?? (quote ? undefined : cached?.error);
-  return { symbol, quote, error, fetchedAt: cached?.fetchedAt, stale: Boolean(quote && latest?.error) };
+  // Stale: the latest refresh failed, or the server sent its last stored price (basis).
+  return { symbol, quote, error, fetchedAt: cached?.fetchedAt, stale: Boolean(quote && (latest?.error || quote.basis)) };
 }
 
 /**

@@ -28,6 +28,12 @@ export interface Quote {
   previousClose?: number;
   exchange?: string;
   asOf?: string; // ISO time of the last trade reported by the provider
+  /**
+   * Set when this isn't a live answer from the provider:
+   * - "stored": the last quote we saved (FMP couldn't answer now);
+   * - "close": built from the last daily close in the price history.
+   */
+  basis?: "stored" | "close";
 }
 
 export interface QuoteEntry {

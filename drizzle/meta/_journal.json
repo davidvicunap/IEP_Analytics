@@ -36,6 +36,13 @@
       "when": 1794065916535,
       "tag": "0004_reload_metrics_for_comps",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794372033490,
+      "tag": "0005_price_snapshots",
+      "breakpoints": true
     }
   ]
 }
