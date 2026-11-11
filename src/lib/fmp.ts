@@ -3,6 +3,7 @@
 // - Every call returns a typed Result, so the UI can say exactly why data is missing.
 // - Only successful responses are cached: errors throw inside the cached function,
 //   so a transient 429 or plan error is retried on the next request instead of sticking.
+import type { FmpEarningsRow } from "./earnings";
 import { unstable_cache } from "next/cache";
 import { REMEMBER, currentQuoteTtl, isPaused, pause, rememberIssue, rememberKey, rememberedIssue } from "./fmpGuard";
 import { recordProviderCall } from "./quota";
@@ -204,6 +205,17 @@ export function fmpQuote(symbol: string): Promise<Result<Quote>> {
     const q = rows[0];
     if (!q || num(q.price) === undefined) throw new ProviderError("not_found");
     return { data: mapQuote(q), fetchedAt };
+  });
+}
+
+/** Earnings dates with analysts' estimates (past rows carry the actual figures). Cached a day. */
+export function fmpEarnings(symbol: string): Promise<Result<FmpEarningsRow[]>> {
+  return attempt("earnings", async () => {
+    const { rows, fetchedAt } = await get("earnings", { symbol, limit: "8" }, TTL.fundamentals);
+    const data = rows
+      .filter((r) => typeof r.date === "string")
+      .map((r) => ({ date: String(r.date).slice(0, 10), epsEstimated: num(r.epsEstimated) ?? null, revenueEstimated: num(r.revenueEstimated) ?? null, epsActual: num(r.epsActual) ?? null }));
+    return { data, fetchedAt };
   });
 }
 

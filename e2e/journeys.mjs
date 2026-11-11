@@ -435,6 +435,135 @@ await test("chart: TradingView keeps its full height after its script resizes th
   await p.context().close();
 });
 
+// ---- Chart packs, earnings date, methodology ------------------------------------------------
+
+/** A company's SEC series for tests: steady growth, a seed per symbol so peers differ. */
+function packSeries(symbol) {
+  const seed = [...symbol].reduce((a, c) => a + c.charCodeAt(0), 0) % 7;
+  const years = Array.from({ length: 11 }, (_, i) => 2015 + i);
+  const rev = years.map((_, i) => 100e9 * (1 + 0.05 + seed / 100) ** i);
+  const annual = {
+    keys: years.map((y) => `FY${y}`),
+    ends: years.map((y) => `${y}-12-31`),
+    values: {
+      revenue: rev,
+      netIncome: rev.map((r) => r * 0.2),
+      grossMargin: rev.map((_, i) => 0.4 + seed / 100 + i / 500),
+      operatingMargin: rev.map(() => 0.25 + seed / 100),
+      netMargin: rev.map(() => 0.2),
+      freeCashFlow: rev.map((r) => r * 0.18),
+      eps: rev.map((r) => r / 1e10),
+      roic: rev.map((_, i) => 0.12 + seed / 50 + i / 200),
+      shares: rev.map((_, i) => 1e10 * (1 - i / 100)),
+      debtToEquity: rev.map(() => 0.5 + seed / 10),
+    },
+  };
+  return { symbol, name: `${symbol} Inc.`, annual, quarterly: { keys: [], ends: [], values: {} } };
+}
+
+async function withSeries(p, peers = ["MSFT", "GOOGL", "META", "AMZN"]) {
+  await p.route(/\/api\/sec\/series\//, (r) => {
+    const s = decodeURIComponent(r.request().url().split("/series/")[1]);
+    r.fulfill(json({ ok: true, data: packSeries(s), fetchedAt: new Date().toISOString() }));
+  });
+  await p.route(/\/api\/sec\/peers\//, (r) => r.fulfill(json({ ok: true, data: { symbol: "AAPL", sicDescription: "Computers", peers }, fetchedAt: new Date().toISOString() })));
+}
+
+await test("chart packs: a built-in pack opens for any company with growth readouts and a peer median", async () => {
+  const p = await page();
+  await withSeries(p);
+  await p.goto(base + "/charts/packs?s=AAPL");
+  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: AAPL" }).waitFor();
+  const cards = p.locator("main section, main [id]").filter({ has: p.locator("h2") });
+  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
+  await p.getByText("Las mayores empresas de su industria", { exact: false }).first().waitFor();
+  assert((await p.getByText("Mediana de pares").count()) > 0, "no peer median");
+  assert((await cards.count()) >= 8, `cards ${await cards.count()}`);
+  await p.getByLabel("Paquete", { exact: true }).selectOption("quarters");
+  await p.waitForURL(/p=quarters/);
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("chart packs: save a chart from the generator, open it for another company, reorder, remove, delete and undo", async () => {
+  const p = await page();
+  await withSeries(p);
+  await p.goto(base + "/charts?s=AAPL&m=roic&f=annual&k=line&r=10");
+  await p.getByRole("button", { name: "Mediana de pares" }).click();
+  await p.waitForURL(/p=1/);
+  await p.locator("main svg").first().waitFor();
+  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
+  await p.getByLabel("Nombre del nuevo paquete").fill("Mi foso");
+  await p.getByRole("button", { name: "Crear y guardar" }).click();
+  await p.getByText("Añadido a «Mi foso».").waitFor();
+  await p.goto(base + "/charts?s=AAPL&m=revenue&f=annual&k=bar&r=10");
+  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
+  await p.getByRole("button", { name: /^Mi foso/ }).click();
+  await p.getByText("Añadido a «Mi foso».").waitFor();
+  const packs = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
+  assert(packs.length === 1 && packs[0].charts.length === 2 && packs[0].charts[0].peers === true, JSON.stringify(packs));
+  await p.goto(base + `/charts/packs?s=MSFT&p=${packs[0].id}`);
+  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: MSFT" }).waitFor();
+  await p.getByRole("button", { name: "Mover antes" }).nth(1).click();
+  const order = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks"))[0].charts.map((c) => c.metrics[0]));
+  assert(order.join() === "revenue,roic", `order ${order}`);
+  await p.getByRole("button", { name: "Quitar este gráfico del paquete" }).first().click();
+  await p.getByRole("button", { name: "Borrar paquete" }).click();
+  await p.waitForURL(/p=essentials/);
+  await p.getByRole("button", { name: "Deshacer" }).click();
+  const back = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
+  assert(back.length === 1 && back[0].charts.length === 1, `after undo ${JSON.stringify(back)}`);
+  await p.context().close();
+});
+
+await test("chart packs: phone layout never scrolls sideways", async () => {
+  const p = await page({ width: 320, height: 640, touch: true });
+  await withSeries(p);
+  await p.goto(base + "/charts/packs?s=AAPL");
+  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
+  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  assert(over <= 0, `page overflows by ${over}px`);
+  await p.context().close();
+});
+
+await test("next earnings: a listed date with estimates, an SEC estimate labelled as such, nothing when unknown", async () => {
+  const p = await page();
+  let answer = { ok: true, data: { symbol: "AAPL", next: { kind: "listed", date: "2099-02-04", epsEstimate: 2.9, revenueEstimate: 156e9 }, fmpIssue: null }, fetchedAt: new Date().toISOString() };
+  await p.route(/\/api\/earnings\//, (r) => r.fulfill(json(answer)));
+  await p.goto(base + "/stock/AAPL");
+  await p.locator("[data-earnings=listed]").getByText("Próximos resultados: 4 feb 2099", { exact: false }).waitFor();
+  await p.getByText("BPA esperado por los analistas: $2.90", { exact: false }).waitFor();
+  answer = { ok: true, data: { symbol: "MSFT", next: { kind: "estimated", date: "2099-01-28", basedOn: "2098-01-29" }, fmpIssue: "rate_limited" }, fetchedAt: new Date().toISOString() };
+  await p.goto(base + "/stock/MSFT");
+  await p.locator("[data-earnings=estimated]").getByText("hacia el", { exact: false }).waitFor();
+  await p.getByText("Estimado: un año después de los resultados", { exact: false }).waitFor();
+  answer = { ok: true, data: { symbol: "KO", next: { kind: "unknown" }, fmpIssue: "not_found" }, fetchedAt: new Date().toISOString() };
+  await p.goto(base + "/stock/KO");
+  await p.getByRole("heading", { level: 1 }).waitFor();
+  await p.waitForTimeout(500);
+  assert((await p.locator("[data-earnings]").count()) === 0, "unknown date shown");
+  await p.context().close();
+});
+
+await test("methodology: reachable from the footer, contents link to sections, in both languages", async () => {
+  const p = await page();
+  await p.goto(base + "/");
+  await p.getByRole("link", { name: "Cómo calculamos cada número" }).click();
+  await p.waitForURL(/\/methodology/);
+  await p.getByRole("heading", { level: 1, name: "Metodología" }).waitFor();
+  await p.getByRole("navigation", { name: "Contenido" }).getByRole("link", { name: "Calidad: las pruebas de Buffett" }).click();
+  await p.waitForURL(/#quality/);
+  await p.getByText("ROIC de al menos 15 % en el 80 % de los años.").waitFor();
+  await axe(p);
+  const en = await page({ lang: "en", theme: "dark" });
+  await en.goto(base + "/methodology");
+  await en.getByRole("heading", { level: 1, name: "Methodology" }).waitFor();
+  await axe(en);
+  await en.context().close();
+  await p.context().close();
+});
+
 // ---- Stock page -------------------------------------------------------------------------------
 
 await test("stock: tabs are history entries; keyboard Home/End; chart settings in the URL", async () => {
@@ -694,6 +823,9 @@ await test("screener: quick screens, filters and sorting drive the request; resu
   await p.waitForURL(/roic=15/);
   const link = p.getByRole("link", { name: /SOFT/ });
   assert((await link.getAttribute("href")) === "/stock/SOFT", "row link");
+  // Results dim while a new screen loads; check contrast once they're settled.
+  await p.waitForFunction(() => !document.querySelector("[aria-busy=true]"));
+  await p.waitForTimeout(250); // the fade back to full opacity
   await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();

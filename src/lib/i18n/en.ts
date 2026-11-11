@@ -5,6 +5,7 @@ const en: CoreDict = {
   app: {
     dataBy: "Data:",
     tagline: "US stock analysis, explained simply",
+    methodology: "How we calculate every number",
     disclaimer: "For educational purposes only. Not financial advice.",
     demo: "Demo mode: simulated data. Add FMP_API_KEY for real data.",
     lang: "Language",
@@ -57,8 +58,20 @@ const en: CoreDict = {
     etfNote: "These are prices of exchange-traded funds (ETFs) that track each index, not index levels in points.",
   },
   stock: {
+    earnings: {
+      listed: "Next results: {d}",
+      estimated: "Next results: around {d}",
+      today: "today",
+      tomorrow: "tomorrow",
+      inDays: "in {n} days",
+      eps: "analysts expect EPS of {v}",
+      listedNote: "Date from Financial Modeling Prep; it may be provisional until the company announces it.",
+      estimatedNote: "Estimated: one year after the results of {b} (8-K at the SEC); the company hasn't confirmed it in our data yet.",
+    },
     tabs: { overview: "Overview", research: "My research", chart: "Chart", fundamentals: "Fundamentals", valuation: "Valuation", financials: "Financials", filings: "Filings", insiders: "Insiders", news: "News" },
     addWatch: "Follow",
+    packs: "Charts",
+    packsTitle: "See chart packs for this company",
     compare: "Compare",
     compareTitle: "Open in the chart generator to compare it with other companies",
     priceStored: "Last price we stored ({d}).",

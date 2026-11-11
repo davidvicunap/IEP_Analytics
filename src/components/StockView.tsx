@@ -23,6 +23,7 @@ import { useRecent } from "@/lib/watchlist";
 import { OfficialReleases } from "./OfficialReleases";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
+import NextEarnings from "./NextEarnings";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
 const tabLoading = () => <Skeleton className="h-96" />;
@@ -35,7 +36,7 @@ const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoa
 const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
 const ResearchPanel = dynamic(() => import("./research/ResearchPanel"), { loading: tabLoading });
 import Link from "next/link";
-import { ChartIcon, ClockIcon, ExternalIcon, InfoIcon } from "./icons";
+import { ChartIcon, ClockIcon, ExternalIcon, InfoIcon, GridIcon } from "./icons";
 import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
@@ -252,6 +253,15 @@ function StockHeader({
             <ChartIcon size={16} />
             <span className="hidden sm:inline">{t.stock.compare}</span>
           </Link>
+          <Link
+            href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
+            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+            title={t.stock.packsTitle}
+            aria-label={t.stock.packsTitle}
+          >
+            <GridIcon size={16} />
+            <span className="hidden sm:inline">{t.stock.packs}</span>
+          </Link>
           <WatchButton symbol={identity.symbol} />
         </div>
       </div>
@@ -291,6 +301,7 @@ function StockHeader({
           </p>
         </div>
       )}
+      <NextEarnings symbol={identity.symbol} />
       <FairValueLine symbol={identity.symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />
     </section>
   );
