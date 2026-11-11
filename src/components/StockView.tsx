@@ -21,6 +21,7 @@ import type { StockIdentity, StockSections } from "@/lib/data";
 import type { AnnualIncome, Candle, DataIssue, DataSource, Fundamentals, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
 import { OfficialReleases } from "./OfficialReleases";
+import { FairValueLine, ResearchCard } from "./research/FairValue";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
 const tabLoading = () => <Skeleton className="h-96" />;
@@ -31,6 +32,7 @@ const FinancialStatements = dynamic(() => import("./FinancialStatements"), { loa
 const FilingsPanel = dynamic(() => import("./FilingsPanel"), { loading: tabLoading });
 const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoading });
 const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
+const ResearchPanel = dynamic(() => import("./research/ResearchPanel"), { loading: tabLoading });
 import Link from "next/link";
 import { ChartIcon, ClockIcon, ExternalIcon, InfoIcon } from "./icons";
 import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
@@ -40,8 +42,8 @@ const PriceChart = dynamic(() => import("./PriceChart"), {
   loading: () => <ChartPlaceholder />,
 });
 
-type Tab = "overview" | "chart" | "fundamentals" | "valuation" | "financials" | "filings" | "insiders" | "news";
-const TABS: Tab[] = ["overview", "chart", "fundamentals", "valuation", "financials", "filings", "insiders", "news"];
+type Tab = "overview" | "research" | "chart" | "fundamentals" | "valuation" | "financials" | "filings" | "insiders" | "news";
+const TABS: Tab[] = ["overview", "research", "chart", "fundamentals", "valuation", "financials", "filings", "insiders", "news"];
 
 // ---- URL state -------------------------------------------------------------------------
 // The tab is a history entry (Back returns to the previous tab); chart settings replace the
@@ -168,6 +170,7 @@ export default function StockView({
       </div>
 
       {panel("overview", <Overview symbol={identity.symbol} quote={quote} sections={sections} chart={chart} setChart={setChart} goTo={setTab} />)}
+      {panel("research", <ResearchPanel symbol={identity.symbol} price={quote?.price ?? null} />)}
       {panel(
         "chart",
         <Section fallback={<Panel><ChartPlaceholder settings={chart} /></Panel>}>
@@ -287,6 +290,7 @@ function StockHeader({
           </p>
         </div>
       )}
+      <FairValueLine symbol={identity.symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />
     </section>
   );
 }
@@ -360,6 +364,9 @@ function Overview({
           <Section fallback={<SummarySkeleton />}>
             <Summary sections={sections} goTo={goTo} />
           </Section>
+        </div>
+        <div className="order-1">
+          <ResearchCard symbol={symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />
         </div>
         <div className="order-3">
           {quote && <KeyStats quote={quote} />}

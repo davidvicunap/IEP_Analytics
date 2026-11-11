@@ -423,6 +423,59 @@ await test("every stock opens: no price, last close or stored price, each said p
   await p.context().close();
 });
 
+// ---- Research notebook (demo: in-memory store, owner "local") ---------------------------------
+
+await test("research notebook: write a thesis and fair value, add a note, find it everywhere", async () => {
+  const p = await page({ lang: "en" });
+  await p.goto(base + "/stock/KO?tab=research");
+  const thesis = p.getByLabel("Thesis");
+  await thesis.waitFor();
+  await thesis.fill("Pricing power and a global distribution moat.");
+  await p.getByLabel("Bull case").fill("Brand\nDividend growth");
+  await p.getByLabel("Fair value").fill("75");
+  await p.getByText("Unsaved changes").waitFor();
+  await p.getByRole("button", { name: "Save" }).click();
+  await p.getByText(/^Saved ·/).waitFor();
+  // The header shows the fair value against the price; the history records it.
+  await p.getByTestId("fair-value-line").getByText("Your fair value: $75.00").waitFor();
+  await p.getByRole("region", { name: "Your fair value over time" }).getByText("By hand").waitFor();
+  // A dated note, then a reload: everything is still there.
+  await p.getByLabel("New note").fill("Q3: volumes up in Latin America");
+  await p.getByRole("button", { name: "Add note" }).click();
+  await p.getByText("Q3: volumes up in Latin America").waitFor();
+  await p.reload();
+  await p.getByLabel("Thesis").waitFor();
+  assert((await p.getByLabel("Thesis").inputValue()).startsWith("Pricing power"), "thesis not kept");
+  await axe(p);
+  // The overview card and the list page show it too.
+  await p.getByRole("tab", { name: "Overview" }).click();
+  await p.locator("#research-card").getByText("Pricing power and a global distribution moat.").waitFor();
+  await p.goto(base + "/research");
+  const row = p.getByRole("link", { name: /KO/ });
+  await row.getByText("$75.00").waitFor();
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("research notebook: an edit from an outdated tab is refused, not silently overwritten", async () => {
+  const a = await page({ lang: "en" });
+  const b = await a.context().newPage();
+  for (const p of [a, b]) {
+    await p.goto(base + "/stock/PEP?tab=research");
+    await p.getByLabel("Thesis").waitFor();
+  }
+  await b.getByLabel("Thesis").fill("Written in tab B");
+  await b.getByRole("button", { name: "Save" }).click();
+  await b.getByText(/^Saved ·/).waitFor();
+  await a.getByLabel("Thesis").fill("Written in tab A");
+  await a.getByRole("button", { name: "Save" }).click();
+  await a.getByText(/changed on another device/).waitFor();
+  assert((await a.getByLabel("Thesis").inputValue()) === "Written in tab A", "draft lost");
+  await a.getByRole("button", { name: "Reload" }).waitFor();
+  await a.context().close();
+});
+
 // ---- Chart generator --------------------------------------------------------------------------
 
 // Small synthetic series (test data only): two companies with different fiscal years.

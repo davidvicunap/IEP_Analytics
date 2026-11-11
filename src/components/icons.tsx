@@ -139,6 +139,17 @@ export const PlusIcon = (p: IconProps) => (
     <path d="M12 5v14M5 12h14" />
   </Svg>
 );
+export const NotebookIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 3.5h11a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H6Z" />
+    <path d="M6 3.5v17M4 8h4M4 12h4M4 16h4M10.5 8.5h5M10.5 12h5" />
+  </Svg>
+);
+export const TrashIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4.5 7h15M10 7V5h4v2M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5" />
+  </Svg>
+);
 export const TableIcon = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />

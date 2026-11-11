@@ -318,6 +318,19 @@ const enDeep: DeepDict = {
     table: "See the data",
     year: "Fiscal year",
   },
+  priceImplies: {
+    title: "What today's price assumes",
+    text: "At {price}, the market is pricing in revenue growth over {n} years of",
+    growth: "{g} a year.",
+    past: "Over the last 5 years revenue grew {g} a year.",
+    more: "That's more than it grew.",
+    less: "That's less than it grew.",
+    above: "Even with revenue growing 100% a year the model wouldn't reach today's price: the price assumes more than growth, such as much higher margins.",
+    below: "Today's price implies revenue falling more than 50% a year: either the market is very pessimistic, or this model doesn't fit the company.",
+    none: "Couldn't be worked out from the data available.",
+    how: "Reverse DCF with the DCF's starting assumptions: last-12-month margins, a {wacc} discount rate and a terminal value at {tg}. It finds the growth that makes value per share equal the price.",
+    adjust: "Change the assumptions in the DCF",
+  },
   valuation: {
     history: {
       view: "History",

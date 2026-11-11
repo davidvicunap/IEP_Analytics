@@ -106,3 +106,25 @@ export const priceSnapshots = pgTable("price_snapshots", {
   quote: jsonb("quote").notNull(),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
 });
+
+/**
+ * One research notebook per user and stock. `owner` is the beta invite's label (each invited
+ * person has their own); fields mirror lib/research.ts, the log is a JSON array, newest first.
+ */
+export const researchNotes = pgTable(
+  "research_notes",
+  {
+    owner: text("owner").notNull(),
+    symbol: text("symbol").notNull(),
+    thesis: text("thesis").notNull().default(""),
+    bull: text("bull").notNull().default(""),
+    bear: text("bear").notNull().default(""),
+    fairValue: doublePrecision("fair_value"),
+    entry: doublePrecision("entry"),
+    stop: doublePrecision("stop"),
+    target: doublePrecision("target"),
+    log: jsonb("log").notNull().default([]),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.owner, t.symbol] }), index("research_notes_owner_idx").on(t.owner, t.updatedAt)],
+);

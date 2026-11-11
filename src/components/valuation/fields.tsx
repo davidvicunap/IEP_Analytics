@@ -69,7 +69,7 @@ export function NumberField({
             const n = parseNumber(e.target.value);
             onChange(n === null ? null : n / scale);
           }}
-          className={`num h-9 w-full min-w-16 rounded-md border bg-panel px-2 text-sm text-right ${suffix ? "pr-6" : ""} ${invalid ? "border-down" : "border-line"}`}
+          className={`num h-11 sm:h-9 w-full min-w-16 rounded-md border bg-panel px-2 text-sm text-right ${suffix ? "pr-6" : ""} ${invalid ? "border-down" : "border-line"}`}
         />
         {suffix && (
           <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted" aria-hidden="true">

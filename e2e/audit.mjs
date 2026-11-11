@@ -28,6 +28,8 @@ const PAGES = [
   { name: "fundamentals", path: "/stock/AAPL", tab: "fundamentals" },
   { name: "news", path: "/stock/AAPL", tab: "news" },
   { name: "charts", path: "/charts" },
+  { name: "research", path: "/research" },
+  { name: "notebook", path: "/stock/AAPL", tab: "research" },
   { name: "watchlist", path: "/watchlist" },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },
@@ -46,7 +48,7 @@ const WIDTHS = quick
     ];
 const COMBOS = quick ? [["es", "light"], ["en", "dark"]] : [["es", "light"], ["es", "dark"], ["en", "light"], ["en", "dark"]];
 
-const TAB_LABEL = { es: { chart: "Gráfico", fundamentals: "Fundamentales", news: "Noticias" }, en: { chart: "Chart", fundamentals: "Fundamentals", news: "News" } };
+const TAB_LABEL = { es: { chart: "Gráfico", fundamentals: "Fundamentales", news: "Noticias", research: "Mi análisis" }, en: { chart: "Chart", fundamentals: "Fundamentals", news: "News", research: "My research" } };
 
 async function open(browser, page, width, lang, theme) {
   const ctx = await browser.newContext({
