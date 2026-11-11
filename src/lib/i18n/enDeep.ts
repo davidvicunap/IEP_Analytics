@@ -397,7 +397,7 @@ const enDeep: DeepDict = {
     setFairValue: "Add",
     setFairValueTitle: "Set your fair value for {s}",
     fairValueTitle: "Your fair value: {v}. The price is {u} away from it.",
-    quality: { high: "High", mixed: "Mixed", low: "Low", na: "No data" },
+    quality: { high: "High", mixed: "Mixed", low: "Low", na: "Little data" },
     qualityTitle: "{p} of {j} tests passed (latest fiscal year: {y})",
     bought: "Bought {v}",
     sold: "Sold {v}",

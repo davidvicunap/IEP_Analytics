@@ -396,7 +396,7 @@ const esDeep = {
     setFairValue: "Añadir",
     setFairValueTitle: "Poner tu valor justo de {s}",
     fairValueTitle: "Tu valor justo: {v}. El precio está a {u} de él.",
-    quality: { high: "Alta", mixed: "Media", low: "Baja", na: "Sin datos" },
+    quality: { high: "Alta", mixed: "Media", low: "Baja", na: "Pocos datos" },
     qualityTitle: "{p} de {j} pruebas superadas (último año fiscal: {y})",
     bought: "Compras {v}",
     sold: "Ventas {v}",
