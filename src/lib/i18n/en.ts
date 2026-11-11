@@ -119,6 +119,8 @@ const en: CoreDict = {
     simple: "Simple",
     tvTitle: "{s} interactive chart (TradingView)",
     tvAttribution: "{s} chart by TradingView",
+    fullscreen: "Full screen",
+    exitFullscreen: "Exit full screen",
     tvHelp: "Drag to move, scroll or pinch to zoom, use the left toolbar to draw lines and “Indicators” at the top to add averages, RSI or MACD.",
     levels: {
       title: "Support and resistance",
@@ -249,6 +251,8 @@ const en: CoreDict = {
     home: "Back to home",
   },
   filings: {
+    read: "Read",
+    readTitle: "Read the 10-K in the app: Business, Risks and MD&A",
     title: "Filings (SEC)",
     intro: "Every document the company has filed with the SEC, with direct links to open them.",
     loading: "Loading the SEC list…",
@@ -370,8 +374,6 @@ const en: CoreDict = {
     emptyHowA: "Open a stock and tap",
     emptyHowB: "to follow it here.",
     countOf: "{n} of {max}",
-    sortBy: "Sort",
-    sorts: { saved: "As saved", changeDesc: "Top gainers today", changeAsc: "Top losers today", symbol: "Ticker (A–Z)" },
     refresh: "Refresh",
     refreshing: "Refreshing…",
     noPrice: "No price",
@@ -411,6 +413,7 @@ const en: CoreDict = {
     signalsBasis: "Computed from daily closes up to {d}.",
   },
   quarter: {
+    readReport: "Read the {f} in the app",
     title: "Latest quarter",
     period: "{q} · ended {d}",
     cols: { metric: "Figure", now: "This quarter", vs: "vs. {q}" },

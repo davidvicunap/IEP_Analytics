@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { filingDocUrl, filingIndexUrl } from "@/lib/filingsShared";
@@ -7,7 +8,7 @@ import { IS_MARGIN, earningsRelease, type QuarterMetric, type QuarterRow } from 
 import { useResource } from "@/lib/useResource";
 import type { QuarterPayload } from "@/app/api/sec/quarter/[symbol]/route";
 import { useFilings } from "./filingsHooks";
-import { ExternalIcon } from "./icons";
+import { ExternalIcon, FileTextIcon } from "./icons";
 import { IssueNote, Panel, Skeleton } from "./ui";
 
 type Lang = "es" | "en";
@@ -90,6 +91,12 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
             {fill(Q.report, { f: r.filing.form ?? "SEC" })}
             <ExternalIcon size={13} />
           </a>
+        )}
+        {r.filing?.form === "10-K" && (
+          <Link href={`/stock/${encodeURIComponent(symbol)}/report?accn=${encodeURIComponent(r.filing.accn)}`} className="link inline-flex min-h-8 items-center gap-1" title={t.filings.readTitle}>
+            <FileTextIcon size={13} />
+            {fill(Q.readReport, { f: r.filing.form })}
+          </Link>
         )}
         {release && (
           <a href={filingDocUrl(cik, release)} target="_blank" rel="noopener noreferrer" className="link inline-flex min-h-8 items-center gap-1">

@@ -236,7 +236,7 @@ function Results({ rows, screen, sortBy, lang }: { rows: ScreenRow[]; screen: Sc
     const active = screen.sort === k;
     return (
       <th scope="col" aria-sort={active ? (screen.dir === "asc" ? "ascending" : "descending") : "none"} className={`py-2 px-2 font-normal ${align === "left" ? "text-left" : "text-right"}`}>
-        <button type="button" onClick={() => sortBy(k)} className={`inline-flex min-h-9 items-center gap-1 whitespace-nowrap hover:text-fg ${active ? "text-fg font-medium" : ""}`} aria-label={fill(S.sortBy, { c: label })}>
+        <button type="button" onClick={() => sortBy(k)} className={`inline-flex min-h-11 sm:min-h-9 items-center gap-1 whitespace-nowrap hover:text-fg ${active ? "text-fg font-medium" : ""}`} aria-label={fill(S.sortBy, { c: label })}>
           {label}
           {active && <span aria-hidden="true">{screen.dir === "asc" ? "↑" : "↓"}</span>}
         </button>

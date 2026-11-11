@@ -119,6 +119,8 @@ const es = {
     simple: "Simple",
     tvTitle: "Gráfico interactivo de {s} (TradingView)",
     tvAttribution: "Gráfico de {s} por TradingView",
+    fullscreen: "Pantalla completa",
+    exitFullscreen: "Salir de pantalla completa",
     tvHelp: "Arrastra para moverte, usa la rueda o pellizca para hacer zoom, la barra izquierda para dibujar líneas y «Indicadores» arriba para añadir medias, RSI o MACD.",
     levels: {
       title: "Soportes y resistencias",
@@ -249,6 +251,8 @@ const es = {
     home: "Volver al inicio",
   },
   filings: {
+    read: "Leer",
+    readTitle: "Leer el 10-K en la app: Negocio, Riesgos y MD&A",
     title: "Filings (SEC)",
     intro: "Todos los documentos que la empresa ha presentado a la SEC, con enlaces directos para abrirlos.",
     loading: "Cargando la lista de la SEC…",
@@ -370,8 +374,6 @@ const es = {
     emptyHowA: "Abre una acción y toca",
     emptyHowB: "para seguirla aquí.",
     countOf: "{n} de {max}",
-    sortBy: "Ordenar",
-    sorts: { saved: "Como la guardaste", changeDesc: "Más suben hoy", changeAsc: "Más bajan hoy", symbol: "Ticker (A–Z)" },
     refresh: "Actualizar",
     refreshing: "Actualizando…",
     noPrice: "Sin precio",
@@ -411,6 +413,7 @@ const es = {
     signalsBasis: "Calculado con los cierres diarios hasta el {d}.",
   },
   quarter: {
+    readReport: "Leer el {f} en la app",
     title: "Último trimestre",
     period: "{q} · cerró el {d}",
     cols: { metric: "Dato", now: "Este trimestre", vs: "vs. {q}" },

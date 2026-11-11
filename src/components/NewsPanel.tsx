@@ -21,7 +21,7 @@ export default function NewsPanel({ symbol, exchange, onSeeAllFilings }: { symbo
         <p className="text-xs text-muted mb-2">{t.news.tvIntro}</p>
         <TradingViewWidget
           widget="timeline"
-          height={620}
+          heightClass="h-[620px]"
           title={fill(t.news.tvTitle, { s: symbol })}
           attribution={fill(t.news.tvAttribution, { s: symbol })}
           attributionHref={`https://www.tradingview.com/symbols/${tv.replace(":", "-")}/news/`}

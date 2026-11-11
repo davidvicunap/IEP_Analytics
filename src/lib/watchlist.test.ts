@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { insertAt, sanitizeList } from "./watchlist";
-import { sortItems } from "./watchlistSort";
 
 describe("saved lists", () => {
   it("keeps valid, unique, uppercase tickers and drops anything else", () => {
@@ -14,12 +13,5 @@ describe("saved lists", () => {
   it("keeps every saved symbol beyond the old 30-symbol request cap", () => {
     const big = Array.from({ length: 45 }, (_, i) => `T${String.fromCharCode(65 + (i % 26))}${i >= 26 ? "X" : ""}`);
     expect(sanitizeList(big)).toHaveLength(45);
-  });
-  it("sorts by daily change with missing prices last", () => {
-    const q = (symbol: string, changePercent?: number) => ({ symbol, quote: changePercent === undefined ? undefined : { symbol, name: symbol, price: 1, change: 0, changePercent } });
-    const rows = [q("A", -1), q("B"), q("C", 3)];
-    expect(sortItems(rows, "changeDesc").map((r) => r.symbol)).toEqual(["C", "A", "B"]);
-    expect(sortItems(rows, "changeAsc").map((r) => r.symbol)).toEqual(["A", "C", "B"]);
-    expect(sortItems(rows, "saved")).toBe(rows);
   });
 });
