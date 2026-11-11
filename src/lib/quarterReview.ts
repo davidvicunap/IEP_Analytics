@@ -33,7 +33,8 @@ export interface QuarterReview {
 function change(key: QuarterMetric, now: number | null, base: number | null): number | null {
   if (now === null || base === null) return null;
   if (IS_MARGIN.has(key)) return now - base;
-  return base > 0 ? now / base - 1 : null; // growth from zero or a loss isn't a percentage
+  // A percentage only means something between two positive figures: from or into a loss it's shown as "—".
+  return base > 0 && now >= 0 ? now / base - 1 : null;
 }
 
 function shiftQuarter(key: string, by: number): string {

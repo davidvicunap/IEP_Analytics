@@ -50,6 +50,12 @@ describe("quarter in review", () => {
     expect(fromLoss.yearAgoLabel).toBeNull();
   });
 
+  it("gives no percentage when a profit turns into a loss (HIMS Q3 2026: +$15.8M to −$33M)", () => {
+    const flip = quarterReview({ periods: [{ label: "Q3 FY2025", end: "2025-09-30" }, { label: "Q3 FY2026", end: "2026-09-30" }], lines: { revenue: cells([599, 890]), netIncome: cells([15.8, -33]) } }, [])!;
+    expect(flip.rows.find((x) => x.key === "netIncome")).toMatchObject({ now: -33, yearAgo: 15.8, vsYearAgo: null });
+    expect(flip.rows.find((x) => x.key === "revenue")!.vsYearAgo).toBeCloseTo(890 / 599 - 1);
+  });
+
   it("returns nothing without quarterly data", () => {
     expect(quarterReview({ periods: [], lines: {} }, [])).toBeNull();
   });
