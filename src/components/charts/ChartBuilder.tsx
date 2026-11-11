@@ -23,94 +23,15 @@ import {
   type Transform,
   type Unit,
 } from "@/lib/chartMetrics";
-import { parseConfig, writeConfig, type ChartConfig as Config } from "@/lib/chartConfig";
-import type { FundamentalSeriesPayload, MarketSeriesPayload } from "@/lib/seriesData";
-import { sharedLoader, type ViewIssue } from "@/lib/resource";
+import { canHavePeers, parseConfig, writeConfig, type ChartConfig as Config } from "@/lib/chartConfig";
+import { chartFromConfig } from "@/lib/chartPacks";
+import { usePacks } from "@/lib/chartPacksClient";
+import type { ViewIssue } from "@/lib/resource";
+import { PEER_VAR, Readouts, SLOTS, formatter, periodLabel, usePeerLine, useSymbolData, type PeerLine } from "./chartShared";
 import TickerSearch from "../TickerSearch";
-import { ChevronDownIcon, CloseIcon, DownloadIcon, LinkIcon, TableIcon } from "../icons";
-import { Panel, Segmented, Skeleton, StatusMessage, buttonClass, toast } from "../ui";
+import { ChevronDownIcon, CloseIcon, DownloadIcon, LinkIcon, PlusIcon, TableIcon } from "../icons";
+import { Panel, Segmented, Skeleton, StatusMessage, ToggleChip, buttonClass, toast } from "../ui";
 import TrendChart, { Swatch, useChartColors, type ChartSeries, type TrendChartHandle } from "./TrendChart";
-
-const SLOTS = ["--series-1", "--series-2", "--series-3", "--series-4", "--series-5", "--series-6"];
-
-// ---- Data ------------------------------------------------------------------------------
-
-// One shared request per URL (see lib/resource.ts); failures aren't kept, so the next view asks again.
-type SymbolState = { status: "loading" } | { status: "ok"; series: PeriodSeries; name?: string; note?: MarketSeriesPayload["multiples"]; fetchedAt: string } | { status: "error"; error: ViewIssue };
-
-function useSymbolData(symbols: string[], freq: Freq) {
-  const [state, setState] = useState<Record<string, SymbolState>>({});
-  const key = `${symbols.join(",")}|${freq}`;
-  const lastFreq = useRef<Freq | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const list = key.split("|")[0].split(",").filter(Boolean);
-    const f = key.split("|")[1] as Freq;
-    setState((prev) => Object.fromEntries(list.map((s) => [s, prev[s]?.status === "ok" && f === lastFreq.current ? prev[s] : { status: "loading" }])));
-    lastFreq.current = f;
-    for (const s of list) {
-      const done = (next: SymbolState) => alive && setState((prev) => ({ ...prev, [s]: next }));
-      if (f === "monthly") {
-        sharedLoader.load<MarketSeriesPayload>(`/api/charts/market/${encodeURIComponent(s)}`).then((r) =>
-          done(r.ok ? { status: "ok", series: r.data.monthly, note: r.data.multiples, fetchedAt: r.fetchedAt } : { status: "error", error: r.error }),
-        );
-      } else {
-        sharedLoader.load<FundamentalSeriesPayload>(`/api/sec/series/${encodeURIComponent(s)}`).then((r) =>
-          done(r.ok ? { status: "ok", series: r.data[f as "annual" | "quarterly"], name: r.data.name, fetchedAt: r.fetchedAt } : { status: "error", error: r.error }),
-        );
-      }
-    }
-    return () => {
-      alive = false;
-    };
-  }, [key]);
-  return state;
-}
-
-// ---- Formatting ---------------------------------------------------------------------------
-
-const nf = (lang: "es" | "en", d: number) => new Intl.NumberFormat(lang === "es" ? "es-US" : "en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
-
-/** Fewest decimals (0-2) that show a tick step exactly: 2.5% needs one, 5% none. */
-function stepDecimals(step: number): number {
-  for (let d = 0; d < 2; d++) if (Math.abs(Math.round(step * 10 ** d) - step * 10 ** d) < 1e-6) return d;
-  return 2;
-}
-
-/** Readouts (tooltip, table) with fixed decimals; ticks (step given) with as few as the step needs. */
-function formatter(unit: Unit | "index", lang: "es" | "en") {
-  return (v: number, step?: number): string => {
-    const neg = v < 0 ? "−" : "";
-    const a = Math.abs(v);
-    const tick = step !== undefined;
-    switch (unit) {
-      case "usd":
-        return `${neg}$${fmtBig(a)}`;
-      case "count":
-        return `${neg}${fmtBig(a)}`;
-      case "perShare":
-        return `${neg}$${nf(lang, tick ? stepDecimals(step) : 2).format(a)}`;
-      case "pct":
-        return `${neg}${nf(lang, tick ? stepDecimals(step * 100) : 1).format(a * 100)}%`;
-      case "multiple":
-        return `${neg}${nf(lang, tick ? stepDecimals(step) : 1).format(a)}x`;
-      case "index":
-        return `${neg}${nf(lang, tick ? stepDecimals(step) : 1).format(a)}`;
-    }
-  };
-}
-
-function periodLabel(key: string, lang: "es" | "en", short: boolean, quarterWord: string): string {
-  if (key.startsWith("FY")) return short ? `FY${key.slice(4)}` : key;
-  const q = key.match(/^(\d{4})-Q(\d)$/);
-  if (q) return short ? `${quarterWord}${q[2]} ${q[1].slice(2)}` : `${quarterWord}${q[2]} ${q[1]}`;
-  const mo = key.match(/^(\d{4})-(\d{2})$/);
-  if (mo) {
-    const d = new Date(Date.UTC(+mo[1], +mo[2] - 1, 1));
-    return new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { month: "short", year: short ? "2-digit" : "numeric", timeZone: "UTC" }).format(d);
-  }
-  return key;
-}
 
 // ---- Page ------------------------------------------------------------------------------------
 
@@ -161,6 +82,8 @@ export default function ChartBuilder() {
   const specs: SeriesSpec[] = symbols.flatMap((s) => metrics.map((m) => ({ id: `${s}:${m}`, symbol: s, metric: m })));
   const bySymbol = Object.fromEntries(symbols.map((s) => [s, data[s]?.status === "ok" ? (data[s] as { series: PeriodSeries }).series : undefined]));
   const chart = useMemo(() => buildChartData(specs, bySymbol, freq, transform, range), [JSON.stringify(specs), data, freq, transform, range]);
+  const peersOn = !!config.peers && canHavePeers(config);
+  const peerLine = usePeerLine(peersOn, symbols[0] ?? "", metrics[0], freq, transform, chart.categories);
   const colorOf = (spec: SeriesSpec) => SLOTS[(symbols.length > 1 ? symbols.indexOf(spec.symbol) : metrics.indexOf(spec.metric)) % SLOTS.length];
   const variantOf = (spec: SeriesSpec) => (symbols.length > 1 ? (Math.min(2, metrics.indexOf(spec.metric)) as 0 | 1 | 2) : 0);
   const nameOf = (spec: SeriesSpec) =>
@@ -168,7 +91,10 @@ export default function ChartBuilder() {
   const visible: ChartSeries[] = chart.series
     .filter((s) => !hidden.has(s.spec.id) && s.values.some((v) => v != null))
     .map((s) => ({ id: s.spec.id, label: nameOf(s.spec), colorVar: colorOf(s.spec), variant: variantOf(s.spec), values: s.values }));
-  const colors = useChartColors(SLOTS);
+  if (peerLine.status === "ok" && !hidden.has("peers") && visible.length) {
+    visible.push({ id: "peers", label: C.peers.label, colorVar: PEER_VAR, variant: 1, values: peerLine.values });
+  }
+  const colors = useChartColors(CHART_VARS);
 
   const unit = chart.unit;
   const fmt = formatter(unit, lang);
@@ -212,7 +138,12 @@ export default function ChartBuilder() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{C.title}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em]">{C.title}</h1>
+          <Link href={`/charts/packs${symbols[0] ? `?s=${encodeURIComponent(symbols[0])}` : ""}`} className={buttonClass("secondary", true)}>
+            {C.packs.title}
+          </Link>
+        </div>
         <p className="mt-1 text-[15px] text-muted max-w-2xl">{C.intro}</p>
       </div>
 
@@ -258,6 +189,14 @@ export default function ChartBuilder() {
           />
           <Choice label={C.show} value={transform} onChange={(x) => update({ transform: x })} options={(["values", "growth", "index"] as Transform[]).map((x) => ({ value: x, label: C.transforms[x] }))} />
           <Choice label={C.type} value={kind} onChange={(k) => update({ kind: k })} options={[{ value: "bar" as const, label: C.bars }, { value: "line" as const, label: C.lines }]} />
+          {canHavePeers(config) && (
+            <div className="col-span-2 sm:col-span-1">
+              <p className="control-label mb-1.5" aria-hidden="true">&nbsp;</p>
+              <ToggleChip on={peersOn} onClick={() => update({ peers: !peersOn })}>
+                {C.peers.toggle}
+              </ToggleChip>
+            </div>
+          )}
         </div>
       </section>
 
@@ -268,6 +207,7 @@ export default function ChartBuilder() {
         action={
           anyData ? (
             <div className="flex items-center gap-1">
+              <SaveToPack config={config} />
               <button type="button" className={buttonClass("ghost", true, "!px-2 text-muted")} onClick={exportPng} aria-label={C.png} title={C.png}>
                 <DownloadIcon size={16} />
                 <span className="hidden sm:inline">PNG</span>
@@ -312,6 +252,24 @@ export default function ChartBuilder() {
                       </li>
                     );
                   })}
+                {peerLine.status === "ok" && (
+                  <li>
+                    <button
+                      type="button"
+                      aria-pressed={!hidden.has("peers")}
+                      onClick={() => setHidden((h) => {
+                        const n = new Set(h);
+                        if (n.has("peers")) n.delete("peers");
+                        else n.add("peers");
+                        return n;
+                      })}
+                      className={`inline-flex items-center gap-2 min-h-9 px-2 rounded-md text-[13px] hover:bg-panel-2 ${hidden.has("peers") ? "text-muted line-through" : ""}`}
+                    >
+                      <Swatch kind={kind} color={hidden.has("peers") ? "var(--border-strong)" : `var(${PEER_VAR})`} variant={1} />
+                      {C.peers.label}
+                    </button>
+                  </li>
+                )}
               </ul>
             )}
             <div className={`transition-opacity ${loading && anyData ? "opacity-50" : ""}`}>
@@ -335,6 +293,8 @@ export default function ChartBuilder() {
                 <div className="grid h-[320px] place-items-center rounded-lg bg-panel-2 px-6 text-center text-sm text-muted">{C.noData}</div>
               )}
             </div>
+            {anyData && <Readouts items={visible} unit={unit} freq={freq} transform={transform} format={fmt} />}
+            {peersOn && <PeerNote line={peerLine} />}
             {anyData && <ChartTable categories={chart.categories} label={catLabel(false)} series={visible} format={fmt} />}
           </>
         )}
@@ -378,6 +338,86 @@ export default function ChartBuilder() {
         )}
       </p>
     </div>
+  );
+}
+
+const CHART_VARS = [...SLOTS, PEER_VAR];
+
+/** Which peers make up the median, or why there's no median. */
+export function PeerNote({ line }: { line: PeerLine }) {
+  const { t } = useI18n();
+  const P = t.charts.peers;
+  if (line.status === "off") return null;
+  if (line.status === "loading") return <p role="status" className="mt-2 text-xs text-muted">{P.loading}</p>;
+  if (line.status === "error") return <p className="mt-2 text-xs text-muted">{line.issue === "noPeers" ? P.noPeers : t.data.issues[line.issue as keyof typeof t.data.issues] ?? P.noPeers}</p>;
+  return (
+    <p className="mt-2 text-xs text-muted">
+      {fill(line.source === "comps" ? P.fromComps : P.suggested, { list: line.peers.join(", ") })} {P.minNote}
+    </p>
+  );
+}
+
+/** Saves the chart on screen, without its companies, to one of your packs (or a new one). */
+function SaveToPack({ config }: { config: Config }) {
+  const { t } = useI18n();
+  const P = t.charts.packs;
+  const packs = usePacks();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const id = useId();
+  const chart = chartFromConfig(config);
+  const say = (r: ReturnType<typeof packs.add>, packName: string) => {
+    if (r.ok) toast({ message: fill(P.added, { n: packName }), action: { label: P.open, run: () => (window.location.href = `/charts/packs?s=${encodeURIComponent(config.symbols[0] ?? "")}`) } });
+    else if (r.reason === "duplicate") toast({ message: fill(P.duplicate, { n: packName }) });
+    else if (r.reason === "full") toast({ message: fill(P.full, { n: packName, m: 9 }) });
+    else if (r.reason === "limit") toast({ message: fill(P.limit, { m: 12 }) });
+  };
+  return (
+    <details className="relative" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary className={buttonClass("ghost", true, "!px-2 text-muted list-none [&::-webkit-details-marker]:hidden cursor-pointer")} title={P.saveTitle}>
+        <PlusIcon size={16} />
+        <span className="hidden sm:inline">{P.save}</span>
+        <span className="sr-only sm:hidden">{P.save}</span>
+      </summary>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-line bg-panel p-2 shadow-xl">
+          {packs.mine.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg px-2 text-left text-sm hover:bg-panel-2"
+              onClick={() => {
+                say(packs.add(p.id, chart), p.name);
+                setOpen(false);
+              }}
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="num text-xs text-muted">{p.charts.length}</span>
+            </button>
+          ))}
+          <form
+            className={`flex flex-col gap-2 ${packs.mine.length ? "mt-2 border-t border-line pt-2" : ""}`}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const { result } = packs.create(name, chart);
+              if (result.ok) {
+                say(result, name.trim());
+                setName("");
+                setOpen(false);
+              } else say(result, name);
+            }}
+          >
+            <label htmlFor={id} className="control-label">
+              {P.newName}
+            </label>
+            <input id={id} value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="h-11 sm:h-9 rounded-lg border border-line bg-panel px-3 text-sm" />
+            <button type="submit" disabled={!name.trim()} className={buttonClass("primary", true)}>
+              {P.create}
+            </button>
+          </form>
+        </div>
+      )}
+    </details>
   );
 }
 

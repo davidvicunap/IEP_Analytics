@@ -12,6 +12,8 @@ export interface ChartConfig {
   transform: Transform;
   kind: ChartKind;
   range: number;
+  /** Add the peer median (one company, one metric, annual or quarterly only). */
+  peers?: boolean;
 }
 
 export const DEFAULT_CONFIG: ChartConfig = { symbols: ["AAPL", "MSFT"], metrics: ["revenue"], freq: "annual", transform: "values", kind: "bar", range: 10 };
@@ -30,7 +32,8 @@ export function parseConfig(p: URLSearchParams): ChartConfig {
   const kind: ChartKind = p.get("k") === "line" ? "line" : p.get("k") === "bar" ? "bar" : freq === "annual" ? "bar" : "line";
   const r = Number(p.get("r"));
   const range = RANGES[freq].includes(r) ? r : RANGES[freq][1];
-  return { symbols, metrics, freq, transform, kind, range };
+  const peers = p.get("p") === "1" && canHavePeers({ symbols, metrics, freq, transform });
+  return { symbols, metrics, freq, transform, kind, range, ...(peers ? { peers } : {}) };
 }
 
 export function writeConfig(c: ChartConfig): string {
@@ -41,5 +44,14 @@ export function writeConfig(c: ChartConfig): string {
   if (c.transform !== "values") p.set("t", c.transform);
   p.set("k", c.kind);
   p.set("r", String(c.range));
+  if (c.peers && canHavePeers(c)) p.set("p", "1");
   return p.toString().replace(/%2C/g, ",");
+}
+
+/**
+ * A peer median needs one company and one metric from SEC filings (monthly market data would
+ * cost quota for every peer), shown as values or growth (an index has a different base per company).
+ */
+export function canHavePeers(c: Pick<ChartConfig, "symbols" | "metrics" | "freq" | "transform">): boolean {
+  return c.symbols.length === 1 && c.metrics.length === 1 && c.freq !== "monthly" && c.transform !== "index";
 }

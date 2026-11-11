@@ -3,7 +3,7 @@
 import { getDb, type Db } from "@/db/client";
 import { getQuote, isDemo } from "./data";
 import { fmpMarketCaps } from "./fmp";
-import { companyYearInputs, ensureSic, latestMetricsYear, listedPeers } from "./peers";
+import { companyYearInputs, ensureSic, latestMetricsYear, suggestedPeers } from "./peers";
 import { businessType, type BusinessType, type RatioInputs } from "./ratios";
 import { getSecurity } from "./securities";
 import type { DataIssue, Result } from "./types";
@@ -36,14 +36,6 @@ async function sicOf(db: Db, cik: number): Promise<{ sic: number | null; sicDesc
   }
 }
 
-/** Largest listed peers, same 3-digit SIC first, then the rest of the 2-digit group. */
-async function suggestions(db: Db, sic: number, year: number, cik: number) {
-  const pool = await listedPeers(db, sic, year, cik, 40);
-  const close = pool.filter((p) => Math.floor(p.sic / 10) === Math.floor(sic / 10));
-  const rest = pool.filter((p) => Math.floor(p.sic / 10) !== Math.floor(sic / 10));
-  return [...close, ...rest].slice(0, SUGGESTED_PEERS).map((p) => p.symbol);
-}
-
 export async function buildComps(db: Db, symbol: string, requested: string[] | null): Promise<Result<CompsPayload>> {
   const security = await getSecurity(db, symbol);
   if (!security) return { ok: false, error: "not_found" };
@@ -56,7 +48,7 @@ export async function buildComps(db: Db, symbol: string, requested: string[] | n
 
   let symbols: string[];
   if (requested) symbols = requested;
-  else symbols = sic ? await suggestions(db, sic, year, security.cik) : [];
+  else symbols = sic ? await suggestedPeers(db, sic, year, security.cik, SUGGESTED_PEERS) : [];
   symbols = [...new Set(symbols.map((s) => s.toUpperCase()))].filter((s) => s !== security.symbol).slice(0, MAX_PEERS);
 
   const unknown: string[] = [];

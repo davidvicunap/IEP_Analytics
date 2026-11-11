@@ -173,3 +173,11 @@ export async function companyYearInputs(db: Db, cik: number, year: number): Prom
     .limit(1);
   return row ? cleanInputs(row.inputs) : null;
 }
+
+/** Largest listed peers, same 3-digit SIC first, then the rest of the 2-digit group. */
+export async function suggestedPeers(db: Db, sic: number, year: number, cik: number, n: number): Promise<string[]> {
+  const pool = await listedPeers(db, sic, year, cik, 40);
+  const close = pool.filter((p) => Math.floor(p.sic / 10) === Math.floor(sic / 10));
+  const rest = pool.filter((p) => Math.floor(p.sic / 10) !== Math.floor(sic / 10));
+  return [...close, ...rest].slice(0, n).map((p) => p.symbol);
+}

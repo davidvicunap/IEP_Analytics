@@ -5,6 +5,7 @@ const es = {
   app: {
     dataBy: "Datos:",
     tagline: "Análisis de acciones de EE.UU., explicado simple",
+    methodology: "Cómo calculamos cada número",
     disclaimer: "Solo con fines educativos. No es asesoría financiera.",
     demo: "Modo demo: datos simulados. Añade FMP_API_KEY para datos reales.",
     lang: "Idioma",
@@ -57,8 +58,20 @@ const es = {
     etfNote: "Son precios de fondos cotizados (ETF) que replican cada índice, no el valor del índice en puntos.",
   },
   stock: {
+    earnings: {
+      listed: "Próximos resultados: {d}",
+      estimated: "Próximos resultados: hacia el {d}",
+      today: "hoy",
+      tomorrow: "mañana",
+      inDays: "en {n} días",
+      eps: "BPA esperado por los analistas: {v}",
+      listedNote: "Fecha según Financial Modeling Prep; puede ser provisional hasta que la empresa la anuncie.",
+      estimatedNote: "Estimado: un año después de los resultados del {b} (8-K a la SEC); la empresa aún no lo ha confirmado en nuestros datos.",
+    },
     tabs: { overview: "Resumen", research: "Mi análisis", chart: "Gráfico", fundamentals: "Fundamentales", valuation: "Valoración", financials: "Finanzas", filings: "Filings", insiders: "Insiders", news: "Noticias" },
     addWatch: "Seguir",
+    packs: "Gráficos",
+    packsTitle: "Ver los paquetes de gráficos de esta empresa",
     compare: "Comparar",
     compareTitle: "Abrir en el generador de gráficos para compararla con otras empresas",
     priceStored: "Último precio guardado ({d}).",
