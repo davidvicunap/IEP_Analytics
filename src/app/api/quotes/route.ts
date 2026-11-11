@@ -13,7 +13,8 @@ export async function GET(req: Request) {
     source: dataSource(),
     limit: QUOTES_PER_REQUEST,
     quotes: entries.flatMap((e) => (e.quote ? [{ ...e.quote, fetchedAt: e.fetchedAt }] : [])),
-    missing: entries.flatMap((e) => (e.error ? [{ symbol: e.symbol, error: e.error }] : [])),
+    // A stored price (quote.basis) comes with the reason FMP failed; it is sent as a quote only.
+    missing: entries.flatMap((e) => (e.error && !e.quote ? [{ symbol: e.symbol, error: e.error }] : [])),
     skipped: entries.skipped ?? [],
   };
   // Private while the site is behind the beta gate: no shared CDN caching.

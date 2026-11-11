@@ -1,9 +1,10 @@
 // Server-side data facade: real FMP data, or simulated data in development only.
 import { getDb } from "@/db/client";
 import * as fmp from "./fmp";
-import { searchSecurities } from "./securities";
+import { quoteFromCloses, saveQuote, storedQuotes } from "./priceStore";
+import { getSecurity, searchSecurities } from "./securities";
 import * as mock from "./mock";
-import type { AnnualIncome, Candle, DataSource, Fundamentals, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
+import type { AnnualIncome, Candle, DataIssue, DataSource, Fundamentals, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
 
 /**
  * Simulated prices must never reach real users: demo data is only allowed outside
@@ -51,9 +52,103 @@ export function normalizeSymbol(raw: string): string | null {
   return /^[A-Z][A-Z.\-]{0,9}$/.test(s) ? s : null;
 }
 
-export function getQuote(symbol: string): Promise<Result<Quote>> {
+export async function getQuote(symbol: string): Promise<Result<Quote>> {
   trace("quote", symbol);
-  return isDemo() ? demoResult("quote", mock.mockQuote(symbol), symbol) : fmp.fmpQuote(symbol);
+  if (isDemo()) return demoResult("quote", mock.mockQuote(symbol), symbol);
+  const r = await fmp.fmpQuote(symbol);
+  if (r.ok) await keepQuote(r.data, r.fetchedAt);
+  return r;
+}
+
+// ---- Last good prices ------------------------------------------------------------------
+// Every live quote is kept in Postgres (once per fetch, not per page view), so lists and
+// stock pages can still show a price, labelled with its time, when FMP can't answer.
+const kept = new Map<string, string>(); // symbol -> fetchedAt already saved by this instance
+
+async function keepQuote(quote: Quote, fetchedAt: string): Promise<void> {
+  const db = getDb();
+  if (!db || kept.get(quote.symbol) === fetchedAt) return;
+  kept.set(quote.symbol, fetchedAt);
+  try {
+    await saveQuote(db, quote, fetchedAt);
+  } catch (e) {
+    kept.delete(quote.symbol);
+    console.error(JSON.stringify({ event: "price_store_error", message: e instanceof Error ? e.message : String(e) }));
+  }
+}
+
+async function readStored(symbols: string[]): Promise<Map<string, { quote: Quote; fetchedAt: string }>> {
+  const db = getDb();
+  if (!db || symbols.length === 0) return new Map();
+  try {
+    return await storedQuotes(db, symbols);
+  } catch (e) {
+    console.error(JSON.stringify({ event: "price_store_error", message: e instanceof Error ? e.message : String(e) }));
+    return new Map();
+  }
+}
+
+// DEMO_PRICE_FALLBACK="HIMS:none,SMCI:close,AMD:stored" makes those demo symbols behave as
+// if FMP refused their quote (not in the plan), to check the fallbacks in a browser.
+function demoFallback(symbol: string): StockPage | null {
+  const mode = (process.env.DEMO_PRICE_FALLBACK ?? "")
+    .split(",")
+    .map((x) => x.split(":"))
+    .find(([s]) => s === symbol)?.[1];
+  const q = mode ? mock.mockQuote(symbol) : null;
+  if (!q) return null;
+  const identity = { symbol, name: q.name, exchange: q.exchange };
+  const at = now();
+  if (mode === "none") return { kind: "ok", identity, quote: null, fetchedAt: null, priceIssue: "plan_restricted" };
+  if (mode === "close") return { kind: "ok", identity, quote: { ...q, basis: "close", asOf: `${at.slice(0, 10)}T12:00:00.000Z` }, fetchedAt: at, priceIssue: "plan_restricted" };
+  return { kind: "ok", identity, quote: { ...q, basis: "stored" }, fetchedAt: at, priceIssue: "rate_limited" };
+}
+
+/** Who the stock page is about, even without a price. */
+export interface StockIdentity {
+  symbol: string;
+  name: string;
+  exchange?: string;
+}
+
+export type StockPage =
+  | { kind: "ok"; identity: StockIdentity; quote: Quote | null; fetchedAt: string | null; priceIssue: DataIssue | null }
+  | { kind: "not_found" }
+  | { kind: "unavailable"; issue: DataIssue };
+
+/**
+ * What the stock page opens with. The price comes from the first source that answers:
+ * 1. FMP's live quote;
+ * 2. the last quote we stored;
+ * 3. the last daily close (the page loads the same price history anyway);
+ * 4. none: the page still opens from the SEC company list, and says why there's no price.
+ * Only a symbol that neither FMP nor the SEC list knows is "not found".
+ */
+export async function getStockPage(symbol: string): Promise<StockPage> {
+  if (isDemo()) {
+    const demoPage = demoFallback(symbol);
+    if (demoPage) return demoPage;
+  }
+  const live = await getQuote(symbol);
+  if (live.ok) {
+    const q = live.data;
+    return { kind: "ok", identity: { symbol, name: q.name, exchange: q.exchange }, quote: q, fetchedAt: live.fetchedAt, priceIssue: null };
+  }
+  const db = isDemo() ? null : getDb();
+  const [security, stored] = await Promise.all([
+    db ? getSecurity(db, symbol).catch(() => null) : null,
+    readStored([symbol]).then((m) => m.get(symbol)),
+  ]);
+  if (!security && !stored) return live.error === "not_found" ? { kind: "not_found" } : { kind: "unavailable", issue: live.error };
+  const identity: StockIdentity = {
+    symbol,
+    name: stored?.quote.name ?? security!.name,
+    exchange: stored?.quote.exchange ?? security?.exchange ?? undefined,
+  };
+  if (stored) return { kind: "ok", identity, quote: stored.quote, fetchedAt: stored.fetchedAt, priceIssue: live.error };
+  const history = await fmp.fmpHistory(symbol);
+  const fromClose = history.ok ? quoteFromCloses(symbol, identity.name, history.data) : null;
+  return { kind: "ok", identity, quote: fromClose, fetchedAt: fromClose && history.ok ? history.fetchedAt : null, priceIssue: live.error };
 }
 
 /** Most symbols one quotes request may ask for; callers page through longer lists. */
@@ -83,9 +178,13 @@ export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { ski
   const all = [...new Set(symbols.map(normalizeSymbol).filter((s): s is string => !!s))];
   const list = all.slice(0, QUOTES_PER_REQUEST);
   const results = await mapLimit(list, QUOTE_CONCURRENCY, getQuote);
+  // A symbol FMP can't answer now shows its last stored price, marked as such.
+  const stored = await readStored(list.filter((_, i) => !results[i].ok));
   const entries: QuoteEntry[] & { skipped?: string[] } = list.map((symbol, i) => {
     const r = results[i];
-    return r.ok ? { symbol, quote: r.data, fetchedAt: r.fetchedAt } : { symbol, error: r.error };
+    if (r.ok) return { symbol, quote: r.data, fetchedAt: r.fetchedAt };
+    const s = stored.get(symbol);
+    return s ? { symbol, quote: s.quote, fetchedAt: s.fetchedAt, error: r.error } : { symbol, error: r.error };
   });
   if (all.length > list.length) entries.skipped = all.slice(list.length);
   return entries;

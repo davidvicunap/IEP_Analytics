@@ -276,6 +276,7 @@ const esDeep = {
     target: "Precio objetivo a 12 meses",
     targetText: "Consenso {consensus}: {d} frente al precio actual ({price}).",
     targetRange: "Rango de objetivos: {low} – {high}",
+    targetNoPrice: "Consenso {consensus} (sin precio actual para comparar).",
     current: "Precio actual",
     ratings: "Recomendaciones",
     ratingsText: "{n} analistas",

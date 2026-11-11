@@ -4,6 +4,7 @@
 // - Only successful responses are cached: errors throw inside the cached function,
 //   so a transient 429 or plan error is retried on the next request instead of sticking.
 import { unstable_cache } from "next/cache";
+import { REMEMBER, currentQuoteTtl, isPaused, pause, rememberIssue, rememberKey, rememberedIssue } from "./fmpGuard";
 import { recordProviderCall } from "./quota";
 import type {
   AnnualIncome,
@@ -19,8 +20,8 @@ import type {
 const BASE = "https://financialmodelingprep.com/stable";
 const TIMEOUT_MS = 8000;
 
-/** Cache lifetimes in seconds per data class. */
-export const TTL = { quote: 60, prices: 3600, rates: 43200, fundamentals: 86400 } as const;
+/** Cache lifetimes in seconds per data class. Quotes vary with market hours and quota use (fmpGuard). */
+export const TTL = { prices: 3600, rates: 43200, fundamentals: 86400 } as const;
 
 export function hasFmpKey(): boolean {
   return Boolean(process.env.FMP_API_KEY);
@@ -110,20 +111,46 @@ export async function fetchFmp(path: string, params: Record<string, string>): Pr
   throw logged(new ProviderError("upstream", res.status), path);
 }
 
-const cachedByTtl = new Map<number, (path: string, params: string) => Promise<Fetched>>();
+/** A cached answer: data, or an issue that won't change soon (see fmpGuard.REMEMBER). */
+type CachedAnswer = Fetched & { known?: DataIssue };
+
+const cachedByTtl = new Map<number, (path: string, params: string) => Promise<CachedAnswer>>();
+
+/**
+ * Runs only on a cache miss: skips FMP when the answer is already known or calls are paused
+ * after "limit reached"; remembers lasting refusals so they aren't asked again every view.
+ */
+async function guardedFetch(path: string, params: Record<string, string>): Promise<CachedAnswer> {
+  const key = rememberKey(path, params);
+  const known = await rememberedIssue(key);
+  if (known) return { rows: [], fetchedAt: new Date().toISOString(), known };
+  if (await isPaused()) throw new ProviderError("rate_limited"); // not cached: try again after the pause
+  try {
+    return await fetchFmp(path, params);
+  } catch (e) {
+    if (isProviderError(e) && e.kind in REMEMBER) {
+      await rememberIssue(key, e.kind);
+      return { rows: [], fetchedAt: new Date().toISOString(), known: e.kind }; // cached for `ttl` too
+    }
+    if (isProviderError(e) && e.kind === "rate_limited") await pause();
+    throw e;
+  }
+}
 
 /** Cached request. The cache key holds the path and parameters, never the API key. */
-function get(path: string, params: Record<string, string>, ttl: number): Promise<Fetched> {
+async function get(path: string, params: Record<string, string>, ttl: number): Promise<Fetched> {
   let cached = cachedByTtl.get(ttl);
   if (!cached) {
     cached = unstable_cache(
-      (p: string, q: string) => fetchFmp(p, JSON.parse(q) as Record<string, string>),
+      (p: string, q: string) => guardedFetch(p, JSON.parse(q) as Record<string, string>),
       ["fmp", String(ttl)],
       { revalidate: ttl, tags: ["fmp"] },
     );
     cachedByTtl.set(ttl, cached);
   }
-  return cached(path, JSON.stringify(params));
+  const answer = await cached(path, JSON.stringify(params));
+  if (answer.known) throw new ProviderError(answer.known);
+  return answer;
 }
 
 async function attempt<T>(endpoint: string, run: () => Promise<{ data: T; fetchedAt: string }>): Promise<Result<T>> {
@@ -173,7 +200,7 @@ export function mapQuote(q: Json): Quote {
 
 export function fmpQuote(symbol: string): Promise<Result<Quote>> {
   return attempt("quote", async () => {
-    const { rows, fetchedAt } = await get("quote", { symbol }, TTL.quote);
+    const { rows, fetchedAt } = await get("quote", { symbol }, await currentQuoteTtl());
     const q = rows[0];
     if (!q || num(q.price) === undefined) throw new ProviderError("not_found");
     return { data: mapQuote(q), fetchedAt };

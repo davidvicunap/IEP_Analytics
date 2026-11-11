@@ -398,6 +398,31 @@ await test("data tabs: a failed read offers a retry that asks again in place", a
   await p.context().close();
 });
 
+// ---- Stocks FMP can't price (demo: DEMO_PRICE_FALLBACK in npm run start:demo) ------------------
+
+await test("every stock opens: no price, last close or stored price, each said plainly", async () => {
+  const p = await page({ lang: "en" });
+  // No price at all: the page still opens, says why and points to the live chart.
+  await p.goto(base + "/stock/HIMS");
+  await p.getByRole("heading", { level: 1 }).waitFor();
+  const none = p.locator("[data-price-basis=none]");
+  await none.getByText("Price unavailable").waitFor();
+  assert((await none.innerText()).includes("isn't included in the current data plan"), await none.innerText());
+  await none.getByRole("button", { name: "See the live chart" }).click();
+  await p.waitForURL(/tab=chart/);
+  assert((await p.getByRole("tab", { name: "Filings" }).count()) === 1, "tabs missing");
+  await axe(p);
+  // Last daily close and stored price: the price is shown, labelled with what it is.
+  await p.goto(base + "/stock/SMCI");
+  await p.locator("[data-price-basis=close]").getByText(/^Closing price of/).waitFor();
+  await p.goto(base + "/stock/AMD");
+  const stored = p.locator("[data-price-basis=stored]");
+  await stored.getByText(/^Last price we stored/).waitFor();
+  assert((await stored.innerText()).includes("daily request limit"), await stored.innerText());
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
 // ---- Chart generator --------------------------------------------------------------------------
 
 // Small synthetic series (test data only): two companies with different fiscal years.

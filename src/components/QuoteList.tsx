@@ -56,7 +56,7 @@ export function QuoteRows({
                 <span className="block font-semibold leading-tight">{r.symbol}</span>
                 {name && <span className="block truncate text-[13px] text-muted">{name}</span>}
               </span>
-              {r.stale && (
+              {(r.stale || r.quote?.basis) && (
                 <Badge tone="warn" className="shrink-0">
                   {t.ux.stale}
                 </Badge>
@@ -92,7 +92,7 @@ export function MarketCards({ rows, indexNames, etfLabel }: { rows: Row[]; index
             <span className="flex items-baseline justify-between gap-2">
               <span className="truncate text-[13px] font-medium">{indexNames[r.symbol] ?? r.symbol}</span>
               <span className="shrink-0 text-[11px] text-muted">
-                {etfLabel} {r.symbol}
+                {r.stale || r.quote?.basis ? t.ux.stale : `${etfLabel} ${r.symbol}`}
               </span>
             </span>
             {r.quote ? (

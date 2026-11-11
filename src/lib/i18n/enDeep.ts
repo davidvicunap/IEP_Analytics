@@ -277,6 +277,7 @@ const enDeep: DeepDict = {
     target: "12-month price target",
     targetText: "Consensus {consensus}: {d} versus the current price ({price}).",
     targetRange: "Range of targets: {low} – {high}",
+    targetNoPrice: "Consensus {consensus} (no current price to compare with).",
     current: "Current price",
     ratings: "Ratings",
     ratingsText: "{n} analysts",

@@ -17,8 +17,8 @@ import {
 } from "@/lib/scoring";
 import { parseChartSettings, writeChartSettings, type ChartSettings } from "@/lib/chartSettings";
 import ChartPlaceholder from "./ChartPlaceholder";
-import type { StockSections } from "@/lib/data";
-import type { AnnualIncome, Candle, DataSource, Fundamentals, Profile, Quote, Result } from "@/lib/types";
+import type { StockIdentity, StockSections } from "@/lib/data";
+import type { AnnualIncome, Candle, DataIssue, DataSource, Fundamentals, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
 import { OfficialReleases } from "./OfficialReleases";
 
@@ -32,7 +32,7 @@ const FilingsPanel = dynamic(() => import("./FilingsPanel"), { loading: tabLoadi
 const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoading });
 const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
 import Link from "next/link";
-import { ChartIcon, ExternalIcon, InfoIcon } from "./icons";
+import { ChartIcon, ClockIcon, ExternalIcon, InfoIcon } from "./icons";
 import { Badge, Change, Dot, Explain, IssueNote, LevelBadge, Panel, Provenance, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 const PriceChart = dynamic(() => import("./PriceChart"), {
@@ -94,14 +94,26 @@ function Section({ fallback, children }: { fallback: React.ReactNode; children: 
 
 // ---- Page --------------------------------------------------------------------------------
 
-export default function StockView({ quote, quoteFetchedAt, sections }: { quote: Quote; quoteFetchedAt: string; sections: StockSections }) {
+export default function StockView({
+  identity,
+  quote,
+  quoteFetchedAt,
+  priceIssue,
+  sections,
+}: {
+  identity: StockIdentity;
+  quote: Quote | null; // null: no price from any source (see getStockPage)
+  quoteFetchedAt: string | null;
+  priceIssue: DataIssue | null; // why the live quote failed, when it did
+  sections: StockSections;
+}) {
   const { t } = useI18n();
   const { tab, setTab, chart, setChart } = useStockUrlState();
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([tab]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { record } = useRecent();
 
-  useEffect(() => record(quote.symbol), [quote.symbol, record]);
+  useEffect(() => record(identity.symbol), [identity.symbol, record]);
   useEffect(() => setVisited((v) => (v.has(tab) ? v : new Set(v).add(tab))), [tab]);
 
   const onTabKey = (e: React.KeyboardEvent, i: number) => {
@@ -125,11 +137,11 @@ export default function StockView({ quote, quoteFetchedAt, sections }: { quote: 
 
   return (
     <div className="space-y-4">
-      <StockHeader quote={quote} quoteFetchedAt={quoteFetchedAt} source={sections.source} profile={sections.profile} />
+      <StockHeader identity={identity} quote={quote} quoteFetchedAt={quoteFetchedAt} priceIssue={priceIssue} source={sections.source} profile={sections.profile} goTo={setTab} />
 
       <div
         role="tablist"
-        aria-label={fill(t.ux.sectionsOf, { s: quote.symbol })}
+        aria-label={fill(t.ux.sectionsOf, { s: identity.symbol })}
         className="-mx-4 px-4 sm:mx-0 sm:px-0 flex gap-1 overflow-x-auto border-b border-line scrollbar-none"
       >
         {TABS.map((k, i) => (
@@ -155,26 +167,26 @@ export default function StockView({ quote, quoteFetchedAt, sections }: { quote: 
         ))}
       </div>
 
-      {panel("overview", <Overview quote={quote} sections={sections} chart={chart} setChart={setChart} goTo={setTab} />)}
+      {panel("overview", <Overview symbol={identity.symbol} quote={quote} sections={sections} chart={chart} setChart={setChart} goTo={setTab} />)}
       {panel(
         "chart",
         <Section fallback={<Panel><ChartPlaceholder settings={chart} /></Panel>}>
-          <ChartTabSection symbol={quote.symbol} exchange={quote.exchange} history={sections.history} chart={chart} setChart={setChart} />
+          <ChartTabSection symbol={identity.symbol} exchange={identity.exchange} history={sections.history} chart={chart} setChart={setChart} />
         </Section>,
       )}
-      {panel("fundamentals", <Deep><FundamentalsPanel symbol={quote.symbol} price={quote.price} /></Deep>)}
-      {panel("valuation", <Deep><ValuationPanel symbol={quote.symbol} /></Deep>)}
+      {panel("fundamentals", <Deep><FundamentalsPanel symbol={identity.symbol} price={quote?.price ?? null} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={identity.symbol} /></Deep>)}
       {panel(
         "financials",
         <Section fallback={<Skeleton className="h-96" />}>
           <DeepI18n>
-            <FinancialsSection symbol={quote.symbol} source={sections.source} income={sections.income} />
+            <FinancialsSection symbol={identity.symbol} source={sections.source} income={sections.income} />
           </DeepI18n>
         </Section>,
       )}
-      {panel("filings", <FilingsPanel symbol={quote.symbol} />)}
-      {panel("insiders", <Deep><InsidersPanel symbol={quote.symbol} /></Deep>)}
-      {panel("news", <NewsPanel symbol={quote.symbol} exchange={quote.exchange} onSeeAllFilings={() => setTab("filings")} />)}
+      {panel("filings", <FilingsPanel symbol={identity.symbol} />)}
+      {panel("insiders", <Deep><InsidersPanel symbol={identity.symbol} /></Deep>)}
+      {panel("news", <NewsPanel symbol={identity.symbol} exchange={identity.exchange} onSeeAllFilings={() => setTab("filings")} />)}
     </div>
   );
 }
@@ -190,21 +202,37 @@ function Deep({ children }: { children: React.ReactNode }) {
 
 // ---- Header ------------------------------------------------------------------------------
 
-function StockHeader({ quote, quoteFetchedAt, source, profile }: { quote: Quote; quoteFetchedAt: string; source: DataSource; profile: Promise<Result<Profile>> }) {
+function StockHeader({
+  identity,
+  quote,
+  quoteFetchedAt,
+  priceIssue,
+  source,
+  profile,
+  goTo,
+}: {
+  identity: StockIdentity;
+  quote: Quote | null;
+  quoteFetchedAt: string | null;
+  priceIssue: DataIssue | null;
+  source: DataSource;
+  profile: Promise<Result<Profile>>;
+  goTo: (t: Tab) => void;
+}) {
   const { t, lang } = useI18n();
   return (
     <section aria-labelledby="stock-title" className="pt-1">
       <div className="flex items-start gap-3">
-        <Suspense fallback={<Initial symbol={quote.symbol} />}>
-          <Logo profile={profile} symbol={quote.symbol} />
+        <Suspense fallback={<Initial symbol={identity.symbol} />}>
+          <Logo profile={profile} symbol={identity.symbol} />
         </Suspense>
         <div className="min-w-0 flex-1">
           <h1 id="stock-title" className="text-xl sm:text-2xl font-semibold tracking-[-0.015em] leading-tight line-clamp-2 break-words">
-            {quote.name}
+            {identity.name}
           </h1>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-muted">
-            <span className="font-medium text-fg">{quote.symbol}</span>
-            {quote.exchange && <span>{quote.exchange}</span>}
+            <span className="font-medium text-fg">{identity.symbol}</span>
+            {identity.exchange && <span>{identity.exchange}</span>}
             <Suspense fallback={null}>
               <Sector profile={profile} />
             </Suspense>
@@ -212,7 +240,7 @@ function StockHeader({ quote, quoteFetchedAt, source, profile }: { quote: Quote;
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            href={`/charts?s=${encodeURIComponent(quote.symbol)}&m=revenue&f=annual&k=bar&r=10`}
+            href={`/charts?s=${encodeURIComponent(identity.symbol)}&m=revenue&f=annual&k=bar&r=10`}
             className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
             title={t.stock.compareTitle}
             aria-label={t.stock.compareTitle}
@@ -220,17 +248,45 @@ function StockHeader({ quote, quoteFetchedAt, source, profile }: { quote: Quote;
             <ChartIcon size={16} />
             <span className="hidden sm:inline">{t.stock.compare}</span>
           </Link>
-          <WatchButton symbol={quote.symbol} />
+          <WatchButton symbol={identity.symbol} />
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
-        <p className="num text-3xl sm:text-4xl font-semibold leading-none">{fmtPrice(quote.price, lang)}</p>
-        <p className="flex items-center gap-2 pb-0.5">
-          <Change value={quote.change} pct={quote.changePercent} className="text-base font-semibold" />
-          <span className="text-xs text-muted">{t.ux.vsPrevClose}</span>
-        </p>
-      </div>
-      <Provenance source={source} asOf={quote.asOf ?? quoteFetchedAt} className="mt-2" />
+      {quote ? (
+        <>
+          <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
+            <p className="num text-3xl sm:text-4xl font-semibold leading-none">{fmtPrice(quote.price, lang)}</p>
+            <p className="flex items-center gap-2 pb-0.5">
+              <Change value={quote.change} pct={quote.changePercent} className="text-base font-semibold" />
+              <span className="text-xs text-muted">{t.ux.vsPrevClose}</span>
+            </p>
+          </div>
+          {quote.basis ? (
+            // Not live: say which price this is and why, in words, before anything else.
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-muted" data-price-basis={quote.basis}>
+              <ClockIcon size={14} className="mt-px text-warn" />
+              <span>
+                {quote.basis === "close"
+                  ? fill(t.stock.priceClose, { d: fmtDate(quote.asOf ?? "", lang) })
+                  : fill(t.stock.priceStored, { d: fmtAsOf(quoteFetchedAt ?? quote.asOf, lang) })}
+                {priceIssue && ` ${t.stock.priceWhy[priceIssue]}`}
+              </span>
+            </p>
+          ) : (
+            <Provenance source={source} asOf={quote.asOf ?? quoteFetchedAt ?? undefined} className="mt-2" />
+          )}
+        </>
+      ) : (
+        <div className="mt-3 rounded-lg bg-panel-2 px-3 py-2.5 text-sm" data-price-basis="none">
+          <p className="font-medium">{t.stock.priceMissing}</p>
+          <p className="mt-0.5 text-[13px] text-muted">
+            {priceIssue && `${t.stock.priceWhy[priceIssue]} `}
+            {t.stock.priceMissingHint}{" "}
+            <button type="button" className="link" onClick={() => goTo("chart")}>
+              {t.stock.openLiveChart}
+            </button>
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -264,13 +320,15 @@ function Sector({ profile }: { profile: Promise<Result<Profile>> }) {
 // ---- Overview ------------------------------------------------------------------------------
 
 function Overview({
+  symbol,
   quote,
   sections,
   chart,
   setChart,
   goTo,
 }: {
-  quote: Quote;
+  symbol: string;
+  quote: Quote | null;
   sections: StockSections;
   chart: ChartSettings;
   setChart: (s: ChartSettings) => void;
@@ -304,7 +362,7 @@ function Overview({
           </Section>
         </div>
         <div className="order-3">
-          <KeyStats quote={quote} />
+          {quote && <KeyStats quote={quote} />}
         </div>
         <div className="order-6">
           <Section fallback={<Skeleton className="h-32" />}>
@@ -312,7 +370,7 @@ function Overview({
           </Section>
         </div>
         <Panel title={t.news.latest} className="order-7">
-          <OfficialReleases symbol={quote.symbol} limit={4} onSeeAll={() => goTo("filings")} />
+          <OfficialReleases symbol={symbol} limit={4} onSeeAll={() => goTo("filings")} />
         </Panel>
       </div>
     </div>

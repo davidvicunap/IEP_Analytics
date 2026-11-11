@@ -1,3 +1,4 @@
+import type { DataIssue } from "../types";
 import type { CoreDict } from "./es";
 
 const en: CoreDict = {
@@ -60,6 +61,19 @@ const en: CoreDict = {
     addWatch: "Follow",
     compare: "Compare",
     compareTitle: "Open in the chart generator to compare it with other companies",
+    priceStored: "Last price we stored ({d}).",
+    priceClose: "Closing price of {d}.",
+    priceMissing: "Price unavailable",
+    priceMissingHint: "The rest of the research (SEC figures, filings, insiders) is still here.",
+    openLiveChart: "See the live chart",
+    priceWhy: {
+      not_configured: "No price source is configured.",
+      not_found: "The provider has no price for this ticker.",
+      plan_restricted: "This ticker isn't included in the current data plan.",
+      rate_limited: "The provider's daily request limit has been reached.",
+      unauthorized: "The provider rejected our credential.",
+      upstream: "The price provider isn't responding.",
+    } as Record<DataIssue, string>,
     removeWatch: "Following",
     summaryTitle: "In a nutshell",
     keyStats: "Key stats",
