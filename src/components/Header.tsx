@@ -81,6 +81,9 @@ export default function Header({ demo }: { demo: boolean }) {
           <NavLink href="/watchlist" active={path.startsWith("/watchlist")}>
             {t.nav.watchlist}
           </NavLink>
+          <NavLink href="/research" active={path.startsWith("/research")}>
+            {t.nav.research}
+          </NavLink>
         </nav>
         {!onHome && (
           <button

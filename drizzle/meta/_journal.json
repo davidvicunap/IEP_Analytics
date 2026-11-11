@@ -43,6 +43,13 @@
       "when": 1794372033490,
       "tag": "0005_price_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794373158316,
+      "tag": "0006_research_notes",
+      "breakpoints": true
     }
   ]
 }

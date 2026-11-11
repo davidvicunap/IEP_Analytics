@@ -5,7 +5,8 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { impliedRevenueGrowth, runDcf, sensitivity, waccOf, type MakerAssumptions, type MakerResult } from "@/lib/dcfModel";
 import type { ValuationPayload } from "@/lib/valuationData";
-import { Panel } from "../ui";
+import { saveNote } from "@/lib/researchClient";
+import { Panel, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "./fields";
 
 type Lang = "es" | "en";
@@ -256,7 +257,7 @@ export default function DcfMaker({ v }: { v: ValuationPayload }) {
       ) : (
         result && (
           <>
-            <ResultCard r={result} price={base.price} terminal={a.terminal} implied={implied} years={a.growth.length} lang={lang} />
+            <ResultCard r={result} price={base.price} terminal={a.terminal} implied={implied} years={a.growth.length} lang={lang} symbol={v.symbol} />
             <Projection r={result} lang={lang} />
             {sens && <Sensitivity s={sens} terminal={a.terminal} lang={lang} />}
           </>
@@ -360,7 +361,9 @@ function ResultCard({
   implied,
   years,
   lang,
+  symbol,
 }: {
+  symbol: string;
   r: MakerResult;
   price: number;
   terminal: "gordon" | "exit";
@@ -410,9 +413,31 @@ function ResultCard({
                     : null}
             </p>
           )}
+          <UseAsFairValue key={r.perShare.toFixed(2)} symbol={symbol} value={r.perShare} price={price} />
         </div>
       </div>
     </Panel>
+  );
+}
+
+/** Saves the DCF's value per share as the user's fair value (recorded as "from the DCF"). */
+function UseAsFairValue({ symbol, value, price }: { symbol: string; value: number; price: number }) {
+  const { t } = useI18n();
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  if (!(value > 0)) return null;
+  const save = async () => {
+    setState("saving");
+    const r = await saveNote(symbol, { fairValue: Math.round(value * 100) / 100, fairValueSource: "dcf", price, baseUpdatedAt: null });
+    setState(r.ok ? "saved" : "failed");
+  };
+  return (
+    <div className="mt-3">
+      <button type="button" onClick={save} disabled={state === "saving"} className={buttonClass("secondary", true)}>
+        {t.research.useDcf}
+      </button>
+      {state === "saved" && <p className="mt-2 text-xs text-muted" role="status">{t.research.usedDcf}</p>}
+      {state === "failed" && <StatusMessage tone="warn" className="mt-2">{t.research.saveFailed}</StatusMessage>}
+    </div>
   );
 }
 

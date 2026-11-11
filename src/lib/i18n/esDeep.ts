@@ -317,6 +317,19 @@ const esDeep = {
     table: "Ver los datos",
     year: "Año fiscal",
   },
+  priceImplies: {
+    title: "Qué asume el precio de hoy",
+    text: "A {price}, el mercado descuenta que los ingresos crezcan durante {n} años un",
+    growth: "{g} al año.",
+    past: "En los últimos 5 años crecieron un {g} al año.",
+    more: "Es más de lo que crecieron.",
+    less: "Es menos de lo que crecieron.",
+    above: "Ni con ingresos creciendo un 100 % al año llegaría el modelo al precio de hoy: el precio asume algo más que crecimiento, como márgenes mucho mayores.",
+    below: "El precio de hoy implica que los ingresos caigan más de un 50 % al año: o el mercado es muy pesimista, o este modelo no encaja con la empresa.",
+    none: "No se pudo calcular con los datos disponibles.",
+    how: "DCF inverso con los supuestos iniciales del DCF: márgenes de los últimos 12 meses, tasa de descuento {wacc} y valor terminal con {tg}. Se busca el crecimiento que iguala el valor por acción al precio.",
+    adjust: "Cambiar los supuestos en el DCF",
+  },
   valuation: {
     history: {
       view: "Histórico",

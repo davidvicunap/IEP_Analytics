@@ -32,6 +32,7 @@ npm run e2e                                # browser journeys (see e2e/README.md
   - Every number shows its source and time.
   - A failure is shown as such, never filled with made-up or demo data.
   - Demo data is never mixed with real data.
+- **Research notebooks** belong to the beta invite's label (`david:IEP-…` → `david`): renaming a label in `BETA_INVITE_CODES` starts that person on an empty notebook. In demo mode without a database they live in memory.
 - **Secrets:** they stay server-side, in env vars. The beta gate (`src/proxy.ts`) guards licensed data; only `/api/sec/*` (public domain) and health are open.
 - **UI:**
   - Use the tokens in `globals.css` and the primitives in `components/ui.tsx`.

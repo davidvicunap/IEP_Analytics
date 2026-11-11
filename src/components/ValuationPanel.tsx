@@ -9,6 +9,7 @@ import { IssueNote, Panel } from "./ui";
 import CompsView from "./valuation/CompsView";
 import DcfMaker from "./valuation/DcfMaker";
 import HistoryView from "./valuation/HistoryView";
+import PriceImplies from "./valuation/PriceImplies";
 
 type View = "comps" | "history" | "dcf";
 const VIEWS: View[] = ["comps", "history", "dcf"];
@@ -39,6 +40,8 @@ export default function ValuationPanel({ symbol }: { symbol: string }) {
           ))}
         </div>
       </div>
+
+      {state.status === "ok" && <PriceImplies v={state.data} onAdjust={() => setView("dcf")} />}
 
       {view === "comps" && <CompsView symbol={symbol} />}
 
