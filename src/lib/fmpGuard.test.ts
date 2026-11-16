@@ -22,7 +22,7 @@ const fakeRedis = {
 vi.mock("./redis", () => ({ getRedis: () => fakeRedis }));
 
 import { PAUSE_SECONDS, QUOTE_TTL, REMEMBER, isMarketOpen, quoteTtl, rememberKey } from "./fmpGuard";
-import { fmpFundamentals, fmpMarketCaps, fmpQuote } from "./fmp";
+import { fmpMarketCaps, fmpProfile, fmpQuote } from "./fmp";
 
 const quoteRow = [{ symbol: "AAPL", name: "Apple Inc.", price: 230, changePercentage: 1 }];
 const respond = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
@@ -86,7 +86,7 @@ describe("guarded FMP calls", () => {
     vi.stubGlobal("fetch", fetch);
     expect(await fmpQuote("AAPL")).toEqual({ ok: false, error: "rate_limited" });
     expect(fakeRedis.set).toHaveBeenCalledWith("iep:fmp:paused", "1", { ex: PAUSE_SECONDS });
-    expect(await fmpFundamentals("MSFT")).toEqual({ ok: false, error: "rate_limited" });
+    expect(await fmpProfile("MSFT")).toEqual({ ok: false, error: "rate_limited" });
     expect(fetch).toHaveBeenCalledTimes(1); // the second symbol never reached FMP
   });
 

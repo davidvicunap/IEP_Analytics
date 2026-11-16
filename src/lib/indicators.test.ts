@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bollinger, ema, last, macd, rsi, sma } from "./indicators";
-import { scoreMetric, summarize, technicalSignals, revenueGrowth } from "./scoring";
+import { technicalSignals } from "./scoring";
 import type { Candle } from "./types";
 
 describe("indicators", () => {
@@ -43,36 +43,14 @@ describe("indicators", () => {
   });
 });
 
-describe("scoring", () => {
-  it("rates P/E", () => {
-    expect(scoreMetric("pe", 10).level).toBe("good");
-    expect(scoreMetric("pe", 20).level).toBe("ok");
-    expect(scoreMetric("pe", 45).level).toBe("bad");
-    expect(scoreMetric("pe", -5).level).toBe("bad");
-  });
-
-  it("rates margins and debt", () => {
-    expect(scoreMetric("netMargin", 0.25).level).toBe("good");
-    expect(scoreMetric("netMargin", 0.02).level).toBe("bad");
-    expect(scoreMetric("debtToEquity", 0.5).level).toBe("good");
-    expect(scoreMetric("debtToEquity", 3).level).toBe("bad");
-    expect(scoreMetric("dividendYield", 0).level).toBe("neutral");
-  });
-
-  it("computes revenue growth", () => {
-    expect(revenueGrowth([{ year: "1", revenue: 100, netIncome: 1 }, { year: "2", revenue: 120, netIncome: 1 }])).toBeCloseTo(0.2);
-    expect(revenueGrowth([])).toBeUndefined();
-  });
-
-  it("produces technical signals and a summary", () => {
+describe("technical signals", () => {
+  it("produces technical signals", () => {
     const hist: Candle[] = Array.from({ length: 260 }, (_, i) => {
       const c = 50 + i * 0.5;
       return { time: `d${i}`, open: c, high: c, low: c, close: c, volume: 1 };
     });
     const sig = technicalSignals(hist);
     expect(sig.map((s) => s.key)).toEqual(expect.arrayContaining(["rsiOverbought", "aboveSma200", "sma50Above200"]));
-    const sum = summarize([scoreMetric("pe", 12), scoreMetric("debtToEquity", 3)], sig);
-    expect(sum.map((s) => s.key)).toEqual(["valCheap", "debtHigh", "trendUp"]);
   });
 });
 

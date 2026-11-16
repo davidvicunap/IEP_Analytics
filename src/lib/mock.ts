@@ -1,6 +1,6 @@
 // Deterministic simulated data used when no FMP_API_KEY is configured (DEMO mode).
 // Numbers are illustrative only.
-import type { AnnualIncome, Candle, Fundamentals, Profile, Quote, SearchResult } from "./types";
+import type { Candle, Fundamentals, Profile, Quote, SearchResult } from "./types";
 
 interface Seed {
   name: string;
@@ -137,25 +137,6 @@ export function mockProfile(symbol: string): Profile {
     description: `${s.name} — simulated company profile shown in demo mode. Add an FMP_API_KEY to see real data.`,
     country: "US",
   };
-}
-
-export function mockFundamentals(symbol: string): Fundamentals {
-  return seedFor(symbol).f;
-}
-
-export function mockIncome(symbol: string): AnnualIncome[] {
-  const s = seedFor(symbol);
-  if (!s.revenue) return [];
-  const r = rng(hash(symbol + ":i"));
-  const thisYear = new Date().getFullYear() - 1;
-  const out: AnnualIncome[] = [];
-  let rev = s.revenue;
-  for (let i = 0; i < 5; i++) {
-    const margin = (s.f.netMargin ?? 0.1) * (0.85 + r() * 0.3);
-    out.unshift({ year: String(thisYear - i), revenue: rev, netIncome: rev * margin });
-    rev = rev / (1 + 0.02 + r() * 0.15);
-  }
-  return out;
 }
 
 export function mockSearch(query: string): SearchResult[] {

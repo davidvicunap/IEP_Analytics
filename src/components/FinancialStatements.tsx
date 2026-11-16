@@ -9,7 +9,6 @@ import { filingDocUrl, xbrlViewerUrl, type Filing } from "@/lib/filingsShared";
 import {
   checkColumn, projectStatements, projectionDefaults, ttmColumn, type CheckIssue, type Column, type ProjectionAssumptions,
 } from "@/lib/statements";
-import type { AnnualIncome, Result } from "@/lib/types";
 import { useResource } from "@/lib/useResource";
 import { useFilings } from "./filingsHooks";
 import { IssueNote, Panel } from "./ui";
@@ -74,7 +73,7 @@ function complete(d: Draft): ProjectionAssumptions | null {
   return d as unknown as ProjectionAssumptions;
 }
 
-export default function FinancialStatements({ symbol, fmpIncome }: { symbol: string; fmpIncome?: Result<AnnualIncome[]> }) {
+export default function FinancialStatements({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
   const [mode, setMode] = useState<"annual" | "quarterly">("annual");
   const [projecting, setProjecting] = useState(false);
@@ -98,11 +97,9 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
     if (state.status !== "ok") return [];
     const fin = state.data;
     const set = mode === "annual" ? fin.annual : fin.quarterly;
-    const fmp = fmpIncome?.ok ? new Map(fmpIncome.data.map((r) => [`FY${r.year}`, r])) : new Map<string, AnnualIncome>();
     const cols: DisplayColumn[] = set.periods.map((p, i) => {
       const cells = columnOf(set, i);
-      const other = mode === "annual" ? fmp.get(p.label) : undefined;
-      return { period: p, kind: "actual", cells, checks: checkColumn(cells, other ? { revenue: other.revenue, netIncome: other.netIncome } : undefined) };
+      return { period: p, kind: "actual", cells, checks: checkColumn(cells) };
     });
     if (mode === "annual") {
       const ttm = ttmColumn(fin.quarterly, fin.annual.periods.at(-1)?.end ?? null);
@@ -118,7 +115,7 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
       }
     }
     return cols;
-  }, [state, mode, fmpIncome, projecting, draft, defaults]);
+  }, [state, mode, projecting, draft, defaults]);
 
   if (state.status === "loading") {
     return (
@@ -144,7 +141,7 @@ export default function FinancialStatements({ symbol, fmpIncome }: { symbol: str
     setProjecting((x) => !x);
     setMode("annual");
   };
-  const checkList = [t.fin.checks.gross, t.fin.checks.balance, t.fin.checks.source].join("; ");
+  const checkList = [t.fin.checks.gross, t.fin.checks.balance].join("; ");
 
   return (
     <div className="space-y-4">

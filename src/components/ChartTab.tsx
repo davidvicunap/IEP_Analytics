@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { keyLevels, type KeyLevels } from "@/lib/levels";
@@ -9,6 +9,7 @@ import type { Candle, DataIssue } from "@/lib/types";
 import type { ChartLevel } from "./PriceChart";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "./TradingViewWidget";
 import { Explain, IssueNote, Panel, Segmented } from "./ui";
+import { ChevronDownIcon } from "./icons";
 import ChartPlaceholder from "./ChartPlaceholder";
 import type { ChartSettings } from "@/lib/chartSettings";
 
@@ -39,8 +40,27 @@ export default function ChartTab({
 }) {
   const { t, lang } = useI18n();
   const theme = useResolvedTheme();
-  const [view, setView] = useState<"tv" | "simple">("tv");
-  const [showLevels, setShowLevels] = useState(true);
+  const [view, setViewState] = useState<"tv" | "simple">("simple");
+  // Remembered per browser. Without a choice: TradingView on wide screens, the simple chart on
+  // phones (an embedded TradingView chart takes over touch scrolling).
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(VIEW_KEY);
+    } catch {
+      saved = null;
+    }
+    setViewState(saved === "tv" || saved === "simple" ? saved : window.matchMedia("(min-width: 1024px)").matches ? "tv" : "simple");
+  }, []);
+  const setView = (v: "tv" | "simple") => {
+    setViewState(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* blocked storage: the choice lasts for this page */
+    }
+  };
+  const [showLevels, setShowLevels] = useState(false);
   const levels = useMemo(() => (history.length ? keyLevels(history) : null), [history]);
   const lines = useMemo<ChartLevel[]>(
     () =>
@@ -52,8 +72,7 @@ export default function ChartTab({
   const tv = tvSymbol(symbol, exchange);
 
   return (
-    <div className="space-y-4">
-      <Panel>
+    <Panel title={t.chart.priceTitle}>
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Segmented
             label={t.chart.viewLabel}
@@ -75,7 +94,7 @@ export default function ChartTab({
           <>
             <TradingViewWidget
               widget="advanced-chart"
-              heightClass="h-[min(72vh,720px)] min-h-[420px]"
+              heightClass="h-[min(64vh,600px)] min-h-[400px]"
               fullscreen={{ enter: t.chart.fullscreen, exit: t.chart.exitFullscreen }}
               title={fill(t.chart.tvTitle, { s: symbol })}
               attribution={fill(t.chart.tvAttribution, { s: symbol })}
@@ -105,19 +124,30 @@ export default function ChartTab({
         ) : (
           <PriceChart history={history} levels={lines} settings={chart} onSettings={onChart} />
         )}
-      </Panel>
-
-      {levels && <LevelsPanel k={levels} lang={lang} />}
-      {signals}
-    </div>
+      {(levels || signals) && (
+        <details className="group mt-4 border-t border-line pt-1">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium [&::-webkit-details-marker]:hidden">
+            {t.chart.levels.more}
+            <ChevronDownIcon size={16} className="text-muted transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-6 pb-2 pt-2">
+            {levels && <LevelsBody k={levels} lang={lang} />}
+            {signals}
+          </div>
+        </details>
+      )}
+    </Panel>
   );
 }
 
-function LevelsPanel({ k, lang }: { k: KeyLevels; lang: Lang }) {
+const VIEW_KEY = "iep.chartView";
+
+function LevelsBody({ k, lang }: { k: KeyLevels; lang: Lang }) {
   const { t } = useI18n();
   const L = t.chart.levels;
   return (
-    <Panel title={L.title}>
+    <section aria-labelledby="levels-title">
+      <h3 id="levels-title" className="text-sm font-semibold">{L.title}</h3>
       <p className="text-sm">{L.intro}</p>
       <p className="mt-1 text-xs text-muted">{fill(L.price, { p: fmtPrice(k.close, lang), d: fmtDate(k.date, lang) })}</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -162,6 +192,6 @@ function LevelsPanel({ k, lang }: { k: KeyLevels; lang: Lang }) {
       </ul>
       <Explain>{L.explain}</Explain>
       <p className="mt-2 text-[11px] text-muted">{fill(L.method, { tol: fmtPrice(k.tolerance, lang) })}</p>
-    </Panel>
+    </section>
   );
 }

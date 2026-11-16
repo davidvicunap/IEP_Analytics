@@ -8,10 +8,8 @@ import { unstable_cache } from "next/cache";
 import { REMEMBER, currentQuoteTtl, isPaused, pause, rememberIssue, rememberKey, rememberedIssue } from "./fmpGuard";
 import { recordProviderCall } from "./quota";
 import type {
-  AnnualIncome,
   Candle,
   DataIssue,
-  Fundamentals,
   Profile,
   Quote,
   Result,
@@ -239,49 +237,6 @@ export function fmpProfile(symbol: string): Promise<Result<Profile>> {
         country: str(p.country),
       },
     };
-  });
-}
-
-export async function fmpFundamentals(symbol: string): Promise<Result<Fundamentals>> {
-  const first = (path: string) =>
-    attempt(path, async () => {
-      const { rows, fetchedAt } = await get(path, { symbol }, TTL.fundamentals);
-      return { data: rows[0] ?? {}, fetchedAt };
-    });
-  const [ratios, metrics] = await Promise.all([first("ratios-ttm"), first("key-metrics-ttm")]);
-  if (!ratios.ok && !metrics.ok) return ratios;
-  const r = ratios.ok ? ratios.data : {};
-  const m = metrics.ok ? metrics.data : {};
-  return {
-    ok: true,
-    fetchedAt: ratios.ok ? ratios.fetchedAt : (metrics as { fetchedAt: string }).fetchedAt,
-    data: {
-      pe: num(r.priceToEarningsRatioTTM) ?? num(r.peRatioTTM),
-      ps: num(r.priceToSalesRatioTTM),
-      pb: num(r.priceToBookRatioTTM),
-      netMargin: num(r.netProfitMarginTTM),
-      grossMargin: num(r.grossProfitMarginTTM),
-      roe: num(m.returnOnEquityTTM) ?? num(r.returnOnEquityTTM),
-      debtToEquity: num(r.debtToEquityRatioTTM) ?? num(r.debtEquityRatioTTM),
-      currentRatio: num(r.currentRatioTTM) ?? num(m.currentRatioTTM),
-      dividendYield: num(r.dividendYieldTTM),
-    },
-  };
-}
-
-export function fmpIncome(symbol: string): Promise<Result<AnnualIncome[]>> {
-  return attempt("income-statement", async () => {
-    const { rows, fetchedAt } = await get("income-statement", { symbol, limit: "5" }, TTL.fundamentals);
-    const data = rows
-      .map((r) => ({
-        year: str(r.fiscalYear) ?? String(r.calendarYear ?? str(r.date)?.slice(0, 4) ?? ""),
-        revenue: num(r.revenue) ?? 0,
-        netIncome: num(r.netIncome) ?? 0,
-        eps: num(r.eps),
-        filingDate: (str(r.filingDate) ?? str(r.fillingDate))?.slice(0, 10),
-      }))
-      .reverse();
-    return { data, fetchedAt };
   });
 }
 

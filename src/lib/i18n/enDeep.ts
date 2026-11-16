@@ -481,6 +481,7 @@ const enDeep: DeepDict = {
     adjust: "Change the assumptions in the DCF",
   },
   valuation: {
+    expectationsView: "Analysts",
     history: {
       view: "History",
       title: "Multiples versus their own history (5 years)",

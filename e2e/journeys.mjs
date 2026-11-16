@@ -35,6 +35,7 @@ async function page({ width = 1280, height = 900, lang = "es", theme = "light", 
       if (!sessionStorage.getItem("seeded")) {
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
+        localStorage.setItem("iep.chartView", "simple");
         sessionStorage.setItem("seeded", "1");
       }
     },
@@ -428,7 +429,8 @@ await test("chart: TradingView keeps its full height after its script resizes th
       body: `(()=>{const c=document.currentScript.parentElement;c.style.cssText="height:100%;width:100%";const f=document.createElement("iframe");f.style.cssText="display:block;height:100%;width:100%";c.replaceChildren(f);})();`,
     }),
   );
-  await p.goto(base + "/stock/AAPL?tab=chart");
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("button", { name: "TradingView (interactivo)" }).click();
   await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
   const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
   assert(h >= 400, `chart is ${h}px tall`);
@@ -569,17 +571,22 @@ await test("methodology: reachable from the footer, contents link to sections, i
 await test("stock: tabs are history entries; keyboard Home/End; chart settings in the URL", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("tab", { name: "Gráfico", exact: true }).click();
-  await p.waitForURL(/tab=chart/);
+  assert((await p.getByRole("tab").count()) === 5, "five tabs");
+  await p.getByRole("tab", { name: "Negocio", exact: true }).click();
+  await p.waitForURL(/tab=business/);
+  await p.getByRole("button", { name: "Estados financieros" }).click();
+  await p.waitForURL(/view=statements/);
+  await p.goBack();
+  await p.waitForURL((u) => u.search.includes("tab=business") && !u.search.includes("view="));
   await p.goBack();
   await p.waitForURL((u) => !u.search.includes("tab="));
   assert((await p.getByRole("tab", { name: "Resumen" }).getAttribute("aria-selected")) === "true", "Back didn't return to overview");
   await p.goForward();
-  await p.waitForURL(/tab=chart/);
-  await p.getByRole("tab", { name: "Gráfico", exact: true }).focus();
+  await p.waitForURL(/tab=business/);
+  await p.getByRole("tab", { name: "Negocio", exact: true }).focus();
   await p.keyboard.press("End");
-  await p.waitForURL(/tab=news/);
-  assert(await p.evaluate(() => document.activeElement?.id === "tab-news"), "End didn't move focus");
+  await p.waitForURL(/tab=research/);
+  assert(await p.evaluate(() => document.activeElement?.id === "tab-research"), "End didn't move focus");
   await p.keyboard.press("Home");
   await p.waitForURL((u) => !u.search.includes("tab="));
   await p.waitForFunction(() => document.getElementById("tab-overview")?.getAttribute("aria-selected") === "true");
@@ -590,6 +597,12 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   await p.waitForURL(/ind=sma%2Crsi%2Cvolume|ind=sma,rsi,volume/);
   await p.reload();
   assert((await p.locator("#panel-overview").getByRole("button", { name: "6M" }).getAttribute("aria-pressed")) === "true", "range lost on reload");
+  // Links from before the merge land on the new place, without an extra history entry.
+  await p.goto(base + "/stock/AAPL?tab=news");
+  await p.waitForURL(/tab=filings&view=news/);
+  assert((await p.getByRole("tab", { name: "Filings" }).getAttribute("aria-selected")) === "true", "old news link");
+  await p.goto(base + "/stock/AAPL?tab=chart");
+  await p.waitForURL((u) => !u.search.includes("tab="));
   await p.context().close();
 });
 
@@ -659,7 +672,7 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
       }),
     ),
   );
-  await p.goto(base + "/stock/AAPL?tab=fundamentals");
+  await p.goto(base + "/stock/AAPL?tab=business");
   const card = p.locator("article", { hasText: "Beneficio neto" });
   await card.waitFor();
   assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
@@ -670,17 +683,49 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
   await p.context().close();
 });
 
+await test("at a glance: five lines from SEC figures, each opening its tab; gaps said plainly", async () => {
+  const p = await page();
+  const answer = { ok: true, fetchedAt: new Date().toISOString(), data: { symbol: "AAPL", fiscal: "FY2026", industry: "Electronic Computers", priceAt: new Date().toISOString(), historyFrom: "2021-11-30", issues: {}, missing: ["growth"], points: [
+    { key: "quality", level: "good", passed: 7, judged: 8 },
+    { key: "profitability", level: "good", metric: "roic", value: 0.52, compare: 0.11, peers: 41 },
+    { key: "debt", level: "weak", metric: "debtToEquity", value: 1.45, compare: 0.42, peers: 41 },
+    { key: "valuation", level: "weak", metric: "pe", value: 35.2, compare: 28.4 },
+  ] } };
+  await p.route(/\/api\/verdict\//, (r) => r.fulfill(json(answer)));
+  await p.goto(base + "/stock/AAPL");
+  const card = p.locator("#glance");
+  await card.getByText("Un negocio de alta calidad según las pruebas de Buffett").waitFor();
+  await card.getByText("ROIC 52% · mediana de la industria 11%").waitFor();
+  await card.getByText("PER 35.2x · media de 5 años 28.4x").waitFor();
+  await card.getByText("Sin datos suficientes para: crecimiento.").waitFor();
+  await card.getByRole("button", { name: /Cotiza por encima de su media de 5 años/ }).click();
+  await p.waitForURL(/tab=valuation/);
+  await p.goBack();
+  await p.locator("#glance").getByRole("button", { name: /Más deuda que la mayoría/ }).click();
+  await p.waitForURL(/tab=business/);
+  await p.goBack();
+  await axe(p);
+  await p.context().close();
+});
+
+await test("at a glance: when no source can answer, the card says why", async () => {
+  const p = await page();
+  await p.goto(base + "/stock/AAPL"); // demo: no SEC database
+  await p.locator("#glance").getByText("La fuente de datos no está configurada.").waitFor();
+  await p.context().close();
+});
+
 // ---- Data tabs (the shared resource state machine, lib/resource.ts) -----------------------------
 
 await test("data tabs: an expired beta session asks to sign in again and comes back to the same tab", async () => {
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
   await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
-  await p.goto(base + "/stock/AAPL?tab=fundamentals");
+  await p.goto(base + "/stock/AAPL?tab=business");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
   const href = await link.getAttribute("href");
-  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dfundamentals", `href ${href}`);
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness", `href ${href}`);
   assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
   await axe(p);
   await p.context().close();
@@ -692,7 +737,7 @@ await test("data tabs: a failed read offers a retry that asks again in place", a
   await p.route(/\/api\/sec\/insiders\//, (r) =>
     ++calls === 1 ? r.fulfill({ status: 502, contentType: "text/html", body: "<html>bad gateway</html>" }) : r.fulfill(json({ ok: false, error: "not_configured" }, 503)),
   );
-  await p.goto(base + "/stock/AAPL?tab=insiders");
+  await p.goto(base + "/stock/AAPL?tab=filings&view=insiders");
   await p.getByText("El proveedor de datos no responde. Inténtalo de nuevo más tarde.").waitFor();
   await p.getByRole("button", { name: "Reintentar" }).click();
   await p.getByText("La fuente de datos no está configurada.").waitFor();
@@ -713,7 +758,7 @@ await test("every stock opens: no price, last close or stored price, each said p
   await none.getByText("Price unavailable").waitFor();
   assert((await none.innerText()).includes("isn't included in the current data plan"), await none.innerText());
   await none.getByRole("button", { name: "See the live chart" }).click();
-  await p.waitForURL(/tab=chart/);
+  await p.locator("#price").waitFor();
   assert((await p.getByRole("tab", { name: "Filings" }).count()) === 1, "tabs missing");
   await axe(p);
   // Last daily close and stored price: the price is shown, labelled with what it is.
@@ -969,7 +1014,7 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await box.press("Enter");
     await p.waitForURL(/\/stock\//);
     await p.getByRole("heading", { level: 1 }).waitFor();
-    await p.getByText(lang === "es" ? "En pocas palabras" : "In a nutshell").waitFor();
+    await p.getByRole("heading", { name: lang === "es" ? "De un vistazo" : "At a glance" }).waitFor();
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
@@ -985,12 +1030,12 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
 await test("language switch loads the other dictionary and keeps the page working", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
-  await p.getByText("En pocas palabras").waitFor();
+  await p.getByRole("heading", { name: "De un vistazo" }).waitFor();
   await p.getByRole("button", { name: /^ES,/ }).click();
-  await p.getByText("In a nutshell").waitFor();
+  await p.getByRole("heading", { name: "At a glance" }).waitFor();
   assert((await p.evaluate(() => document.documentElement.lang)) === "en", "html lang not updated");
   await p.reload();
-  await p.getByText("In a nutshell").waitFor(); // remembered (cookie)
+  await p.getByRole("heading", { name: "At a glance" }).waitFor(); // remembered (cookie)
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });

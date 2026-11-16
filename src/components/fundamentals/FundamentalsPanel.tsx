@@ -23,10 +23,10 @@ const money = (v: number) => (v < 0 ? `−$${fmtBig(-v)}` : `$${fmtBig(v)}`);
 const secIndexUrl = (cik: number, accn: string) => `https://www.sec.gov/Archives/edgar/data/${cik}/${accn.replace(/-/g, "")}/`;
 
 /** Fundamentals for a long-term investor: quality, growth, expectations and 10-year trends. */
-export default function FundamentalsPanel({ symbol, price }: { symbol: string; price: number | null }) {
+/** Business tab: is it a good business (quality tests), how it grew, its trends and ratios against the industry. */
+export default function FundamentalsPanel({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
-  const { state: quality, retry: retryQuality } = useResource<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`);
-  const { state: analysts, retry: retryAnalysts } = useResource<AnalystsPayload>(`/api/analysts/${encodeURIComponent(symbol)}`);
+  const { state: quality, retry: retryQuality } = useResource<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`, { shared: true });
   const q = quality.status === "ok" ? quality.data : null;
 
   return (
@@ -43,17 +43,23 @@ export default function FundamentalsPanel({ symbol, price }: { symbol: string; p
       ) : (
         <QualitySection q={quality.data} lang={lang} />
       )}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {q && <PastGrowth q={q} lang={lang} />}
-        <ExpectedGrowthPanel q={q} analysts={analysts} onRetry={retryAnalysts} lang={lang} />
-      </div>
-
-      <AnalystsSection analysts={analysts} onRetry={retryAnalysts} price={price} lastFiscal={q?.lastFiscal ?? null} lang={lang} />
-
+      {q && <PastGrowth q={q} lang={lang} />}
       {q && q.trends.length > 0 && <Trends q={q} lang={lang} />}
-
       <RatiosPanel symbol={symbol} />
+    </div>
+  );
+}
+
+/** Valuation tab: what analysts expect (growth implied by their estimates, price targets, ratings). */
+export function ExpectationsPanel({ symbol, price }: { symbol: string; price: number | null }) {
+  const { lang } = useI18n();
+  const { state: quality } = useResource<QualityPayload>(`/api/sec/quality/${encodeURIComponent(symbol)}`, { shared: true });
+  const { state: analysts, retry: retryAnalysts } = useResource<AnalystsPayload>(`/api/analysts/${encodeURIComponent(symbol)}`);
+  const q = quality.status === "ok" ? quality.data : null;
+  return (
+    <div className="space-y-4">
+      <ExpectedGrowthPanel q={q} analysts={analysts} onRetry={retryAnalysts} lang={lang} />
+      <AnalystsSection analysts={analysts} onRetry={retryAnalysts} price={price} lastFiscal={q?.lastFiscal ?? null} lang={lang} />
     </div>
   );
 }

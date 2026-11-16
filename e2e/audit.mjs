@@ -24,9 +24,9 @@ const WATCHLIST = ["AAPL", "MSFT", "NVDA", "BRK.B", "GOOGL", "JPM"];
 const PAGES = [
   { name: "home", path: "/" },
   { name: "stock", path: "/stock/AAPL" },
-  { name: "chart", path: "/stock/AAPL", tab: "chart" },
-  { name: "fundamentals", path: "/stock/AAPL", tab: "fundamentals" },
-  { name: "news", path: "/stock/AAPL", tab: "news" },
+  { name: "business", path: "/stock/AAPL", tab: "business" },
+  { name: "valuation", path: "/stock/AAPL", tab: "valuation" },
+  { name: "filings", path: "/stock/AAPL", tab: "filings" },
   { name: "charts", path: "/charts" },
   { name: "research", path: "/research" },
   { name: "screener", path: "/screener" },
@@ -52,7 +52,10 @@ const WIDTHS = quick
     ];
 const COMBOS = quick ? [["es", "light"], ["en", "dark"]] : [["es", "light"], ["es", "dark"], ["en", "light"], ["en", "dark"]];
 
-const TAB_LABEL = { es: { chart: "Gráfico", fundamentals: "Fundamentales", news: "Noticias", research: "Mi análisis" }, en: { chart: "Chart", fundamentals: "Fundamentals", news: "News", research: "My research" } };
+const TAB_LABEL = {
+  es: { business: "Negocio", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
+  en: { business: "Business", valuation: "Valuation", filings: "Filings", research: "My research" },
+};
 
 async function open(browser, page, width, lang, theme) {
   const ctx = await browser.newContext({
