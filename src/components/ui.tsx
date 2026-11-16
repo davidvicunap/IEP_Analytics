@@ -28,9 +28,9 @@ export function Panel({
   id?: string;
 }) {
   return (
-    <section id={id} className={`rounded-xl border border-line bg-panel p-4 sm:p-5 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
+    <section id={id} className={`rounded-2xl border border-line bg-panel p-5 sm:p-6 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
       {title && (
-        <div className="mb-4">
+        <div className="mb-5">
           <div className="flex items-center justify-between gap-3 min-h-6">
             <h2 id={id ? `${id}-title` : undefined} className="section-title">
               {title}
@@ -214,7 +214,7 @@ export function Change({ value, pct, className = "", pill = false }: { value?: n
   const { lang } = useI18n();
   const up = pct >= 0;
   const abs = value !== undefined ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${fmtPrice(Math.abs(value), lang).replace(/^\$/, "")} ` : "";
-  const tone = pill ? (up ? "bg-up-bg text-up rounded-md px-1.5 py-0.5 justify-end" : "bg-down-bg text-down rounded-md px-1.5 py-0.5 justify-end") : up ? "text-up" : "text-down";
+  const tone = `${up ? "text-up" : "text-down"}${pill ? " justify-end" : ""}`;
   return (
     <span className={`num inline-flex items-center gap-1 whitespace-nowrap font-medium ${tone} ${className}`}>
       <DirectionGlyph up={up} />
@@ -280,9 +280,10 @@ export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
 
 // ---- Scores -----------------------------------------------------------------------------
 
+// Calm by default: only a level that needs attention gets full-strength text.
 const LEVEL_TEXT: Record<Level, string> = {
-  good: "text-fg",
-  ok: "text-fg",
+  good: "text-muted",
+  ok: "text-muted",
   bad: "text-fg",
   neutral: "text-muted",
 };
@@ -424,7 +425,7 @@ function ToastView({ item, closeLabel }: { item: ToastItem; closeLabel: string }
   }, [item, paused]);
   return (
     <div
-      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-xl border border-line bg-panel px-4 py-2 shadow-lg"
+      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-2 shadow-lg"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

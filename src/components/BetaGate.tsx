@@ -62,7 +62,7 @@ export default function BetaGate({ next }: { next: string }) {
         <ThemeToggle />
       </header>
       <main id="main" className="flex-1 flex items-center justify-center py-10">
-        <div className="w-full max-w-md rounded-xl border border-line bg-panel p-6 sm:p-8">
+        <div className="w-full max-w-md rounded-2xl border border-line bg-panel p-6 sm:p-8">
           <div className="flex items-center gap-2 font-semibold tracking-tight text-lg">
             <LogoMark size={28} />
             <span>

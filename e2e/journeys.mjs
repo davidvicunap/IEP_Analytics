@@ -430,7 +430,7 @@ await test("chart: TradingView keeps its full height after its script resizes th
     }),
   );
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("button", { name: "TradingView (interactivo)" }).click();
+  await p.getByRole("button", { name: "TradingView", exact: true }).click();
   await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
   const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
   assert(h >= 400, `chart is ${h}px tall`);
@@ -593,7 +593,8 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   const overview = p.locator("#panel-overview");
   await overview.getByRole("button", { name: "6M" }).click();
   await p.waitForURL(/range=6M/);
-  await overview.getByRole("button", { name: /RSI/ }).click();
+  await overview.getByRole("button", { name: /^Indicadores/ }).click();
+  await overview.getByRole("checkbox", { name: /^RSI/ }).click();
   await p.waitForURL(/ind=sma%2Crsi%2Cvolume|ind=sma,rsi,volume/);
   await p.reload();
   assert((await p.locator("#panel-overview").getByRole("button", { name: "6M" }).getAttribute("aria-pressed")) === "true", "range lost on reload");
@@ -616,20 +617,21 @@ await test("stock: chart keeps one canvas set through control and theme changes 
   const before = await count();
   const ov = p.locator("#panel-overview");
   await p.waitForTimeout(300);
+  await ov.getByRole("button", { name: /^Indicadores/ }).click();
   for (let i = 0; i < 3; i++) {
     await ov.getByRole("button", { name: "Línea" }).click();
     await ov.getByRole("button", { name: "Velas" }).click();
-    await ov.getByRole("button", { name: /Bandas de Bollinger/ }).click();
-    await ov.getByRole("button", { name: /Bandas de Bollinger/ }).click();
+    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
+    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
     await p.getByRole("button", { name: /Tema/ }).click();
   }
   await p.waitForTimeout(500);
   const after = await count();
   assert(after === before, `canvases ${before} → ${after}`);
-  await ov.getByRole("button", { name: /MACD/ }).click();
+  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
   await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length > n, before);
   const withPane = await panesOf();
-  await ov.getByRole("button", { name: /MACD/ }).click();
+  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
   await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length === n, before);
   assert(withPane > before, `pane add/remove ${before} → ${withPane} → ${await count()}`);
   assert(p.errors.length === 0, p.errors.join(" | "));

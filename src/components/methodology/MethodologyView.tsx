@@ -13,7 +13,7 @@ export default function MethodologyView() {
         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em]">{M.title}</h1>
         <p className="text-[15px] leading-relaxed text-muted">{M.intro}</p>
       </header>
-      <nav aria-label={M.contents} className="rounded-xl border border-line bg-panel p-4">
+      <nav aria-label={M.contents} className="rounded-2xl border border-line bg-panel p-4">
         <p className="control-label mb-2">{M.contents}</p>
         <ol className="grid gap-x-6 gap-y-0.5 text-sm sm:grid-cols-2">
           {M.sections.map((s) => (

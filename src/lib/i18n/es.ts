@@ -131,6 +131,7 @@ const es = {
     scoreLegend: { good: "Bien", ok: "Normal", bad: "Cuidado", neutral: "Info" },
   },
   chart: {
+    tradingviewShort: "TradingView",
     priceTitle: "Precio",
     rangeLabel: "Periodo",
     styleLabel: "Tipo",

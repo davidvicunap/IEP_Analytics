@@ -8,13 +8,13 @@
  * and panel-2 in its theme.
  */
 :root {
-  --bg: #f6f6f7;
+  --bg: #f7f7f5;
   --panel: #ffffff;
-  --panel-2: #f1f1f3;
-  --border: #e3e3e7;
-  --border-strong: #cfcfd5;
-  --text: #111214;
-  --muted: #5f636b;
+  --panel-2: #f3f3f0;
+  --border: #e6e6e1;
+  --border-strong: #d1d1cb;
+  --text: #15161a;
+  --muted: #5e6168;
   --accent: #b45309;
   --accent-contrast: #ffffff;
   --up: #11793c;
@@ -32,8 +32,8 @@
   --series-4: #eda100;
   --series-5: #e87ba4;
   --series-6: #008300;
-  --grid: #ececef;
-  --axis: #c9c9cf;
+  --grid: #efefeb;
+  --axis: #cfcfc9;
   color-scheme: light;
 }
 
@@ -145,11 +145,19 @@ body {
 
 /* Section heading: sentence case, quiet weight. */
 .section-title {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.4;
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
   color: var(--text);
+}
+
+/* Headline figures (the price): large, tight, tabular. */
+.figure {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 /* Small caption above a control group. */

@@ -101,7 +101,7 @@ function ChartsPromo() {
     { label: t.home.chartsPresets.pe, href: "/charts?s=NVDA,MSFT,AAPL&m=pe&f=monthly&k=line" },
   ];
   return (
-    <section aria-labelledby="charts-promo-title" className="order-3 lg:order-none rounded-xl border border-line bg-panel p-4 sm:p-5">
+    <section aria-labelledby="charts-promo-title" className="order-3 lg:order-none rounded-2xl border border-line bg-panel p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-panel-2 text-muted" aria-hidden="true">
           <ChartIcon size={18} />

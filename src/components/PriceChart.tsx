@@ -30,7 +30,7 @@ import {
 } from "@/lib/chartSettings";
 import type { Candle } from "@/lib/types";
 import { ChevronDownIcon, SlidersIcon } from "./icons";
-import { Explain, Segmented, ToggleChip } from "./ui";
+import { Segmented } from "./ui";
 
 export interface ChartLevel {
   price: number;
@@ -333,49 +333,51 @@ export default function PriceChart({
 
   return (
     <div>
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-3">
-        <ControlGroup label={t.chart.rangeLabel}>
-          <Segmented
-            label={t.chart.rangeLabel}
-            value={range}
-            onChange={(r) => set({ range: r })}
-            options={RANGES.map((r) => ({ value: r, label: t.chart.ranges[r], title: t.chart.rangeNames[r] }))}
-          />
-        </ControlGroup>
-        <ControlGroup label={t.chart.styleLabel}>
-          <Segmented
-            label={t.chart.styleLabel}
-            value={style}
-            onChange={(s) => set({ style: s })}
-            options={[
-              { value: "candles", label: t.chart.candles },
-              { value: "line", label: t.chart.line },
-            ]}
-          />
-        </ControlGroup>
+      {/* One row of controls; the indicators open as a list, each with what it means. */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <Segmented
+          label={t.chart.rangeLabel}
+          value={range}
+          onChange={(r) => set({ range: r })}
+          options={RANGES.map((r) => ({ value: r, label: t.chart.ranges[r], title: t.chart.rangeNames[r] }))}
+        />
+        <Segmented
+          label={t.chart.styleLabel}
+          value={style}
+          onChange={(s) => set({ style: s })}
+          options={[
+            { value: "candles", label: t.chart.candles },
+            { value: "line", label: t.chart.line },
+          ]}
+        />
         <button
           type="button"
-          className="sm:hidden ml-auto inline-flex items-center gap-2 h-11 px-3 rounded-lg border border-line text-sm font-semibold"
+          className="ml-auto inline-flex items-center gap-2 h-11 sm:h-9 px-3 rounded-lg border border-line text-[13px] font-medium hover:border-line-strong"
           aria-expanded={showInds}
           aria-controls={`${captionId}-inds`}
           onClick={() => setShowInds((v) => !v)}
         >
-          <SlidersIcon size={18} />
+          <SlidersIcon size={16} />
           {t.chart.indicators}
-          {active.length > 0 && <span className="num text-xs text-muted">({active.length})</span>}
-          <ChevronDownIcon size={16} className={showInds ? "rotate-180" : ""} />
+          {active.length > 0 && <span className="num text-xs text-muted">{active.length}</span>}
+          <ChevronDownIcon size={14} className={`text-muted transition-transform ${showInds ? "rotate-180" : ""}`} />
         </button>
       </div>
-      <div id={`${captionId}-inds`} className={`${showInds ? "block" : "hidden"} sm:block mb-3`}>
-        <p className="hidden sm:block control-label mb-1.5">{t.chart.indicators}</p>
-        <div role="group" aria-label={t.chart.indicators} className="flex flex-wrap gap-2">
+      {showInds && (
+        <ul id={`${captionId}-inds`} aria-label={t.chart.indicators} className="mb-3 grid gap-1 rounded-xl border border-line p-2 sm:grid-cols-2">
           {INDICATORS.map((k) => (
-            <ToggleChip key={k} on={inds.includes(k)} onClick={() => toggle(k)}>
-              {t.chart[k].name}
-            </ToggleChip>
+            <li key={k}>
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-panel-2">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--text)]" checked={inds.includes(k)} onChange={() => toggle(k)} />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{t.chart[k].name}</span>
+                  <span className="block text-xs leading-relaxed text-muted">{t.chart[k].text}</span>
+                </span>
+              </label>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      )}
 
       {/* Crosshair legend: the bar under the pointer, or the latest one. */}
       {bar && (
@@ -405,7 +407,7 @@ export default function PriceChart({
       )}
 
       <figure aria-labelledby={captionId} className="m-0">
-        <div ref={elRef} className="w-full rounded-lg overflow-hidden border border-line touch-pan-y" style={{ height: chartHeight(inds) }} />
+        <div ref={elRef} className="w-full overflow-hidden touch-pan-y" style={{ height: chartHeight(inds) }} />
         <figcaption id={captionId} className="sr-only">
           {summary}
         </figcaption>
@@ -418,36 +420,6 @@ export default function PriceChart({
 
       <ChartData history={visible} lang={lang} />
 
-      {active.length > 0 && (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {active.map((k) => (
-            <div key={k} className="rounded-lg bg-panel-2 px-3 py-2">
-              <p className="text-sm font-semibold flex items-center gap-2">
-                {k === "sma" ? (
-                  <>
-                    <span className="h-0.5 w-4 bg-info inline-block" aria-hidden="true" /> {t.chart.sma50}
-                    <span className="h-0.5 w-4 bg-warn inline-block" aria-hidden="true" /> {t.chart.sma200}
-                  </>
-                ) : (
-                  t.chart[k].name
-                )}
-              </p>
-              <Explain>{t.chart[k].text}</Explain>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ControlGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="control-label mb-1.5" aria-hidden="true">
-        {label}
-      </p>
-      {children}
     </div>
   );
 }
