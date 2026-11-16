@@ -37,6 +37,21 @@ const es: MethodologyText = {
       ],
     },
     {
+      id: "glance",
+      title: "De un vistazo",
+      body: [
+        "Cinco frases en el resumen de cada acción, cada una medida igual que en el resto de la app, nunca con reglas fijas del tipo «un PER bajo es bueno»:",
+        {
+          list: [
+            "Calidad: las pruebas de Buffett (alta, media o baja; ver más abajo).",
+            "Crecimiento, rentabilidad y deuda: el último año fiscal frente a su industria (mismo código SIC de la SEC). Tercio superior, medio o inferior. Crecimiento = ingresos (BPA en bancos y aseguradoras); rentabilidad = ROIC (ROE en financieras); deuda = deuda a largo plazo ÷ patrimonio (patrimonio ÷ activos en financieras).",
+            "Valoración: el PER de hoy (precio/ventas si no hay beneficios; precio/valor contable en financieras) frente a su propia historia de 5 años. Por debajo o por encima de su media significa a más de una desviación estándar.",
+          ],
+        },
+        "Si falta un dato para juzgar algo, esa frase no aparece y se dice cuál falta.",
+      ],
+    },
+    {
       id: "prices",
       title: "Precios y el límite diario",
       body: [
@@ -197,6 +212,21 @@ const en: MethodologyText = {
           ],
         },
         "Sections that use FMP sit behind the beta access; SEC ones are public.",
+      ],
+    },
+    {
+      id: "glance",
+      title: "At a glance",
+      body: [
+        "Five sentences at the top of every stock, each measured the same way as everywhere else in the app, never with fixed rules like “a low P/E is good”:",
+        {
+          list: [
+            "Quality: the Buffett tests (high, mixed or low; see below).",
+            "Growth, profitability and debt: the latest fiscal year against its industry (same SEC SIC code). Top, middle or bottom third. Growth = revenue (EPS for banks and insurers); profitability = ROIC (ROE for financials); debt = long-term debt ÷ equity (equity ÷ assets for financials).",
+            "Valuation: today's P/E (price/sales without profits; price/book for financials) against its own 5-year history. Below or above its average means by more than one standard deviation.",
+          ],
+        },
+        "When a figure needed to judge something is missing, that sentence isn't shown and the card says which one.",
       ],
     },
     {

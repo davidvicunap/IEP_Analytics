@@ -1,67 +1,9 @@
 // Turns raw numbers into simple traffic-light verdicts.
 // Text lives in the i18n dictionaries; this file only returns keys.
-import type { AnnualIncome, Candle, Fundamentals } from "./types";
+import type { Candle } from "./types";
 import { last, macd, rsi, sma } from "./indicators";
 
 export type Level = "good" | "ok" | "bad" | "neutral";
-
-export type MetricKey =
-  | "pe" | "ps" | "pb" | "netMargin" | "grossMargin" | "roe"
-  | "debtToEquity" | "currentRatio" | "dividendYield" | "revenueGrowth";
-
-export interface MetricScore {
-  key: MetricKey;
-  value: number | undefined;
-  level: Level;
-  format: "x" | "pct";
-}
-
-/**
- * Fixed rules of thumb (heuristics), the same for every company and sector: [goodIf, badIf],
- * direction "low" means lower is better. The UI shows them next to every verdict.
- */
-export const RULES: Record<MetricKey, { dir: "low" | "high"; good: number; bad: number; format: "x" | "pct" }> = {
-  pe: { dir: "low", good: 15, bad: 30, format: "x" },
-  ps: { dir: "low", good: 2, bad: 8, format: "x" },
-  pb: { dir: "low", good: 3, bad: 10, format: "x" },
-  netMargin: { dir: "high", good: 0.15, bad: 0.05, format: "pct" },
-  grossMargin: { dir: "high", good: 0.4, bad: 0.2, format: "pct" },
-  roe: { dir: "high", good: 0.15, bad: 0.08, format: "pct" },
-  debtToEquity: { dir: "low", good: 1, bad: 2, format: "x" },
-  currentRatio: { dir: "high", good: 1.5, bad: 1, format: "x" },
-  dividendYield: { dir: "high", good: 0.02, bad: 0, format: "pct" },
-  revenueGrowth: { dir: "high", good: 0.1, bad: 0, format: "pct" },
-};
-
-export function scoreMetric(key: MetricKey, value: number | undefined): MetricScore {
-  const rule = RULES[key];
-  let level: Level = "neutral";
-  if (value !== undefined && Number.isFinite(value)) {
-    if ((key === "pe" || key === "ps" || key === "pb") && value <= 0) level = "bad"; // losses / negative equity
-    else if (key === "dividendYield") level = value > 0 ? "good" : "neutral"; // not paying isn't bad
-    else if (rule.dir === "low") level = value <= rule.good ? "good" : value > rule.bad ? "bad" : "ok";
-    else level = value >= rule.good ? "good" : value < rule.bad ? "bad" : "ok";
-  }
-  return { key, value, level, format: rule.format };
-}
-
-export function revenueGrowth(income: AnnualIncome[]): number | undefined {
-  if (income.length < 2) return undefined;
-  const a = income[income.length - 2].revenue;
-  const b = income[income.length - 1].revenue;
-  return a > 0 ? b / a - 1 : undefined;
-}
-
-export function scoreFundamentals(f: Fundamentals, income: AnnualIncome[]): MetricScore[] {
-  const keys: [MetricKey, number | undefined][] = [
-    ["pe", f.pe], ["ps", f.ps], ["pb", f.pb],
-    ["revenueGrowth", revenueGrowth(income)],
-    ["netMargin", f.netMargin], ["grossMargin", f.grossMargin], ["roe", f.roe],
-    ["debtToEquity", f.debtToEquity], ["currentRatio", f.currentRatio],
-    ["dividendYield", f.dividendYield],
-  ];
-  return keys.map(([k, v]) => scoreMetric(k, v)).filter((m) => m.value !== undefined);
-}
 
 export type SignalKey =
   | "rsiOverbought" | "rsiOversold" | "rsiNeutral"
@@ -135,49 +77,5 @@ export function technicalSignals(history: Candle[]): Signal[] {
   }
   const h = last(macd(closes).hist);
   if (h != null) out.push(h >= 0 ? { key: "macdBull", level: "good" } : { key: "macdBear", level: "bad" });
-  return out;
-}
-
-export type SummaryKey =
-  | "valCheap" | "valFair" | "valExpensive" | "valLoss"
-  | "growFast" | "growSlow" | "growShrink"
-  | "profitHigh" | "profitMid" | "profitLow"
-  | "debtLow" | "debtMid" | "debtHigh"
-  | "trendUp" | "trendDown";
-
-export interface SummaryPoint {
-  key: SummaryKey;
-  level: Level;
-  /** The number behind the sentence. */
-  metric?: MetricKey;
-  value?: number;
-  /** For the trend: last close vs its 200-day average. */
-  trend?: { close: number; sma200: number };
-}
-
-/** Metrics the summary tries to cover; the ones without data are listed, not hidden. */
-export const SUMMARY_METRICS: MetricKey[] = ["pe", "revenueGrowth", "netMargin", "debtToEquity"];
-
-export function missingSummaryMetrics(scores: MetricScore[]): MetricKey[] {
-  return SUMMARY_METRICS.filter((k) => !scores.some((s) => s.key === k));
-}
-
-/** 3–5 plain-language bullets that sum up the stock. */
-export function summarize(scores: MetricScore[], signals: Signal[]): SummaryPoint[] {
-  const by = (k: MetricKey) => scores.find((s) => s.key === k);
-  const out: SummaryPoint[] = [];
-  const pe = by("pe");
-  if (pe) {
-    const key: SummaryKey = pe.value! <= 0 ? "valLoss" : pe.level === "good" ? "valCheap" : pe.level === "ok" ? "valFair" : "valExpensive";
-    out.push({ key, level: pe.level, metric: "pe", value: pe.value });
-  }
-  const g = by("revenueGrowth");
-  if (g) out.push({ key: g.level === "good" ? "growFast" : g.level === "ok" ? "growSlow" : "growShrink", level: g.level, metric: "revenueGrowth", value: g.value });
-  const m = by("netMargin");
-  if (m) out.push({ key: m.level === "good" ? "profitHigh" : m.level === "ok" ? "profitMid" : "profitLow", level: m.level, metric: "netMargin", value: m.value });
-  const d = by("debtToEquity");
-  if (d) out.push({ key: d.level === "good" ? "debtLow" : d.level === "ok" ? "debtMid" : "debtHigh", level: d.level, metric: "debtToEquity", value: d.value });
-  const t = signals.find((s) => s.key === "aboveSma200" || s.key === "belowSma200");
-  if (t) out.push({ key: t.key === "aboveSma200" ? "trendUp" : "trendDown", level: t.level, trend: t.close !== undefined && t.value !== undefined ? { close: t.close, sma200: t.value } : undefined });
   return out;
 }

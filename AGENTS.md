@@ -19,7 +19,7 @@ npm run e2e                                # browser journeys (see e2e/README.md
 
 - `src/lib/`: data access, financial maths and state machines, all pure and unit-tested. `fmp.ts` and `sec*.ts` are the providers; `data.ts` is the facade; `resource.ts` holds the client fetch machine.
 - `src/app/api/*`: JSON routes that return `Result<T>` (`{ ok, data, fetchedAt }` or `{ ok: false, error: DataIssue }`).
-- `src/components/`: views. Stock page tabs live in `StockView.tsx`; the chart generator in `charts/`.
+- `src/components/`: views. Stock page tabs live in `StockView.tsx` (Overview, Business, Valuation, Filings, My research); the chart generator in `charts/`.
 - `src/lib/i18n/`: `es.ts` / `en.ts` ship with every page; `esDeep.ts` / `enDeep.ts` hold the stock tabs' and charts' text, loaded under `<DeepI18n>`. Add every string in both languages.
 
 ## Rules

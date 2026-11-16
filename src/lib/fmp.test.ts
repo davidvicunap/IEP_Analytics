@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
 import {
-  fmpAnalystEstimates, fmpEquityRiskPremium, fmpFundamentals, fmpGrades, fmpMarketCaps, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
+  fmpAnalystEstimates, fmpEquityRiskPremium, fmpGrades, fmpMarketCaps, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
   kindFromMessage, kindFromStatus,
 } from "./fmp";
 
@@ -102,25 +102,6 @@ describe("fmpQuote", () => {
 });
 
 describe("partial results", () => {
-  it("keeps fundamentals when only one of the two endpoints fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) =>
-        url.includes("ratios-ttm")
-          ? new Response("Too Many Requests", { status: 429 })
-          : new Response(JSON.stringify([{ returnOnEquityTTM: 0.31 }]), { status: 200 }),
-      ),
-    );
-    const r = await fmpFundamentals("MSFT");
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.data.roe).toBe(0.31);
-  });
-
-  it("reports the error when both fundamentals endpoints fail", async () => {
-    vi.stubGlobal("fetch", respond(402, { "Error Message": "Restricted" }));
-    expect(await fmpFundamentals("MSFT")).toEqual({ ok: false, error: "plan_restricted" });
-  });
-
   it("merges search results and keeps US listings only", async () => {
     vi.stubGlobal(
       "fetch",

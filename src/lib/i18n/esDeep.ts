@@ -480,6 +480,7 @@ const esDeep = {
     adjust: "Cambiar los supuestos en el DCF",
   },
   valuation: {
+    expectationsView: "Analistas",
     history: {
       view: "Histórico",
       title: "Múltiplos frente a su propia historia (5 años)",

@@ -4,7 +4,7 @@ import * as fmp from "./fmp";
 import { quoteFromCloses, saveQuote, storedQuotes } from "./priceStore";
 import { getSecurity, searchSecurities } from "./securities";
 import * as mock from "./mock";
-import type { AnnualIncome, Candle, DataIssue, DataSource, Fundamentals, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
+import type { Candle, DataIssue, DataSource, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
 
 /**
  * Simulated prices must never reach real users: demo data is only allowed outside
@@ -193,8 +193,6 @@ export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { ski
 export interface StockSections {
   source: DataSource;
   profile: Promise<Result<Profile>>;
-  fundamentals: Promise<Result<Fundamentals>>;
-  income: Promise<Result<AnnualIncome[]>>; // oldest -> newest
   history: Promise<Result<Candle[]>>; // oldest -> newest
 }
 
@@ -204,13 +202,11 @@ export interface StockSections {
  * failure resolves to a typed Result.
  */
 export function getStockSections(symbol: string): StockSections {
-  for (const k of ["profile", "fundamentals", "income", "history"] as const) trace(k, symbol);
+  for (const k of ["profile", "history"] as const) trace(k, symbol);
   if (isDemo()) {
     return {
       source: "DEMO",
       profile: demoResult("profile", mock.mockProfile(symbol)),
-      fundamentals: demoResult("fundamentals", mock.mockFundamentals(symbol)),
-      income: demoResult("income", mock.mockIncome(symbol)),
       history: demoResult("history", mock.mockHistory(symbol)),
     };
   }
@@ -218,8 +214,6 @@ export function getStockSections(symbol: string): StockSections {
   return {
     source: "FMP",
     profile: fmp.fmpProfile(symbol),
-    fundamentals: fmp.fmpFundamentals(symbol),
-    income: fmp.fmpIncome(symbol),
     history: fmp.fmpHistory(symbol),
   };
 }

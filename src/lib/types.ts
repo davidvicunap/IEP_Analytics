@@ -77,13 +77,6 @@ export interface Fundamentals {
   dividendYield?: number;
 }
 
-export interface AnnualIncome {
-  year: string;
-  revenue: number;
-  netIncome: number;
-  eps?: number;
-  filingDate?: string; // date the annual report was filed (YYYY-MM-DD)
-}
 
 export interface Candle {
   time: string; // YYYY-MM-DD
@@ -100,12 +93,3 @@ export interface SearchResult {
   exchange?: string;
 }
 
-export interface StockBundle {
-  source: DataSource;
-  quote: Quote;
-  quoteFetchedAt: string;
-  profile: Result<Profile>;
-  fundamentals: Result<Fundamentals>;
-  income: Result<AnnualIncome[]>; // oldest -> newest
-  history: Result<Candle[]>; // oldest -> newest
-}
