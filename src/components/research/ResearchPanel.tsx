@@ -122,7 +122,7 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
           <PlanSummary form={form} price={price} lang={lang} />
         </Panel>
 
-        <div className="sticky bottom-16 md:bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel/95 px-4 py-3 backdrop-blur">
+        <div className="sticky bottom-16 md:bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel/95 px-4 py-3 backdrop-blur">
           <button type="submit" disabled={!dirty || status.kind === "saving"} className={buttonClass("primary", true)} aria-keyshortcuts="Control+S Meta+S">
             {status.kind === "saving" ? R.saving : R.save}
           </button>

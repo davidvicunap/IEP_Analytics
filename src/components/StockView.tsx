@@ -298,7 +298,7 @@ function StockHeader({
       {quote ? (
         <>
           <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
-            <p className="num text-3xl sm:text-4xl font-semibold leading-none">{fmtPrice(quote.price, lang)}</p>
+            <p className="figure text-4xl sm:text-5xl">{fmtPrice(quote.price, lang)}</p>
             <p className="flex items-center gap-2 pb-0.5">
               <Change value={quote.change} pct={quote.changePercent} className="text-base font-semibold" />
               <span className="text-xs text-muted">{t.ux.vsPrevClose}</span>
@@ -343,7 +343,7 @@ function StockHeader({
 
 function Initial({ symbol }: { symbol: string }) {
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-panel-2 text-lg font-semibold text-muted" aria-hidden="true">
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-line bg-panel text-base font-semibold tracking-tight text-fg" aria-hidden="true">
       {symbol[0]}
     </span>
   );
@@ -358,7 +358,7 @@ function Logo({ profile, symbol }: { profile: Promise<Result<Profile>>; symbol: 
     // Logos come from the data provider's CDN; a plain lazy <img> with fixed size avoids an
     // open image proxy and any layout shift. A broken logo falls back to the empty tile.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" width={48} height={48} loading="lazy" decoding="async" onError={() => setBroken(true)} className="h-12 w-12 shrink-0 rounded-lg bg-white object-contain p-1 border border-line" />
+    <img src={src} alt="" width={48} height={48} loading="lazy" decoding="async" onError={() => setBroken(true)} className="h-12 w-12 shrink-0 rounded-full bg-white object-contain p-1.5 border border-line" />
   );
 }
 

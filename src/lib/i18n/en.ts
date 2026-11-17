@@ -131,6 +131,7 @@ const en: CoreDict = {
     scoreLegend: { good: "Good", ok: "Normal", bad: "Caution", neutral: "Info" },
   },
   chart: {
+    tradingviewShort: "TradingView",
     priceTitle: "Price",
     rangeLabel: "Range",
     styleLabel: "Style",

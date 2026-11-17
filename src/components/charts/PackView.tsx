@@ -51,7 +51,7 @@ export default function PackView() {
         <p className="mt-1 max-w-2xl text-[15px] text-muted">{P.intro}</p>
       </div>
 
-      <section aria-label={C.controls} className="space-y-3 rounded-xl border border-line bg-panel p-4 sm:p-5">
+      <section aria-label={C.controls} className="space-y-3 rounded-2xl border border-line bg-panel p-4 sm:p-5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] sm:items-end">
           <div>
             <p className="control-label mb-1.5">{symbol ? P.changeCompany : P.company}</p>
@@ -63,9 +63,9 @@ export default function PackView() {
       </section>
 
       {!symbol ? (
-        <p className="rounded-xl border border-line bg-panel px-6 py-12 text-center text-sm text-muted">{P.pick}</p>
+        <p className="rounded-2xl border border-line bg-panel px-6 py-12 text-center text-sm text-muted">{P.pick}</p>
       ) : pack.charts.length === 0 ? (
-        <p className="rounded-xl border border-line bg-panel px-6 py-12 text-center text-sm text-muted">{P.empty}</p>
+        <p className="rounded-2xl border border-line bg-panel px-6 py-12 text-center text-sm text-muted">{P.empty}</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {pack.charts.map((ch, i) => (

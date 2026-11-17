@@ -117,7 +117,7 @@ export default function ScreenerView() {
         </p>
       </div>
 
-      <section aria-label={S.filters} className="rounded-xl border border-line bg-panel p-4 sm:p-5 space-y-5">
+      <section aria-label={S.filters} className="rounded-2xl border border-line bg-panel p-4 sm:p-5 space-y-5">
         <div>
           <p className="control-label mb-1.5">{S.presets}</p>
           <div className="flex flex-wrap gap-2">

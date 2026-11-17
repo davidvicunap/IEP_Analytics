@@ -72,24 +72,20 @@ export default function ChartTab({
   const tv = tvSymbol(symbol, exchange);
 
   return (
-    <Panel title={t.chart.priceTitle}>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <Segmented
-            label={t.chart.viewLabel}
-            value={view}
-            onChange={setView}
-            options={[
-              { value: "tv", label: t.chart.tradingview },
-              { value: "simple", label: t.chart.simple },
-            ]}
-          />
-          {view === "simple" && levels && (
-            <label className="ml-auto inline-flex items-center gap-2 text-xs min-h-11 cursor-pointer">
-              <input type="checkbox" className="h-5 w-5 accent-[var(--accent)]" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
-              {t.chart.levels.showOnChart}
-            </label>
-          )}
-        </div>
+    <Panel
+      title={t.chart.priceTitle}
+      action={
+        <Segmented
+          label={t.chart.viewLabel}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "simple", label: t.chart.simple },
+            { value: "tv", label: t.chart.tradingviewShort },
+          ]}
+        />
+      }
+    >
         {view === "tv" ? (
           <>
             <TradingViewWidget
@@ -131,6 +127,12 @@ export default function ChartTab({
             <ChevronDownIcon size={16} className="text-muted transition-transform group-open:rotate-180" />
           </summary>
           <div className="space-y-6 pb-2 pt-2">
+            {levels && view === "simple" && (
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--text)]" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
+                {t.chart.levels.showOnChart}
+              </label>
+            )}
             {levels && <LevelsBody k={levels} lang={lang} />}
             {signals}
           </div>
