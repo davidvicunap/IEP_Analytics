@@ -6,7 +6,7 @@ import { BUILTIN_PACKS, addChart, createPack, deletePack, moveChart, parsePacks,
 import { createJsonStore, useJsonStore } from "./localStore";
 
 const NONE: Pack[] = [];
-const store = createJsonStore<Pack[]>("iep.chartpacks", parsePacks, NONE);
+const store = createJsonStore<Pack[]>("iep.chartpacks", parsePacks, NONE, "chartpacks");
 
 const newId = () => `p-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 

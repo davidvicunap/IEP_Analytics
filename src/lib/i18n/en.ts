@@ -247,11 +247,17 @@ const en: CoreDict = {
     macdBear: "Negative MACD: recent momentum is bearish.",
   },
   ago: { today: "today", one: "1 session ago", many: "{n} sessions ago" },
+  sync: {
+    synced: "Saved to your account: the same on all your devices",
+    syncing: "Saving to your account…",
+    local: "Saved in this browser.",
+    error: "We couldn't save to your account. It's kept in this browser and we'll try again.",
+    expired: "Your beta access expired: saved only in this browser until you sign in again.",
+  },
   watchlist: {
     title: "Watchlist",
     empty: "You're not following any stocks yet. Search for one and tap “☆ Follow”.",
     remove: "Remove",
-    note: "Your list is saved only in this browser.",
   },
   data: {
     source: "Source",

@@ -9,6 +9,7 @@ import { buildChartData, type PeriodSeries } from "@/lib/chartMetrics";
 import { writeConfig } from "@/lib/chartConfig";
 import { BUILTIN_PACKS, configFor, type Pack, type PackChart } from "@/lib/chartPacks";
 import { usePacks } from "@/lib/chartPacksClient";
+import SyncNote from "../SyncNote";
 import TickerSearch from "../TickerSearch";
 import { ChevronDownIcon, CloseIcon, ExternalIcon } from "../icons";
 import { IssueNote, Panel, Skeleton, buttonClass, toast } from "../ui";
@@ -74,7 +75,7 @@ export default function PackView() {
         </div>
       )}
       <p className="text-xs text-muted">
-        {C.sourceSec}. {P.savedNote}
+        {C.sourceSec}. <SyncNote />
       </p>
     </div>
   );

@@ -247,11 +247,17 @@ const es = {
     macdBear: "MACD negativo: el impulso reciente es bajista.",
   },
   ago: { today: "hoy", one: "hace 1 sesión", many: "hace {n} sesiones" },
+  sync: {
+    synced: "Guardado en tu cuenta: igual en todos tus dispositivos",
+    syncing: "Guardando en tu cuenta…",
+    local: "Se guarda en este navegador.",
+    error: "No pudimos guardar en tu cuenta. Se guarda en este navegador y lo reintentamos.",
+    expired: "Tu acceso a la beta caducó: se guarda solo en este navegador hasta que vuelvas a entrar.",
+  },
   watchlist: {
     title: "Mi lista",
     empty: "Aún no sigues ninguna acción. Búscala y toca «☆ Seguir».",
     remove: "Quitar",
-    note: "Tu lista se guarda solo en este navegador.",
   },
   data: {
     source: "Fuente",
