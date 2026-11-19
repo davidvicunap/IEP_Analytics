@@ -42,6 +42,7 @@ async function page({ width = 1280, height = 900, lang = "es", theme = "light", 
     [theme, watchlist],
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
+  await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   await ctx.route(/\/api\/(sec|analysts|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   const p = await ctx.newPage();
   p.errors = [];
@@ -476,6 +477,57 @@ await test("home briefing: SEC data that can't load is said once, the rest still
   await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
   await p.getByText("Ninguna presentación nueva a la SEC en los últimos 7 días.").waitFor();
   await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
+  await p.context().close();
+});
+
+// ---- Account sync -------------------------------------------------------------------------------
+
+/** A page that talks to the real (demo, in-memory) account store. */
+async function syncedPage(opts) {
+  const p = await page(opts);
+  await p.route(/\/api\/prefs/, (r) => r.continue());
+  return p;
+}
+
+await test("account sync: a list saved on one device appears on another, and edits travel both ways", async () => {
+  const tag = `Sync${Date.now() % 100000}`;
+  // Device A: has stocks and a tag from before sync existed; its first sync uploads them.
+  const a = await syncedPage({ watchlist: ["ZION", "AAPL"] });
+  await a.addInitScript((t) => {
+    if (!sessionStorage.getItem("tagged")) {
+      localStorage.setItem("iep.watchtags", JSON.stringify({ ZION: [t] }));
+      sessionStorage.setItem("tagged", "1");
+    }
+  }, tag);
+  await a.goto(base + "/watchlist");
+  await a.locator("[data-sync=synced]").waitFor();
+  // Device B: a fresh browser with its own list: it gets A's stocks and tag, and keeps its own.
+  const b = await syncedPage({ watchlist: ["KO"] });
+  await b.goto(base + "/watchlist");
+  await b.locator("[data-sync=synced]").waitFor();
+  await b.locator("main tbody th a[href='/stock/ZION']").waitFor();
+  await b.locator("main tbody th a[href='/stock/KO']").waitFor();
+  await b.getByRole("group", { name: "Filtrar por etiqueta" }).getByRole("button", { name: new RegExp(tag) }).waitFor();
+  // An edit on B reaches A when A comes back to the page.
+  await b.getByRole("button", { name: "Quitar ZION de la lista" }).click();
+  await b.locator("[data-sync=synced]").waitFor();
+  await b.waitForTimeout(1200); // the save waits a moment so quick edits make one request
+  await a.reload();
+  await a.locator("[data-sync=synced]").waitFor();
+  await a.waitForFunction(() => !document.querySelector("main tbody th a[href='/stock/ZION']"));
+  assert((await a.locator("main tbody th a[href='/stock/KO']").count()) === 1, "B's stock didn't reach A");
+  await a.context().close();
+  await b.context().close();
+});
+
+await test("account sync: when the account can't be reached, edits stay in this browser and it says so", async () => {
+  const p = await page({ watchlist: ["AAPL"] });
+  await p.route(/\/api\/prefs/, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
+  await p.goto(base + "/watchlist");
+  await p.getByText("No pudimos guardar en tu cuenta. Se guarda en este navegador y lo reintentamos.").waitFor();
+  await p.getByRole("button", { name: "Quitar AAPL de la lista" }).click();
+  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")));
+  assert(Array.isArray(saved) && saved.length === 0, `kept locally: ${JSON.stringify(saved)}`);
   await p.context().close();
 });
 

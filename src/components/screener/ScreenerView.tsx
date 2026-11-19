@@ -25,6 +25,8 @@ import {
   type SortKey,
 } from "@/lib/screener";
 import { useResource } from "@/lib/useResource";
+import { useSavedScreens } from "@/lib/screens";
+import SyncNote from "../SyncNote";
 import { ChartIcon, CloseIcon } from "../icons";
 import { IssueNote, Panel, Segmented, Skeleton, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
@@ -51,27 +53,6 @@ function fmtRatio(k: ScreenRatio, v: number | null, lang: Lang) {
   return isPercent(k) ? `${v < 0 ? "−" : ""}${fmtNum(Math.abs(v) * 100, lang, 1)}%` : `${fmtNum(v, lang, 2)}x`;
 }
 const titleCase = (s: string | null) => (s ? s.toLowerCase().replace(/(^|[\s&/-])([a-z])/g, (_, p, c) => p + c.toUpperCase()) : "");
-
-interface SavedScreen {
-  name: string;
-  query: string;
-}
-const SAVED_KEY = "iep:screens";
-function readSaved(): SavedScreen[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]");
-    return Array.isArray(v) ? v.filter((x) => typeof x?.name === "string" && typeof x?.query === "string") : [];
-  } catch {
-    return [];
-  }
-}
-function writeSaved(list: SavedScreen[]) {
-  try {
-    localStorage.setItem(SAVED_KEY, JSON.stringify(list));
-  } catch {
-    /* storage blocked: saved screens last for this visit */
-  }
-}
 
 /** The screener page: filters in the URL, results from /api/sec/screener. */
 export default function ScreenerView() {
@@ -317,19 +298,14 @@ function TextField({ label, value, onChange, placeholder }: { label: string; val
 function SavedScreens({ query, onOpen }: { query: string; onOpen: (q: string) => void }) {
   const { t } = useI18n();
   const S = t.screener;
-  const [list, setList] = useState<SavedScreen[]>([]);
+  const { list, save, remove } = useSavedScreens();
   const [name, setName] = useState("");
   const [naming, setNaming] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const id = useId();
-  useEffect(() => setList(readSaved()), []);
   useEffect(() => {
     if (naming) inputRef.current?.focus();
   }, [naming]);
-  const update = (next: SavedScreen[]) => {
-    setList(next);
-    writeSaved(next);
-  };
   return (
     <div className="flex flex-wrap items-center gap-2">
       {naming ? (
@@ -338,7 +314,7 @@ function SavedScreens({ query, onOpen }: { query: string; onOpen: (q: string) =>
           onSubmit={(e) => {
             e.preventDefault();
             const n = name.trim().slice(0, 40);
-            if (n) update([...list.filter((s) => s.name !== n), { name: n, query }]);
+            if (n) save({ name: n, query });
             setName("");
             setNaming(false);
           }}
@@ -363,14 +339,14 @@ function SavedScreens({ query, onOpen }: { query: string; onOpen: (q: string) =>
               <button type="button" onClick={() => onOpen(s.query)} className="h-11 sm:h-9 pl-3 pr-1 font-medium">
                 {s.name}
               </button>
-              <button type="button" onClick={() => update(list.filter((x) => x.name !== s.name))} className="grid h-11 w-10 sm:h-9 sm:w-8 place-items-center text-muted hover:text-fg" aria-label={fill(S.deleteSaved, { n: s.name })}>
+              <button type="button" onClick={() => remove(s.name)} className="grid h-11 w-10 sm:h-9 sm:w-8 place-items-center text-muted hover:text-fg" aria-label={fill(S.deleteSaved, { n: s.name })}>
                 <CloseIcon size={12} />
               </button>
             </li>
           ))}
         </ul>
       )}
-      {list.length > 0 && <span className="text-xs text-muted">{S.savedNote}</span>}
+      {list.length > 0 && <SyncNote className="text-xs" />}
     </div>
   );
 }

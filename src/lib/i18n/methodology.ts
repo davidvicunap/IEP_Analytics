@@ -178,7 +178,8 @@ const es: MethodologyText = {
         {
           list: [
             "Mi análisis (tesis, puntos a favor y en contra, valor justo, notas): se guarda en la base de datos, ligado a tu invitación de la beta. Cada cambio de valor justo queda registrado con el precio de ese momento.",
-            "Lista, etiquetas, columnas, paquetes de gráficos y búsquedas guardadas: solo en este navegador.",
+            "Lista, etiquetas, columnas, paquetes de gráficos y búsquedas guardadas: en tu cuenta, iguales en todos tus dispositivos. La primera vez que un dispositivo se sincroniza, lo que ya tenía guardado se suma a lo de tu cuenta, sin perder nada. Sin conexión se guardan en el navegador y se suben después.",
+            "En cada navegador: acciones vistas recientemente, escenarios del DCF, proyecciones de los estados, pares elegidos en Comparables y la vista del gráfico.",
           ],
         },
       ],
@@ -356,7 +357,8 @@ const en: MethodologyText = {
         {
           list: [
             "Research (thesis, points for and against, fair value, notes): saved in the database, tied to your beta invite. Every fair-value change is logged with the price at that moment.",
-            "Watchlist, tags, columns, chart packs and saved screens: in this browser only.",
+            "Watchlist, tags, columns, chart packs and saved screens: in your account, the same on all your devices. The first time a device syncs, what it already had is added to your account, so nothing is lost. Offline, they are kept in the browser and saved later.",
+            "Kept in each browser: recently viewed stocks, DCF scenarios, statement projections, chosen comps peers and the chart view.",
           ],
         },
       ],

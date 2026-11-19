@@ -13,6 +13,7 @@ import type { FilingRef } from "@/lib/snapshotShared";
 import { useQuotes, type QuoteView } from "@/lib/useQuotes";
 import { COLUMNS, TAGS_PER_STOCK, cleanTag, nextSort, sortRows, tagCounts, type Column, type RowFacts, type SortDir, type SortKey } from "@/lib/watchDashboard";
 import { useHydrated, useWatchColumns, useWatchlist, useWatchTags, WATCHLIST_LIMIT } from "@/lib/watchlist";
+import SyncNote from "./SyncNote";
 import TickerSearch from "./TickerSearch";
 import { ChartIcon, CloseIcon, ColumnsIcon, FileTextIcon, RefreshIcon, StarIcon, TagIcon } from "./icons";
 import { QuoteRowsSkeleton } from "./QuoteList";
@@ -196,7 +197,7 @@ export default function WatchlistView() {
           </>
         )}
       </Panel>
-      <p className="text-xs text-muted">{persistent ? t.watchlist.note : t.ux.memoryOnly}</p>
+      <p className="text-xs text-muted">{persistent ? <SyncNote /> : t.ux.memoryOnly}</p>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { startSync } from "@/lib/prefsSync";
 import { useI18n } from "@/lib/i18n";
 import Header from "./Header";
 import Footer from "./Footer";
@@ -11,6 +13,11 @@ import { Toaster } from "./ui";
 export default function AppChrome({ demo, children }: { demo: boolean; children: React.ReactNode }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const gate = pathname === "/beta" || pathname.startsWith("/beta/");
+  // Lists and settings follow the account once signed in (not on the sign-in page itself).
+  useEffect(() => {
+    if (!gate) startSync();
+  }, [gate]);
   if (pathname === "/beta" || pathname.startsWith("/beta/")) return <>{children}</>;
   return (
     <>

@@ -128,3 +128,15 @@ export const researchNotes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.owner, t.symbol] }), index("research_notes_owner_idx").on(t.owner, t.updatedAt)],
 );
+
+/** A person's app settings that should follow them across devices (watchlist, tags, packs…), one row per key. */
+export const userPrefs = pgTable(
+  "user_prefs",
+  {
+    owner: text("owner").notNull(), // the beta invite's label, like research notebooks
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.owner, t.key] })],
+);
