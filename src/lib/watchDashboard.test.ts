@@ -63,7 +63,7 @@ describe("sorting", () => {
     symbol: "X",
     cik: 1,
     quality: { ok: true, data: { passed, failed, na: 0, level: "mixed", fiscal: "FY2025" } },
-    filings: { ok: true, data: { report: null, latest: filed ? { accn: "a", form: "8-K", filed, reportDate: null, primaryDocument: "", items: [] } : null } },
+    filings: { ok: true, data: { report: null, latest: filed ? { accn: "a", form: "8-K", filed, reportDate: null, primaryDocument: "", items: [] } : null, recent: [], nextResults: null } },
     insiders: { ok: true, data: { from: "", to: "", bought, sold, buyers: 0, sellers: 0, pending: 0, checkedAt: "" } },
   });
   const row = (symbol: string, o: Partial<RowFacts> = {}): RowFacts => ({ symbol, price: 100, change: null, marketCap: null, fairValue: null, snapshot: null, ...o });
