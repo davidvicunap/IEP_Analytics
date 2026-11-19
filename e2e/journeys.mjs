@@ -437,6 +437,48 @@ await test("chart: TradingView keeps its full height after its script resizes th
   await p.context().close();
 });
 
+// ---- Home briefing ------------------------------------------------------------------------------
+
+await test("home briefing: following stocks shows what changed, each row opening its place; empty lists say so", async () => {
+  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
+  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  const snap = (symbol, o) => ({
+    symbol, cik: 320193,
+    quality: { ok: false, error: "not_found" },
+    filings: { ok: true, data: { report: null, latest: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
+    insiders: { ok: true, data: { from: "", to: "", bought: o.bought ?? 0, sold: o.sold ?? 0, buyers: 1, sellers: 0, pending: 0, checkedAt: "" } },
+  });
+  const data = {
+    AAPL: snap("AAPL", { recent: [{ accn: "0000320193-26-000099", form: "10-K", filed: day(-2), reportDate: null, primaryDocument: "a.htm", items: [] }], next: day(5) }),
+    MSFT: snap("MSFT", { bought: 2.5e6, sold: 1e6 }),
+    KO: snap("KO", {}),
+  };
+  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
+  await p.goto(base + "/");
+  await p.getByRole("heading", { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches)$/ }).waitFor();
+  await p.getByText("Lo nuevo de las acciones que sigues (3).", { exact: false }).waitFor();
+  const filing = p.getByRole("link", { name: /AAPL\s*10-K/ });
+  await filing.waitFor();
+  assert((await filing.getAttribute("href")) === "/stock/AAPL/report?accn=0000320193-26-000099", "10-K opens the reader");
+  await p.getByRole("link", { name: /AAPL\s*hacia el/ }).waitFor();
+  const ins = p.getByRole("link", { name: /MSFT\s*Compras \$2\.5M/ });
+  assert((await ins.getAttribute("href")) === "/stock/MSFT?tab=filings&view=insiders", "insiders link");
+  await p.getByText("Pon un valor justo en «Mi análisis»", { exact: false }).waitFor(); // no fair values yet
+  assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 1, "explore moved down");
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("home briefing: SEC data that can't load is said once, the rest still shows", async () => {
+  const p = await page({ watchlist: ["AAPL", "MSFT"] }); // demo: the SEC summaries answer "not configured"
+  await p.goto(base + "/");
+  await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
+  await p.getByText("Ninguna presentación nueva a la SEC en los últimos 7 días.").waitFor();
+  await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
+  await p.context().close();
+});
+
 // ---- Chart packs, earnings date, methodology ------------------------------------------------
 
 /** A company's SEC series for tests: steady growth, a seed per symbol so peers differ. */

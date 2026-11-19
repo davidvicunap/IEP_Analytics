@@ -5,6 +5,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import type { DataSource, QuoteEntry } from "@/lib/types";
 import { useHydrated, useRecent, useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
+import Briefing from "./Briefing";
 import TickerSearch from "./TickerSearch";
 import { ChartIcon, ChevronRightIcon, StarIcon } from "./icons";
 import { QuoteRows, QuoteRowsSkeleton, ServerQuotes, latestAsOf } from "./QuoteList";
@@ -12,9 +13,49 @@ import { EmptyState, Panel, Provenance, StatusMessage } from "./ui";
 
 const MINI_LIMIT = 8;
 
-/** Search first; then market context, saved stocks and companies to discover. */
+/**
+ * Following stocks: the morning briefing first, then the market, the watchlist and other ideas.
+ * Not yet (or before this browser's list is read): search first, then companies to discover.
+ */
 export default function HomeView({ markets, popular }: { markets: React.ReactNode; popular: React.ReactNode }) {
   const { t } = useI18n();
+  const { list } = useWatchlist();
+  const hydrated = useHydrated();
+  const marketsSection = (
+    <section aria-labelledby="markets-title">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 id="markets-title" className="section-title">
+          {t.home.markets}
+        </h2>
+      </div>
+      {markets}
+    </section>
+  );
+
+  if (hydrated && list.length > 0) {
+    return (
+      <div className="space-y-8 pt-2 sm:pt-6">
+        <Briefing
+          list={list}
+          search={
+            <>
+              <TickerSearch />
+              <RecentlyViewed />
+            </>
+          }
+        />
+        {marketsSection}
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
+          <MiniWatchlist />
+          <Panel title={t.home.brief.explore} id="popular" className="min-w-0">
+            {popular}
+          </Panel>
+          <ChartsPromo />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <section className="pt-2 sm:pt-6 max-w-2xl" aria-labelledby="home-title">
@@ -28,14 +69,7 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
         <RecentlyViewed />
       </section>
 
-      <section aria-labelledby="markets-title">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="markets-title" className="section-title">
-            {t.home.markets}
-          </h2>
-        </div>
-        {markets}
-      </section>
+      {marketsSection}
 
       {/* Phones: my list → explore → charts. Wide screens: explore beside my list and charts. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">

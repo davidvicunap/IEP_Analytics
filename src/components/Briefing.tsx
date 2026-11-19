@@ -1,0 +1,181 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { fill, useI18n } from "@/lib/i18n";
+import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
+import { buildBrief, partOfDay, type Brief } from "@/lib/brief";
+import { daysUntil } from "@/lib/earnings";
+import { filingDocUrl } from "@/lib/filingsShared";
+import { useNotes } from "@/lib/researchClient";
+import { useSnapshots, type SnapState } from "@/lib/snapshotClient";
+import { useQuotes } from "@/lib/useQuotes";
+import { ChevronRightIcon, FileTextIcon } from "./icons";
+import { Panel, Skeleton, StatusMessage } from "./ui";
+
+type Lang = "es" | "en";
+const MAX_CHECKED = 40; // SEC summaries asked for at most (3 at a time; cached for half an hour)
+const pct = (v: number, lang: Lang) => `${fmtNum(Math.abs(v) * 100, lang, 1)}%`;
+
+/** Today's date in the reader's clock, and the part of the day for the greeting (set after mount). */
+function useToday() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => setNow(new Date()), []);
+  return now;
+}
+
+/**
+ * The home page for someone who follows stocks: what changed since yesterday, in four short
+ * lists, each linking to the place with the detail. Every list says plainly when it's empty.
+ */
+export default function Briefing({ list, search }: { list: string[]; search?: React.ReactNode }) {
+  const { t, lang } = useI18n();
+  const B = t.home.brief;
+  const now = useToday();
+  const checked = list.slice(0, MAX_CHECKED);
+  const snaps = useSnapshots(checked);
+  const notes = useNotes();
+  const fair = useMemo(() => {
+    const m = new Map<string, number>();
+    if (notes.state.status === "ok") for (const n of notes.state.data) if (n.fairValue !== null) m.set(n.symbol, n.fairValue);
+    return m;
+  }, [notes.state]);
+  const quotes = useQuotes([...fair.keys()]);
+  const today = now ? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}` : null;
+
+  const brief: Brief | null = useMemo(() => {
+    if (!today) return null;
+    const symbols = [...new Set([...checked, ...fair.keys()])];
+    const price = new Map(quotes.items.map((q) => [q.symbol, q.quote?.price ?? null]));
+    return buildBrief(
+      symbols.map((s) => {
+        const st = snaps.state[s];
+        return { symbol: s, snapshot: st?.status === "ok" ? st.data : null, price: price.get(s) ?? null, fairValue: fair.get(s) ?? null };
+      }),
+      today,
+    );
+  }, [today, checked.join(","), fair, quotes.items, snaps.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const states = checked.map((s) => snaps.state[s]);
+  const done = states.filter((s) => s && s.status !== "loading").length;
+  const loading = done < checked.length;
+  const failed = states.filter((s): s is Extract<SnapState, { status: "error" }> => s?.status === "error");
+  const quotesLoading = fair.size > 0 && quotes.loading;
+
+  return (
+    <section aria-labelledby="brief-title" className="space-y-4">
+      <div>
+        <h1 id="brief-title" className="text-[26px] sm:text-[32px] font-semibold tracking-[-0.02em] leading-tight">
+          {now ? B.greeting[partOfDay(now.getHours())] : " "}
+        </h1>
+        <p className="mt-1 text-[15px] text-muted">
+          {now && <span className="capitalize">{new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric" }).format(now)}</span>}
+          {" · "}
+          {fill(B.subtitle, { n: list.length })}
+        </p>
+        {loading && (
+          <p role="status" className="mt-1 text-xs text-muted">
+            {fill(B.checking, { done, total: checked.length })}
+          </p>
+        )}
+        {search && <div className="mt-4 max-w-xl">{search}</div>}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title={B.filings.title} empty={B.filings.empty} loading={loading && !brief?.filings.length} items={brief?.filings ?? []}>
+          {(f) => (
+            <Row key={`${f.symbol}-${f.filing.accn}`} symbol={f.symbol} href={f.filing.form === "10-K" ? `/stock/${encodeURIComponent(f.symbol)}/report?accn=${encodeURIComponent(f.filing.accn)}` : filingDocUrl(f.cik, f.filing)} external={f.filing.form !== "10-K"}>
+              <span className="font-medium">{f.filing.form}</span>
+              <span className="text-muted"> · {fmtDate(f.filing.filed, lang)}</span>
+              {f.filing.items.length > 0 && (
+                <span className="block truncate text-xs text-muted">{f.filing.items.filter((i) => i !== "9.01").map((i) => t.filings.items[i] ?? i).join(" · ")}</span>
+              )}
+              {f.filing.form === "10-K" && (
+                <span className="mt-0.5 flex w-fit items-center gap-1 text-xs">
+                  <FileTextIcon size={12} />
+                  {B.filings.read}
+                </span>
+              )}
+            </Row>
+          )}
+        </Section>
+
+        <Section title={B.results.title} empty={B.results.empty} loading={loading && !brief?.results.length} items={brief?.results ?? []} note={brief?.results.length ? B.results.note : undefined}>
+          {(r) => (
+            <Row key={r.symbol} symbol={r.symbol} href={`/stock/${encodeURIComponent(r.symbol)}`}>
+              {fill(B.results.around, { d: fmtDate(r.date, lang) })}
+              {today && <span className="text-muted"> · {fill(B.results.inDays, { n: Math.max(0, daysUntil(r.date, today)) })}</span>}
+            </Row>
+          )}
+        </Section>
+
+        <Section title={B.fairValue.title} empty={B.fairValue.empty} loading={quotesLoading || notes.state.status === "loading"} items={brief?.fairValue ?? []}>
+          {(f) => (
+            <Row key={f.symbol} symbol={f.symbol} href={`/stock/${encodeURIComponent(f.symbol)}?tab=research`}>
+              {fill(f.gap > 0 ? B.fairValue.below : B.fairValue.above, { p: pct(f.price / f.fairValue - 1, lang), v: fmtPrice(f.fairValue, lang) })}
+              <span className="block text-xs text-muted num">{fmtPrice(f.price, lang)}</span>
+            </Row>
+          )}
+        </Section>
+
+        <Section title={B.insiders.title} empty={B.insiders.empty} loading={loading && !brief?.insiders.length} items={brief?.insiders ?? []}>
+          {(i) => (
+            <Row key={i.symbol} symbol={i.symbol} href={`/stock/${encodeURIComponent(i.symbol)}?tab=filings&view=insiders`}>
+              <span className="num">{fill(B.insiders.row, { b: `$${fmtBig(i.bought)}`, s: `$${fmtBig(i.sold)}` })}</span>
+              {i.partial && <span className="ml-1.5 text-xs text-warn">{B.insiders.partial}</span>}
+            </Row>
+          )}
+        </Section>
+      </div>
+
+      {failed.length > 0 && (
+        <StatusMessage tone="warn">
+          {fill(B.issues, { n: failed.length, t: checked.length, why: [...new Set(failed.map((f) => (t.data.issuesShort[f.issue as keyof typeof t.data.issuesShort] ?? f.issue).toLowerCase()))].join(", ") })}
+        </StatusMessage>
+      )}
+      <p className="text-xs text-muted">{B.source}</p>
+    </section>
+  );
+}
+
+function Section<T>({ title, empty, loading, items, note, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; children: (item: T) => React.ReactNode }) {
+  return (
+    <Panel title={title} className="min-w-0">
+      {items.length > 0 ? (
+        <ul className="-mx-2 -my-1">{items.map(children)}</ul>
+      ) : loading ? (
+        <div className="space-y-3" aria-hidden="true">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ) : (
+        <p className="text-sm text-muted">{empty}</p>
+      )}
+      {note && <p className="mt-3 text-xs text-muted">{note}</p>}
+    </Panel>
+  );
+}
+
+function Row({ symbol, href, external, children }: { symbol: string; href: string; external?: boolean; children: React.ReactNode }) {
+  const body = (
+    <>
+      <span className="w-16 shrink-0 font-semibold">{symbol}</span>
+      <span className="min-w-0 flex-1 text-sm">{children}</span>
+      <ChevronRightIcon size={16} className="mt-0.5 shrink-0 text-muted" />
+    </>
+  );
+  const cls = "flex min-h-11 items-start gap-3 rounded-lg px-2 py-2.5 hover:bg-panel-2";
+  return (
+    <li>
+      {external ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+          {body}
+        </a>
+      ) : (
+        <Link href={href} prefetch={false} className={cls}>
+          {body}
+        </Link>
+      )}
+    </li>
+  );
+}

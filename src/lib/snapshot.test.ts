@@ -11,7 +11,21 @@ describe("watchlist snapshot", () => {
     const { report, latest } = pickFilings(filings);
     expect(report).toMatchObject({ form: "10-Q", filed: "2026-10-30" }); // amendment skipped
     expect(latest).toMatchObject({ form: "8-K", filed: "2026-11-05", items: ["2.02", "9.01"] }); // insider and ownership forms skipped
-    expect(pickFilings([f("4", "2026-01-01")])).toEqual({ report: null, latest: null });
+    expect(pickFilings([f("4", "2026-01-01")])).toMatchObject({ report: null, latest: null, recent: [] });
+  });
+
+  it("lists the last week's filings about the business and estimates the next results", () => {
+    const filings = [
+      f("8-K", "2026-11-18", ["7.01"]),
+      f("4", "2026-11-17"),
+      f("10-Q", "2026-11-12"),
+      f("8-K", "2026-11-05", ["2.02"]), // more than a week ago
+      f("8-K", "2026-02-04", ["2.02"]), // last year's results for the coming quarter
+    ];
+    const r = pickFilings(filings, "2026-11-19");
+    expect(r.recent.map((x) => x.form)).toEqual(["8-K", "10-Q"]);
+    expect(r.nextResults).toEqual({ date: "2027-02-03", basedOn: "2026-02-04" });
+    expect(pickFilings([f("10-Q", "2026-11-12")], "2026-11-19").nextResults).toBeNull();
   });
 
   it("is only cacheable once every part answered and no insider filings are left to read", () => {
@@ -19,7 +33,7 @@ describe("watchlist snapshot", () => {
       symbol: "X",
       cik: 1,
       quality: { ok: true, data: { passed: 1, failed: 0, na: 0, level: "high", fiscal: null } },
-      filings: { ok: true, data: { report: null, latest: null } },
+      filings: { ok: true, data: { report: null, latest: null, recent: [], nextResults: null } },
       insiders: { ok: true, data: { from: "", to: "", bought: 0, sold: 0, buyers: 0, sellers: 0, pending: 0, checkedAt: "" } },
     };
     expect(settled(base)).toBe(true);
