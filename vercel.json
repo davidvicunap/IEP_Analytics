@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/sec-metrics",
       "schedule": "41 7 * * *"
+    },
+    {
+      "path": "/api/cron/theses",
+      "schedule": "23 21 * * 1-5"
     }
   ]
 }

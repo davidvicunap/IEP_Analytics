@@ -57,6 +57,13 @@
       "when": 1795063159559,
       "tag": "0007_user_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795143766249,
+      "tag": "0008_live_theses",
+      "breakpoints": true
     }
   ]
 }

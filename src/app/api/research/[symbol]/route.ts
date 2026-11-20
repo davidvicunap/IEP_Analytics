@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { normalizeSymbol } from "@/lib/data";
 import { emptyNote, parseInput } from "@/lib/research";
 import { notebookOwner, researchStore, sameOrigin } from "@/lib/researchServer";
+import { alertStore } from "@/lib/thesisAlertStore";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: NO_STORE });
@@ -52,12 +53,13 @@ export async function PUT(request: Request, ctx: Ctx) {
   }
 }
 
-/** Deletes the notebook for this stock. */
+/** Deletes the notebook for this stock, and its thesis alerts. */
 export async function DELETE(request: Request, ctx: Ctx) {
   const c = await context(request, ctx, true);
   if ("error" in c) return c.error;
   try {
     await c.store.remove(c.owner, c.symbol);
+    await alertStore()?.remove(c.owner, c.symbol);
     return json({ ok: true });
   } catch (e) {
     return failed(e);

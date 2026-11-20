@@ -8,6 +8,8 @@ import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
+import { ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
+import type { Direction } from "@/lib/thesis";
 
 type Lang = "es" | "en";
 
@@ -19,9 +21,23 @@ interface Form {
   entry: number | null;
   stop: number | null;
   target: number | null;
+  direction: Direction;
+  reviewBy: string | null;
+  checks: DraftCheck[];
 }
-const formOf = (n: ResearchNote): Form => ({ thesis: n.thesis, bull: n.bull, bear: n.bear, fairValue: n.fairValue, entry: n.entry, stop: n.stop, target: n.target });
-const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((k) => a[k] === b[k]);
+const formOf = (n: ResearchNote): Form => ({
+  thesis: n.thesis,
+  bull: n.bull,
+  bear: n.bear,
+  fairValue: n.fairValue,
+  entry: n.entry,
+  stop: n.stop,
+  target: n.target,
+  direction: n.direction,
+  reviewBy: n.reviewBy,
+  checks: n.checks,
+});
+const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((k) => (k === "checks" ? JSON.stringify(a[k]) === JSON.stringify(b[k]) : a[k] === b[k]));
 
 export const signedPct = (v: number, lang: Lang) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${fmtNum(Math.abs(v) * 100, lang, 1)}%`;
 
@@ -76,7 +92,11 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
   const save = async () => {
     if (!dirty || status.kind === "saving") return;
     setStatus({ kind: "saving" });
-    const r = await saveNote(symbol, { ...form, fairValueSource: "manual", price, baseUpdatedAt: note.updatedAt });
+    const checks = form.checks.map((c) => {
+      const { createdAt: _skip, ...rest } = c as DraftCheck & { createdAt?: string };
+      return rest;
+    });
+    const r = await saveNote(symbol, { ...form, checks, fairValueSource: "manual", price, baseUpdatedAt: note.updatedAt });
     if (r.ok) {
       setBase(formOf(r.note));
       setForm(formOf(r.note));
@@ -89,6 +109,7 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
 
   return (
     <div className="space-y-4">
+      <ThesisSummary symbol={symbol} note={note} price={price} />
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -122,6 +143,8 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
           <PlanSummary form={form} price={price} lang={lang} />
         </Panel>
 
+        <WatchEditor value={{ direction: form.direction, reviewBy: form.reviewBy, checks: form.checks }} onChange={(w: WatchValue) => setForm((f) => ({ ...f, ...w }))} />
+
         <div className="sticky bottom-16 md:bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel/95 px-4 py-3 backdrop-blur">
           <button type="submit" disabled={!dirty || status.kind === "saving"} className={buttonClass("primary", true)} aria-keyshortcuts="Control+S Meta+S">
             {status.kind === "saving" ? R.saving : R.save}
@@ -148,6 +171,7 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
       </form>
 
       <DatedNotes symbol={symbol} note={note} />
+      <ThesisHistory symbol={symbol} note={note} />
       <FairValueHistory note={note} lang={lang} />
       <p className="text-xs text-muted">{R.disclaimer}</p>
     </div>

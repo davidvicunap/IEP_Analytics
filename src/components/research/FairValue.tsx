@@ -3,10 +3,12 @@
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPrice } from "@/lib/format";
 import { upside } from "@/lib/research";
-import { useNote } from "@/lib/researchClient";
+import { useNote, useThesis } from "@/lib/researchClient";
+import { isWatched } from "@/lib/thesis";
 import { NotebookIcon } from "../icons";
 import { Panel, buttonClass } from "../ui";
 import { signedPct } from "./ResearchPanel";
+import { StatusBadge, alertText } from "./Thesis";
 
 /** Header line: the user's fair value and how far the price is from it. Nothing until they set one. */
 export function FairValueLine({ symbol, price, onOpen }: { symbol: string; price: number | null; onOpen: () => void }) {
@@ -43,7 +45,7 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
   const up = upside(note.fairValue, price);
   const lastNote = note.log.find((e) => e.kind === "note");
   return (
-    <Panel title={R.title} id="research-card">
+    <Panel title={R.title} id="research-card" action={note.closed ? <StatusBadge status="closed" /> : isWatched(note) ? <CardStatus symbol={symbol} /> : undefined}>
       {started ? (
         <div className="space-y-2 text-sm">
           {note.thesis ? <p className="line-clamp-4 whitespace-pre-wrap">{note.thesis}</p> : <p className="text-muted">{R.noThesis}</p>}
@@ -53,6 +55,7 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
               {up !== null && <span className="text-muted"> · {signedPct(up, lang)}</span>}
             </p>
           )}
+          {isWatched(note) && <CardAlert symbol={symbol} />}
           {lastNote && <p className="text-xs text-muted">{fill(R.lastNote, { d: fmtAsOf(lastNote.at, lang) })}</p>}
           <button type="button" onClick={onOpen} className="link text-[13px]">
             {R.open}
@@ -68,5 +71,24 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
         </div>
       )}
     </Panel>
+  );
+}
+
+function CardStatus({ symbol }: { symbol: string }) {
+  const { state } = useThesis(symbol);
+  return state.status === "ok" ? <StatusBadge status={state.data.status} /> : null;
+}
+
+/** The most urgent alert, if any: the full list is in the tab. */
+function CardAlert({ symbol }: { symbol: string }) {
+  const { t, lang } = useI18n();
+  const { state } = useThesis(symbol);
+  const a = state.status === "ok" ? state.data.alerts[0] : undefined;
+  if (!a) return null;
+  return (
+    <p className="num">
+      {alertText(a, t.thesis, lang)}
+      {state.status === "ok" && state.data.alerts.length > 1 && <span className="text-muted"> · +{state.data.alerts.length - 1}</span>}
+    </p>
   );
 }

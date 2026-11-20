@@ -12,6 +12,7 @@ const base = process.argv[2] ?? "http://localhost:3123";
 
 const results = [];
 async function test(name, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return; // ONLY="live thesis" runs the matching journeys
   const t0 = Date.now();
   try {
     await fn();
@@ -19,7 +20,7 @@ async function test(name, fn) {
     console.log(`✓ ${name} (${Date.now() - t0} ms)`);
   } catch (e) {
     results.push({ name, ok: false });
-    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n")[0]}`);
+    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n").slice(0, process.env.ONLY ? 6 : 1).join("\n    ")}`);
   }
 }
 const assert = (cond, msg) => {
@@ -873,7 +874,7 @@ await test("every stock opens: no price, last close or stored price, each said p
 await test("research notebook: write a thesis and fair value, add a note, find it everywhere", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/stock/KO?tab=research");
-  const thesis = p.getByLabel("Thesis");
+  const thesis = p.getByLabel("Thesis", { exact: true });
   await thesis.waitFor();
   const thesisText = `Pricing power and a global distribution moat (${Date.now()}).`; // unique: the demo store outlives a run
   await thesis.fill(thesisText);
@@ -891,8 +892,8 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   await p.getByRole("button", { name: "Add note" }).click();
   await p.getByText(note).waitFor();
   await p.reload();
-  await p.getByLabel("Thesis").waitFor();
-  assert((await p.getByLabel("Thesis").inputValue()).startsWith("Pricing power"), "thesis not kept");
+  await p.getByLabel("Thesis", { exact: true }).waitFor();
+  assert((await p.getByLabel("Thesis", { exact: true }).inputValue()).startsWith("Pricing power"), "thesis not kept");
   await axe(p);
   // The overview card and the list page show it too.
   await p.getByRole("tab", { name: "Overview" }).click();
@@ -910,18 +911,87 @@ await test("research notebook: an edit from an outdated tab is refused, not sile
   const b = await a.context().newPage();
   for (const p of [a, b]) {
     await p.goto(base + "/stock/PEP?tab=research");
-    await p.getByLabel("Thesis").waitFor();
+    await p.getByLabel("Thesis", { exact: true }).waitFor();
   }
   const run = Date.now(); // the demo store lives as long as the server: make this run's text unique
-  await b.getByLabel("Thesis").fill(`Written in tab B ${run}`);
+  await b.getByLabel("Thesis", { exact: true }).fill(`Written in tab B ${run}`);
   await b.getByRole("button", { name: "Save" }).click();
   await b.getByText(/^Saved ·/).waitFor();
-  await a.getByLabel("Thesis").fill(`Written in tab A ${run}`);
+  await a.getByLabel("Thesis", { exact: true }).fill(`Written in tab A ${run}`);
   await a.getByRole("button", { name: "Save" }).click();
   await a.getByText(/changed on another device/).waitFor();
-  assert((await a.getByLabel("Thesis").inputValue()) === `Written in tab A ${run}`, "draft lost");
+  assert((await a.getByLabel("Thesis", { exact: true }).inputValue()) === `Written in tab A ${run}`, "draft lost");
   await a.getByRole("button", { name: "Reload" }).waitFor();
   await a.context().close();
+});
+
+await test("live thesis: a stop and a condition raise alerts in the tab, on the home page and in the list; closing and reopening are recorded", async () => {
+  const p = await page({ lang: "en", watchlist: ["JPM"] });
+  await p.goto(base + "/stock/JPM?tab=research");
+  // The demo store outlives a run: start from an empty notebook.
+  await p.evaluate(() => fetch("/api/research/JPM", { method: "DELETE" }));
+  await p.reload();
+  await p.getByText("Set a stop, a target, a date or a condition and we'll watch it.").waitFor();
+  await p.getByLabel("Stop").fill("250"); // the demo price is $240: the stop is already hit
+  await p.getByRole("button", { name: "Add condition" }).click();
+  await p.getByLabel("Tell me if…").selectOption("move");
+  await p.getByLabel("A move of at least").fill("0.05");
+  await p.getByRole("button", { name: "Add condition" }).last().click();
+  await p.getByRole("button", { name: "Add condition" }).click();
+  await p.getByLabel("The price", { exact: true }).selectOption("above");
+  await p.getByLabel("Level").fill("1000");
+  await p.getByRole("button", { name: "Add condition" }).last().click();
+  await p.getByText("The price rises above $1,000.00").waitFor();
+  await p.getByRole("button", { name: "Save" }).click();
+  const status = p.locator("#thesis-status");
+  await status.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  await status.getByText("At risk").waitFor();
+  await status.getByText(/Moved \+0\.1% in a day \(your alert: ±0\.05%\)/).waitFor();
+  assert((await status.getByText(/Rose above/).count()) === 0, "a condition that isn't true raised an alert");
+  await p.getByRole("heading", { name: "Thesis history" }).waitFor();
+  await p.getByText(/Started being watched · price \$240\.00/).waitFor();
+  await axe(p);
+  // Removing a condition and saving keeps the rest.
+  await p.getByRole("button", { name: "Remove condition: The price rises above $1,000.00" }).click();
+  await p.getByRole("button", { name: "Save" }).click();
+  await p.getByText(/^Saved ·/).waitFor();
+  await p.reload();
+  await status.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  assert((await p.getByText("The price rises above $1,000.00").count()) === 0, "removed condition came back");
+  // The home briefing and the list page show it.
+  await p.goto(base + "/");
+  const theses = p.locator("#theses");
+  await theses.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  await theses.getByRole("link", { name: /JPM/ }).first().waitFor();
+  await p.goto(base + "/research");
+  await p.getByRole("link", { name: /JPM/ }).getByText("At risk").waitFor();
+  // Close it with an outcome and a lesson, then reopen it.
+  await p.goto(base + "/stock/JPM?tab=research");
+  await status.getByRole("button", { name: "Close thesis" }).click();
+  await status.getByRole("button", { name: "Partly" }).click();
+  await status.getByLabel("What I learned (optional)").fill("Sized too big.");
+  await status.locator("form").getByRole("button", { name: "Close thesis" }).click();
+  await p.getByText(/^Closed on .*: Partly\.$/).waitFor();
+  await p.getByText("Sized too big.").waitFor();
+  await p.getByText(/Closed: Partly · price \$240\.00/).waitFor();
+  assert((await p.getByText(/^No longer true/).count()) === 0, "closing listed its alerts as no longer true");
+  await p.goto(base + "/research");
+  await p.getByRole("link", { name: /JPM/ }).getByText("Closed").waitFor();
+  await p.goto(base + "/stock/JPM?tab=research");
+  await p.getByRole("button", { name: "Reopen thesis" }).click();
+  await status.getByText("At risk").waitFor();
+  await p.getByText("Reopened · price $240.00").waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("live thesis: when the check fails, the home page says so and offers a retry", async () => {
+  const p = await page({ lang: "en", watchlist: ["JPM"] });
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: [{ symbol: "JPM", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: 1, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-20T10:00:00Z" }] })));
+  await p.route(/\/api\/theses$/, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
+  await p.goto(base + "/");
+  await p.locator("#theses").getByRole("button", { name: /Try again|Retry/ }).waitFor();
+  await p.context().close();
 });
 
 // ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------
