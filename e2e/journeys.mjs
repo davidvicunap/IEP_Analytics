@@ -155,6 +155,57 @@ await test("search: ignores the / shortcut inside editable content; Ctrl+K works
   await p.context().close();
 });
 
+await test("command palette: Ctrl+K goes to a stock's section, follows it, switches theme and opens pages, by keyboard", async () => {
+  const p = await page({ lang: "en" });
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("heading", { name: "Apple Inc." }).waitFor();
+  const open = async () => {
+    await p.keyboard.press("Control+k");
+    await p.getByRole("dialog", { name: "Commands" }).waitFor();
+  };
+  const box = () => p.getByRole("combobox", { name: "Type a command, an action or a company" });
+  // A ticker and a section, in any order.
+  await open();
+  await box().fill("dcf msft");
+  await p.getByRole("option", { name: /MSFT · DCF/ }).waitFor();
+  await axe(p);
+  await p.keyboard.press("Enter");
+  await p.waitForURL(/\/stock\/MSFT\?tab=valuation&view=dcf$/);
+  await p.getByRole("button", { name: "DCF", pressed: true }).waitFor();
+  // A section alone means the stock on screen; arrows move, Enter runs.
+  await open();
+  await box().fill("insiders");
+  await p.getByRole("option", { name: /MSFT · Insiders/ }).waitFor();
+  await p.keyboard.press("Enter");
+  await p.waitForURL(/view=insiders/);
+  // Follow it, then dark theme.
+  await open();
+  await box().fill("follow");
+  await p.getByRole("option", { name: /Follow MSFT/ }).waitFor();
+  await p.keyboard.press("Enter");
+  await p.getByText("MSFT is in your list.").waitFor();
+  assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("MSFT"), "not followed");
+  await open();
+  await box().fill("dark");
+  await p.getByRole("option", { name: /Dark theme/ }).waitFor();
+  await p.keyboard.press("Enter");
+  assert((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "theme not applied");
+  // Escape closes and gives the focus back; the button opens it too.
+  await open();
+  await p.keyboard.press("Escape");
+  await p.getByRole("dialog", { name: "Commands" }).waitFor({ state: "detached" });
+  await p.getByRole("button", { name: /^Commands/ }).click();
+  await box().fill("screener");
+  await p.getByRole("option", { name: /Stock screener/ }).click();
+  await p.waitForURL(/\/screener$/);
+  // Nothing matches: it says so and suggests a form that works.
+  await open();
+  await box().fill("zzzz qqqq xx");
+  await p.getByText(/Try a ticker and a section/).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
 await test("search: touch selection on a phone (expandable header search)", async () => {
   const p = await page({ width: 375, height: 740, touch: true });
   await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "NVDA", name: "NVIDIA" }])));

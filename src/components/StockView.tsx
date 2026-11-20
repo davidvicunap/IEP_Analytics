@@ -36,6 +36,8 @@ type BusinessView = "summary" | "statements";
 type FilingsView = "filings" | "insiders" | "news";
 const BUSINESS_VIEWS: BusinessView[] = ["summary", "statements"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
+type ValuationView = "comps" | "history" | "dcf" | "expectations";
+const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "dcf", "expectations"];
 
 /** Links from before the tabs were merged keep working (bookmarks, shared links, journeys). */
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
@@ -58,6 +60,7 @@ function useStockUrlState() {
   const rawView = legacy?.view ?? params.get("view");
   const businessView: BusinessView = (BUSINESS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as BusinessView) : "summary";
   const filingsView: FilingsView = (FILINGS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as FilingsView) : "filings";
+  const valuationView: ValuationView = (VALUATION_VIEWS as string[]).includes(rawView ?? "") ? (rawView as ValuationView) : "comps";
   const chart = useMemo(() => parseChartSettings(new URLSearchParams(params.toString())), [params]);
 
   // Rewrite an old link to its new address once, without a history entry.
@@ -92,7 +95,7 @@ function useStockUrlState() {
     go(p, true);
   };
   const setChart = (s: ChartSettings) => go(writeChartSettings(new URLSearchParams(window.location.search), s), false);
-  return { tab, setTab, businessView, filingsView, setView, chart, setChart };
+  return { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart };
 }
 
 /** A failed section shows a message; the rest of the page keeps working. */
@@ -134,7 +137,7 @@ export default function StockView({
   sections: StockSections;
 }) {
   const { t } = useI18n();
-  const { tab, setTab, businessView, filingsView, setView, chart, setChart } = useStockUrlState();
+  const { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart } = useStockUrlState();
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([tab]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { record } = useRecent();
@@ -209,7 +212,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} view={valuationView} onView={setView} /></Deep>)}
       {panel(
         "filings",
         <div className="space-y-4">

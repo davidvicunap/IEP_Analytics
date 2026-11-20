@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import CommandPalette from "./CommandPalette";
 import TickerSearch from "./TickerSearch";
 import { CloseIcon, LogoMark, SearchIcon } from "./icons";
 import { LangToggle, ThemeToggle } from "./Toggles";
@@ -24,13 +25,16 @@ export default function Header({ demo }: { demo: boolean }) {
   const path = usePathname();
   const onHome = path === "/";
   const [open, setOpen] = useState(false); // narrow-screen search panel
+  const [palette, setPalette] = useState(false);
+  const [mac, setMac] = useState(false);
+  useEffect(() => setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)), []);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Close the panel on navigation.
   useEffect(() => setOpen(false), [path]);
 
-  // "/" and Ctrl/Cmd+K go to the search that's on screen: the page's main search, the
-  // header field on wide screens, or the search panel on narrow ones.
+  // "/" goes to the search that's on screen: the page's main search, the header field on wide
+  // screens, or the search panel on narrow ones. Ctrl/Cmd+K opens the command palette.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -39,8 +43,12 @@ export default function Header({ demo }: { demo: boolean }) {
       if (!isSlash && !isK) return;
       if (isSlash && isTypingTarget(e)) return;
       if (isK && e.isComposing) return;
-      const visible = [...document.querySelectorAll<HTMLInputElement>("[data-search-input]")].find((el) => el.offsetParent !== null);
       e.preventDefault();
+      if (isK) {
+        setPalette((v) => !v);
+        return;
+      }
+      const visible = [...document.querySelectorAll<HTMLInputElement>("[data-search-input]")].find((el) => el.offsetParent !== null);
       if (visible) {
         visible.focus();
         visible.select();
@@ -102,6 +110,17 @@ export default function Header({ demo }: { demo: boolean }) {
           </button>
         )}
         <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setPalette(true)}
+            className="hidden lg:inline-flex h-9 items-center gap-2 rounded-lg border border-line px-2.5 text-[13px] text-muted hover:text-fg hover:bg-panel-2 mr-1"
+            aria-keyshortcuts="Control+K Meta+K"
+          >
+            {t.palette.open}
+            <kbd className="rounded border border-line px-1 text-[10px]" aria-hidden="true">
+              {mac ? "⌘K" : "Ctrl K"}
+            </kbd>
+          </button>
           <LangToggle />
           <ThemeToggle />
         </div>
@@ -111,6 +130,7 @@ export default function Header({ demo }: { demo: boolean }) {
           <TickerSearch autoFocus onDone={() => setOpen(false)} onEscape={close} />
         </div>
       )}
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
       {demo && (
         <p role="note" className="flex items-center justify-center gap-2 text-xs py-1.5 border-t border-line px-4 text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />

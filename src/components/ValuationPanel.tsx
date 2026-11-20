@@ -12,13 +12,13 @@ import HistoryView from "./valuation/HistoryView";
 import PriceImplies from "./valuation/PriceImplies";
 import { ExpectationsPanel } from "./fundamentals/FundamentalsPanel";
 
-type View = "comps" | "history" | "dcf" | "expectations";
+export type View = "comps" | "history" | "dcf" | "expectations";
 const VIEWS: View[] = ["comps", "history", "dcf", "expectations"];
 
 /** Valuation screen: interactive comps, the company against its own history, and a DCF. */
-export default function ValuationPanel({ symbol, price }: { symbol: string; price: number | null }) {
+/** The view lives in the URL (`?view=`), so a link (or the command palette) can open it. */
+export default function ValuationPanel({ symbol, price, view, onView: setView }: { symbol: string; price: number | null; view: View; onView: (v: View) => void }) {
   const { t, lang } = useI18n();
-  const [view, setView] = useState<View>("comps");
   const { state, retry } = useResource<ValuationPayload>(`/api/valuation/${encodeURIComponent(symbol)}`);
 
   const label = (k: View) => (k === "history" ? t.valuation.history.view : k === "expectations" ? t.valuation.expectationsView : t.comps.views[k]);
