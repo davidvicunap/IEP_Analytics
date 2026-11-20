@@ -146,6 +146,20 @@ export const userPrefs = pgTable(
   (t) => [primaryKey({ columns: [t.owner, t.key] })],
 );
 
+/** AI explanations, one per stock, language and set of facts: a new filing means new facts and a new row. */
+export const explanations = pgTable(
+  "explanations",
+  {
+    symbol: text("symbol").notNull(),
+    lang: text("lang").notNull(),
+    factsHash: text("facts_hash").notNull(),
+    body: jsonb("body").notNull(), // { facts, explanation }
+    model: text("model").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.lang, t.factsHash] })],
+);
+
 /** Alerts raised by live theses: one row each time an alert fires, cleared when no longer true. */
 export const thesisAlerts = pgTable(
   "thesis_alerts",

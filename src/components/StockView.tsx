@@ -13,6 +13,7 @@ import type { StockIdentity, StockSections } from "@/lib/data";
 import type { Candle, DataIssue, DataSource, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
 import AtAGlance from "./AtAGlance";
+import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
@@ -429,6 +430,7 @@ function Overview({
         </div>
         <div className="order-3 min-w-0">
           <QuarterCard symbol={identity.symbol} />
+          <ExplainPanel symbol={identity.symbol} />
         </div>
       </div>
       <div className="max-lg:contents lg:space-y-4 min-w-0">

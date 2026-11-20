@@ -165,6 +165,14 @@ const es: MethodologyText = {
       ],
     },
     {
+      id: "ai",
+      title: "Explicado con IA",
+      body: [
+        "Claude (Anthropic) escribe tres apartados (el último trimestre, a favor y en contra) a partir de una lista numerada de datos que ya mostramos: el trimestre frente al año anterior (10-Q o 10-K de la SEC) y las cinco líneas de «De un vistazo». No recibe noticias ni otras fuentes.",
+        "Cada frase debe citar los números de los datos en los que se apoya; las que no citan ninguno de los datos dados se descartan. La explicación se escribe una vez por empresa, idioma y conjunto de datos, y se vuelve a escribir solo cuando una nueva presentación cambia los datos. La IA puede equivocarse: cada cifra enlaza a su fuente para comprobarla. No es una recomendación.",
+      ],
+    },
+    {
       id: "chart",
       title: "Soportes y resistencias",
       body: [
@@ -342,6 +350,14 @@ const en: MethodologyText = {
       body: [
         "The 10-K document is downloaded from the SEC and its text extracted: hidden content (XBRL), page headers and footers and the table of contents are dropped. Each section (Item 1 Business, Item 1A Risk factors, Item 7 Management's discussion) is found by its heading; since the table of contents and cross-references also name it, the heading followed by the most text is chosen. Very long sections are cut and say so.",
         "Risk comparison: each risk's bold or italic title is compared with those in the previous 10-K. Unchanged = same text; reworded = most words in common; new = nothing similar; removed = last year's with no match. A “new” risk may be an old topic worded differently.",
+      ],
+    },
+    {
+      id: "ai",
+      title: "Explained by AI",
+      body: [
+        "Claude (Anthropic) writes three sections (the latest quarter, for and against) from a numbered list of facts we already show: the quarter against a year earlier (the SEC 10-Q or 10-K) and the five lines of \"At a glance\". It is given no news or other sources.",
+        "Every sentence must cite the numbers of the facts it rests on; sentences that cite none of the given facts are dropped. An explanation is written once per company, language and set of facts, and written again only when a new filing changes the facts. AI can be wrong: every figure links to its source so you can check it. Not a recommendation.",
       ],
     },
     {

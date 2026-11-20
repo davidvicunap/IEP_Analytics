@@ -1045,6 +1045,63 @@ await test("live thesis: when the check fails, the home page says so and offers 
   await p.context().close();
 });
 
+// ---- AI explanation (its endpoint answered with fixtures: no Claude calls in tests) ------------
+
+const explainFacts = [
+  { id: "F1", label: "Revenue · Q4 FY2026", value: "$102.5B (+8% vs Q4 FY2025)", source: "10-K filed on 2026-10-31", href: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000105/" },
+  { id: "F2", label: "Quality tests (Buffett) passed", value: "9 of 10 (good)", source: "10-K FY2025" },
+  { id: "F3", label: "Today's multiple against its 5-year average", value: "34.2x / 27.1x (weak)", source: "price from Financial Modeling Prep and SEC figures" },
+];
+const explainBase = { symbol: "AAPL", lang: "en", facts: explainFacts, explanation: null, generatedAt: null, model: null, canGenerate: true };
+
+await test("AI explanation: written on request, every sentence links to the facts it cites; off and empty states are plain", async () => {
+  const p = await page({ lang: "en" });
+  let posts = 0;
+  await p.route(/\/api\/explain\/AAPL/, (r) => {
+    if (r.request().method() === "POST") {
+      posts++;
+      return r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { ...explainBase, generatedAt: "2026-11-20T15:00:00Z", model: "claude-opus-5-5", explanation: {
+        quarter: [{ text: "Revenue grew 8% from a year earlier.", facts: ["F1"] }],
+        bull: [{ text: "It passes 9 of the 10 quality tests.", facts: ["F2"] }],
+        bear: [{ text: "Its earnings multiple is above its 5-year average.", facts: ["F3"] }],
+      } } }));
+    }
+    r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: explainBase }));
+  });
+  await p.goto(base + "/stock/AAPL");
+  const panel = p.locator("#explain");
+  await panel.getByText("There's no explanation yet for the latest figures.").waitFor();
+  await panel.getByRole("button", { name: "Write the explanation" }).click();
+  await panel.getByRole("heading", { name: "What happened last quarter" }).waitFor();
+  await panel.getByText("Revenue grew 8% from a year earlier.").waitFor();
+  assert(posts === 1, `posts: ${posts}`);
+  // The citation opens the fact, with its source linked to the SEC filing.
+  await panel.getByRole("link", { name: "Fact 1: Revenue · Q4 FY2026" }).click();
+  await p.waitForURL(/#fact-F1$/);
+  await panel.locator("#fact-F1").getByRole("link", { name: /10-K filed on 2026-10-31/ }).waitFor();
+  await panel.getByText(/Written by Claude \(claude-opus-5-5\)/).waitFor();
+  await panel.getByText(/AI can be wrong: check each figure at its source\. Not a recommendation\./).waitFor();
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  // Not turned on: it says so, with no button.
+  const off = await page({ lang: "es" });
+  await off.route(/\/api\/explain\/AAPL/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { ...explainBase, lang: "es", canGenerate: false, why: "not_configured" } })));
+  await off.goto(base + "/stock/AAPL");
+  await off.locator("#explain").getByText("Las explicaciones con IA aún no están activadas en este sitio.").waitFor();
+  assert((await off.locator("#explain").getByRole("button").count()) === 0, "button shown while off");
+  await off.context().close();
+
+  // Too many requests: the writing fails plainly and can be tried later.
+  const busy = await page({ lang: "en" });
+  await busy.route(/\/api\/explain\/AAPL/, (r) => (r.request().method() === "POST" ? r.fulfill(json({ ok: false, error: "rate_limited" }, 429)) : r.fulfill(json({ ok: true, fetchedAt: "x", data: explainBase }))));
+  await busy.goto(base + "/stock/AAPL");
+  await busy.locator("#explain").getByRole("button", { name: "Write the explanation" }).click();
+  await busy.locator("#explain").getByText(/You asked for several explanations in a row/).waitFor();
+  await busy.context().close();
+});
+
 // ---- Compare (SEC and price endpoints answered with fixtures) ---------------------------------
 
 const verdictFix = (sym, growth) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, points: [
