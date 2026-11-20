@@ -31,6 +31,7 @@ export const PAGES = {
   packs: { words: ["paquetes", "packs"], href: "/charts/packs" },
   research: { words: ["analisis", "research", "tesis", "theses", "cuaderno", "notebook"], href: "/research" },
   methodology: { words: ["metodologia", "methodology", "como", "how", "calculamos"], href: "/methodology" },
+  compare: { words: ["comparar", "compare", "comparador", "comparison"], href: "/compare" },
 } as const;
 export type PageId = keyof typeof PAGES;
 
@@ -45,12 +46,14 @@ export type SettingId = keyof typeof SETTINGS;
 const ACTIONS = {
   follow: ["seguir", "follow", "anadir", "add", "guardar", "save"],
   unfollow: ["dejar", "unfollow", "quitar", "remove", "eliminar"],
+  compare: ["comparar", "compare", "vs", "versus", "contra"],
 } as const;
 type ActionId = keyof typeof ACTIONS;
 
 export type Command =
   | { type: "stock"; symbol: string; name?: string; section: SectionId }
   | { type: "follow"; symbol: string; name?: string; on: boolean }
+  | { type: "compare"; symbols: string[] }
   | { type: "page"; page: PageId }
   | { type: "setting"; setting: SettingId };
 
@@ -168,6 +171,18 @@ export function commandsFor(q: string, ctx: Context): Command[] {
   ];
   const found = ctx.results.some((r) => r.symbol === rest.toUpperCase());
   if (!found) for (const o of others) if (o.exact) push(o.c);
+
+  // "compare aapl msft", "aapl vs msft", or "compare msft" on a stock page: up to four tickers.
+  if (action === "compare") {
+    const typed = rest
+      .split(" ")
+      .map((w) => w.toUpperCase())
+      .filter((w) => TICKER.test(w));
+    const symbols = [...new Set([...(ctx.symbol && !typed.includes(ctx.symbol) ? [ctx.symbol] : []), ...typed])].slice(0, 4);
+    if (symbols.length) push({ type: "compare", symbols });
+    for (const o of others) push(o.c);
+    return out;
+  }
 
   // A company was named: its section (or the overview), or the action on it.
   if (rest) {

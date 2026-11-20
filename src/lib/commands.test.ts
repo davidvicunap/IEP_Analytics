@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { commandsFor, hrefFor, normalize, parse, type Command, type Context } from "./commands";
 
 const ctx = (over: Partial<Context> = {}): Context => ({ recent: [], following: [], results: [], ...over });
-const hrefs = (cs: Command[]) => cs.map((c) => (c.type === "stock" ? hrefFor(c) : c.type === "page" ? `page:${c.page}` : c.type === "setting" ? `set:${c.setting}` : `${c.on ? "follow" : "unfollow"}:${c.symbol}`));
+const hrefs = (cs: Command[]) => cs.map((c) => (c.type === "stock" ? hrefFor(c) : c.type === "page" ? `page:${c.page}` : c.type === "setting" ? `set:${c.setting}` : c.type === "compare" ? `compare:${c.symbols.join(",")}` : `${c.on ? "follow" : "unfollow"}:${c.symbol}`));
 
 describe("reading a line", () => {
   it("ignores case and accents", () => {
@@ -59,6 +59,14 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("de", ctx()))).toEqual(["/stock/DE"]); // alone, a little word is a ticker (Deere)
     // "dis" on a stock page: its DCF, or Disney.
     expect(hrefs(commandsFor("dis", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation&view=dcf", "/stock/DIS"]);
+  });
+
+  it("compares several tickers, with the stock on screen first", () => {
+    const cmp = (q: string, c = ctx()) => commandsFor(q, c).filter((x) => x.type === "compare");
+    expect(cmp("compare aapl msft googl")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT", "GOOGL"] }]);
+    expect(cmp("aapl vs msft")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
+    expect(cmp("comparar msft", ctx({ symbol: "AAPL" }))).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
+    expect(commandsFor("comparar", ctx())[0]).toEqual({ type: "page", page: "compare" });
   });
 
   it("finds pages and settings by their words", () => {

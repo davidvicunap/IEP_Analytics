@@ -1045,6 +1045,71 @@ await test("live thesis: when the check fails, the home page says so and offers 
   await p.context().close();
 });
 
+// ---- Compare (SEC and price endpoints answered with fixtures) ---------------------------------
+
+const verdictFix = (sym, growth) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, points: [
+  { key: "quality", level: "good", passed: 9, judged: 10 },
+  { key: "growth", level: growth, metric: "revenueGrowth", value: growth === "good" ? 0.15 : 0.04, compare: 0.06, peers: 40 },
+  { key: "profitability", level: "good", metric: "roic", value: 0.31, compare: 0.12 },
+  { key: "debt", level: "mid", metric: "debtToEquity", value: 0.6, compare: 0.6 },
+  { key: "valuation", level: "weak", metric: "pe", value: 34, compare: 27 },
+], missing: [], fiscal: "FY2025", industry: "SOFTWARE", priceAt: "2026-11-20T15:00:00Z", historyFrom: "2021-11-30", issues: {} } });
+const ratioRow = (key, better, value, percentile) => ({ key, group: "profitability", better, applicable: true, value, note: null, history: [], own: null, sector: { percentile, median: 0.1, n: 40, sicPrefix: "737" } });
+const ratiosFix = (sym, roic, debt) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, cik: 1, businessType: "general", sic: 7372, sicDescription: "SOFTWARE", period: { label: "FY2025", end: "2025-09-30" }, peersYear: 2025, ratios: [
+  ratioRow("revenueGrowth", "higher", 0.08, 60), ratioRow("roic", "higher", roic, roic > 0.3 ? 92 : 70), ratioRow("debtToEquity", "lower", debt, 40),
+] } });
+const valFix = (sym, pe) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: [{ key: "pe", applicable: true, higherIsCheaper: false, value: pe, note: null, own: { mean: 25 } }, { key: "fcfYield", applicable: false, higherIsCheaper: true, value: null, note: null, own: null }] } });
+const months = Array.from({ length: 24 }, (_, i) => `${2024 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
+const marketFix = (sym, start, step) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: "ok", monthly: { keys: months, ends: months.map((m) => `${m}-28`), values: { price: months.map((_, i) => start + i * step) } } } });
+
+await test("compare: companies side by side from the URL, add and remove, phone table scrolls inside its box", async () => {
+  const p = await page({ lang: "en" });
+  await p.route(/\/api\/verdict\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(verdictFix(s, s === "MSFT" ? "good" : "mid"))); });
+  await p.route(/\/api\/sec\/ratios\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(ratiosFix(s, s === "AAPL" ? 0.52 : 0.28, s === "AAPL" ? 1.5 : 0.4))); });
+  await p.route(/\/api\/valuation\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(valFix(s, s === "AAPL" ? 33.4 : 30))); });
+  await p.route(/\/api\/charts\/market\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(marketFix(s, 100, s === "AAPL" ? 2 : 1))); });
+  await p.goto(base + "/compare?s=aapl,msft");
+  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
+  const glance = p.getByRole("region", { name: "At a glance" });
+  await glance.getByText("ROIC 31% · industry median 12%").first().waitFor();
+  const ratios = p.getByRole("region", { name: "Against its industry" });
+  await ratios.getByText("above 92% of its industry").waitFor();
+  // Higher ROIC is better (AAPL); lower debt is better (MSFT): the best in each row is marked.
+  const roic = ratios.getByRole("row", { name: /ROIC/ });
+  await roic.getByText("best in the group").waitFor();
+  assert((await roic.getByRole("cell").nth(0).innerText()).includes("52.0%") || (await roic.getByRole("cell").nth(0).innerText()).includes("52%"), "AAPL ROIC");
+  const debtRow = ratios.getByRole("row", { name: /Debt/ });
+  assert((await debtRow.getByRole("cell").nth(1).innerText()).includes("●"), "lower debt not marked as best");
+  await p.getByRole("region", { name: "Valuation" }).getByText("33.4x").waitFor();
+  await p.getByRole("region", { name: "Valuation" }).getByText("Not applicable").first().waitFor();
+  await p.getByRole("group", { name: /Price performance: AAPL, MSFT/ }).waitFor();
+  await axe(p);
+  // Add a third company with the search, remove one: the URL follows.
+  await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "KO", name: "The Coca-Cola Company" }])));
+  await p.getByRole("combobox", { name: "Add a company" }).fill("coca");
+  await p.getByRole("option", { name: /KO/ }).click();
+  await p.waitForURL(/s=AAPL,MSFT,KO$/);
+  await p.getByRole("button", { name: "Remove MSFT from the comparison" }).click();
+  await p.waitForURL(/s=AAPL,KO$/);
+  await p.getByRole("heading", { name: "Compare: AAPL · KO" }).waitFor();
+  // The stock page links here.
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("link", { name: "Compare" }).click();
+  await p.waitForURL(/\/compare\?s=AAPL$/);
+  await p.getByText("Add at least one more company to compare.").waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  const m = await page({ lang: "es", width: 320, height: 700 });
+  await m.route(/\/api\/(verdict|sec\/ratios|valuation|charts\/market)\//, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
+  await m.goto(base + "/compare?s=AAPL,MSFT,GOOGL,NVDA");
+  await m.getByRole("heading", { name: "Comparar: AAPL · MSFT · GOOGL · NVDA" }).waitFor();
+  await m.getByText("Puedes comparar hasta 4 empresas.").waitFor();
+  await m.waitForTimeout(500);
+  assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 320, "page scrolls sideways at 320 px");
+  await m.context().close();
+});
+
 // ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------
 
 const screenRow = (symbol, rank, industry, ratios) => ({

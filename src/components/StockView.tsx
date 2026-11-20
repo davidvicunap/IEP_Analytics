@@ -16,7 +16,7 @@ import AtAGlance from "./AtAGlance";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { ClockIcon, ExternalIcon, GridIcon } from "./icons";
+import { ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
 import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -294,6 +294,15 @@ function StockHeader({
           >
             <GridIcon size={16} />
             <span className="hidden sm:inline">{t.stock.packs}</span>
+          </Link>
+          <Link
+            href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
+            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+            title={t.compare.title}
+            aria-label={t.compare.title}
+          >
+            <ColumnsIcon size={16} />
+            <span className="hidden sm:inline">{t.compare.button}</span>
           </Link>
           <WatchButton symbol={identity.symbol} />
         </div>
