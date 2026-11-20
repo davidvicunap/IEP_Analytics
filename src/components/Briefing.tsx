@@ -104,7 +104,18 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           )}
         </Section>
 
-        <Section title={B.results.title} empty={B.results.empty} loading={loading && !brief?.results.length} items={brief?.results ?? []} note={brief?.results.length ? B.results.note : undefined}>
+        <Section
+          title={B.results.title}
+          empty={B.results.empty}
+          loading={loading && !brief?.results.length}
+          items={brief?.results ?? []}
+          note={brief?.results.length ? B.results.note : undefined}
+          more={
+            <Link href="/calendar" prefetch={false} className="link text-xs">
+              {t.calendar.open}
+            </Link>
+          }
+        >
           {(r) => (
             <Row key={r.symbol} symbol={r.symbol} href={`/stock/${encodeURIComponent(r.symbol)}`}>
               {fill(B.results.around, { d: fmtDate(r.date, lang) })}
@@ -197,7 +208,7 @@ function Theses() {
   );
 }
 
-function Section<T>({ title, empty, loading, items, note, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; children: (item: T) => React.ReactNode }) {
+function Section<T>({ title, empty, loading, items, note, more, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; more?: React.ReactNode; children: (item: T) => React.ReactNode }) {
   return (
     <Panel title={title} className="min-w-0">
       {items.length > 0 ? (
@@ -211,6 +222,7 @@ function Section<T>({ title, empty, loading, items, note, children }: { title: s
         <p className="text-sm text-muted">{empty}</p>
       )}
       {note && <p className="mt-3 text-xs text-muted">{note}</p>}
+      {more && <p className="mt-2">{more}</p>}
     </Panel>
   );
 }

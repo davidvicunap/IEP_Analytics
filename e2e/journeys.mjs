@@ -1045,6 +1045,48 @@ await test("live thesis: when the check fails, the home page says so and offers 
   await p.context().close();
 });
 
+// ---- Calendar (SEC summaries and notebooks answered with fixtures) ----------------------------
+
+await test("calendar: results, SEC deadlines and review dates by week; range, filters and .ics download", async () => {
+  const p = await page({ lang: "en", watchlist: ["AAPL", "MSFT"] });
+  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  const filing = (form, reportDate) => ({ accn: `${form}-${reportDate}`, form, filed: reportDate, reportDate, primaryDocument: "a.htm", items: [] });
+  const snap = (symbol, f) => ({ symbol, cik: 1, quality: { ok: false, error: "not_found" }, insiders: { ok: false, error: "not_found" }, filings: { ok: true, data: { report: null, annual: null, latest: null, recent: [], nextResults: null, ...f } } });
+  const data = {
+    AAPL: snap("AAPL", { nextResults: { date: day(10), basedOn: day(-355) } }),
+    MSFT: snap("MSFT", { report: filing("10-Q", day(-60)), annual: filing("10-K", day(-240)) }), // next 10-Q due in ~71 days
+  };
+  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [{ symbol: "KO", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: day(20), checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-01T00:00:00Z" }] })));
+  await p.route(/\/api\/theses/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: { items: [], skipped: 0 } })));
+  await p.goto(base + "/calendar");
+  await p.getByRole("heading", { name: "Calendar", level: 1 }).waitFor();
+  await p.getByRole("link", { name: /AAPL.*Results \(estimated\)/ }).waitFor();
+  await p.getByRole("link", { name: /KO.*Review your thesis/ }).waitFor();
+  assert((await p.getByText("10-Q due").count()) === 0, "a deadline beyond 60 days is shown");
+  await p.getByRole("button", { name: "90 days" }).click();
+  await p.getByRole("link", { name: /MSFT.*10-Q due/ }).waitFor();
+  await axe(p);
+  // Hide results; the download has what's on screen.
+  await p.getByRole("button", { name: "Results" }).click();
+  await p.getByRole("link", { name: /AAPL.*Results/ }).waitFor({ state: "detached" });
+  const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Add to my calendar (.ics)" }).click()]);
+  const ics = readFileSync(await download.path(), "utf8");
+  assert(ics.includes("SUMMARY:KO: review thesis") && ics.includes("SUMMARY:MSFT: 10-Q due") && !ics.includes("AAPL"), ics);
+  // The home briefing links here.
+  await p.goto(base + "/");
+  await p.getByRole("link", { name: "See calendar" }).click();
+  await p.waitForURL(/\/calendar$/);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  const empty = await page({ lang: "es" });
+  await empty.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await empty.goto(base + "/calendar");
+  await empty.getByText("Sigue acciones o pon una fecha de revisión en «Mi análisis» para ver aquí sus fechas.").waitFor();
+  await empty.context().close();
+});
+
 // ---- AI explanation (its endpoint answered with fixtures: no Claude calls in tests) ------------
 
 const explainFacts = [

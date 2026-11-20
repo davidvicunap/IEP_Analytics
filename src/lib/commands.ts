@@ -32,6 +32,7 @@ export const PAGES = {
   research: { words: ["analisis", "research", "tesis", "theses", "cuaderno", "notebook"], href: "/research" },
   methodology: { words: ["metodologia", "methodology", "como", "how", "calculamos"], href: "/methodology" },
   compare: { words: ["comparar", "compare", "comparador", "comparison"], href: "/compare" },
+  calendar: { words: ["calendario", "calendar", "agenda", "fechas", "dates"], href: "/calendar" },
 } as const;
 export type PageId = keyof typeof PAGES;
 
