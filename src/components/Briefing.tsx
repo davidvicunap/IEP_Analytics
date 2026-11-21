@@ -69,7 +69,8 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
     ? [
         !loading && !brief.filings.length && B.filings.title,
         !loading && !brief.results.length && B.results.title,
-        !quotesLoading && notes.state.status !== "loading" && !brief.fairValue.length && B.fairValue.title,
+        // Only when the notebooks loaded: if they failed, the theses panel says so instead.
+        !quotesLoading && notes.state.status === "ok" && !brief.fairValue.length && B.fairValue.title,
         !loading && !brief.insiders.length && B.insiders.title,
       ].filter((x): x is string => !!x)
     : [];
@@ -196,6 +197,13 @@ function Theses() {
   const notes = useNotes();
   const watched = notes.state.status === "ok" ? notes.state.data.filter(isWatched).length : 0;
   const { state, retry } = useTheses();
+  // Notebooks that failed to load: say so (their alerts and fair values are missing), don't hide it.
+  if (notes.state.status === "error")
+    return (
+      <Panel title={T.briefTitle} id="theses">
+        <IssueNote issue={notes.state.issue} onRetry={notes.retry} />
+      </Panel>
+    );
   if (watched === 0) return null;
   const data = state.status === "ok" ? state.data : state.status === "loading" ? state.previous?.data : undefined;
   const all = (data?.items ?? []).flatMap((i) => i.alerts.map((a) => ({ ...a, symbol: i.symbol })));

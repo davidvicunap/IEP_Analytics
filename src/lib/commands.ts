@@ -107,16 +107,21 @@ export function parse(q: string): Parsed {
   const sectionIds = Object.keys(SECTIONS) as SectionId[];
   const actionIds = Object.keys(ACTIONS) as ActionId[];
   for (const exact of [true, false]) {
+    const hit = (tok: string, words: readonly string[]) => (exact ? exactly(tok, words) : anyWord(tok, words));
     tokens.forEach((tok, i) => {
       if (used[i]) return;
-      const hit = (words: readonly string[]) => (exact ? exactly(tok, words) : anyWord(tok, words));
-      const a = actionIds.find((k) => hit(ACTIONS[k]));
+      const a = actionIds.find((k) => hit(tok, ACTIONS[k]));
       if (a) {
         action ??= a; // "dejar de seguir": the first action word decides, the second is part of it
         used[i] = true;
-        return;
       }
-      const s = section ? undefined : sectionIds.find((k) => hit(SECTIONS[k].words));
+    });
+    // Actions name no section, so beside one a word is only a section when typed in full:
+    // "follow dis" follows Disney rather than opening a DCF.
+    if (!exact && action) continue;
+    tokens.forEach((tok, i) => {
+      if (used[i] || section) return;
+      const s = sectionIds.find((k) => hit(tok, SECTIONS[k].words));
       if (s) {
         section = s;
         used[i] = true;

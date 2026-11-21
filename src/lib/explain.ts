@@ -17,6 +17,8 @@ export interface Fact {
   /** Where it comes from, in words ("10-Q filed on 2026-10-31"), and a link when there is one. */
   source: string;
   href?: string;
+  /** For a value that moves with the price: what the fingerprint uses instead (its level). */
+  stable?: string;
 }
 
 export interface FactInput {
@@ -107,7 +109,8 @@ export function buildFacts(input: FactInput, lang: Lang): Fact[] {
       else if (p.metric && p.value !== undefined) value = `${metric(p.metric, p.value, lang)}${p.compare !== undefined ? ` / ${metric(p.metric, p.compare, lang)}` : ""}`;
       else continue;
       const parts = p.key === "valuation" ? [T.ownHistory] : [v.fiscal ? fill(T.tenK, { fy: v.fiscal }) : null, v.industry && p.key !== "quality" ? fill(T.industry, { i: v.industry }) : null];
-      facts.push({ label, value: `${value} (${T.level[p.level]})`, source: parts.filter(Boolean).join(" · ") });
+      // Today's multiple moves with the price every day; only its level changes the explanation.
+      facts.push({ label, value: `${value} (${T.level[p.level]})`, source: parts.filter(Boolean).join(" · "), ...(p.key === "valuation" ? { stable: p.level } : {}) });
     }
   }
   return facts.map((f, i) => ({ id: `F${i + 1}`, ...f }));
@@ -164,9 +167,12 @@ export function acceptExplanation(raw: RawExplanation, facts: Fact[]): Explanati
   return { quarter: clean(raw.quarter), bull: clean(raw.bull), bear: clean(raw.bear) };
 }
 
-/** A short stable fingerprint of the facts: a new filing (new facts) means a new explanation. */
+/**
+ * A short stable fingerprint of the facts: a new filing (new facts) means a new explanation.
+ * Price-driven values count by their level, so a day's move doesn't call Claude again.
+ */
 export function factsHash(facts: Fact[], lang: Lang): string {
-  const s = `${lang}|${facts.map((f) => `${f.label}=${f.value}@${f.source}`).join("|")}`;
+  const s = `${lang}|${facts.map((f) => `${f.label}=${f.stable ?? f.value}@${f.source}`).join("|")}`;
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);

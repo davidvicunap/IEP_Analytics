@@ -24,6 +24,13 @@ describe("reading a line", () => {
     expect(parse("dis")).toEqual({ section: "dcf", action: null, rest: "", alt: "dis" });
     expect(parse("news").alt).toBeUndefined();
   });
+
+  it("keeps a ticker beside an action, even one that starts a section word", () => {
+    expect(parse("follow dis")).toMatchObject({ action: "follow", section: null, rest: "dis" });
+    expect(parse("dis seguir")).toMatchObject({ action: "follow", section: null, rest: "dis" });
+    expect(parse("compare dis aapl")).toMatchObject({ action: "compare", rest: "dis aapl" });
+    expect(hrefs(commandsFor("follow dis", ctx({ symbol: "MSFT" })))).toEqual(["follow:DIS"]);
+  });
 });
 
 describe("commands for a line", () => {
@@ -64,6 +71,7 @@ describe("commands for a line", () => {
   it("compares several tickers, with the stock on screen first", () => {
     const cmp = (q: string, c = ctx()) => commandsFor(q, c).filter((x) => x.type === "compare");
     expect(cmp("compare aapl msft googl")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT", "GOOGL"] }]);
+    expect(cmp("compare dis aapl")).toEqual([{ type: "compare", symbols: ["DIS", "AAPL"] }]);
     expect(cmp("aapl vs msft")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
     expect(cmp("comparar msft", ctx({ symbol: "AAPL" }))).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
     expect(commandsFor("comparar", ctx())[0]).toEqual({ type: "page", page: "compare" });

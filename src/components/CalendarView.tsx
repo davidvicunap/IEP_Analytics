@@ -41,7 +41,10 @@ export default function CalendarView() {
     if (notes.state.status === "ok") for (const n of notes.state.data) if (n.reviewBy && !n.closed) m.set(n.symbol, n.reviewBy);
     return m;
   }, [notes.state]);
-  const symbols = [...new Set([...watch.list, ...reviews.keys()])].slice(0, MAX_CHECKED);
+  // Every review date shows (it needs no data); results and deadlines need a snapshot, loaded
+  // for the first MAX_CHECKED stocks.
+  const all = [...new Set([...watch.list, ...reviews.keys()])];
+  const symbols = all.slice(0, MAX_CHECKED);
   const snaps = useSnapshots(symbols, hydrated);
   const states = symbols.map((s) => snaps.state[s]);
   const done = states.filter((s) => s && s.status !== "loading").length;
@@ -50,12 +53,12 @@ export default function CalendarView() {
 
   const events = useMemo(() => {
     if (!today) return [];
-    const rows = symbols.map((s) => {
+    const rows = all.map((s) => {
       const st = snaps.state[s];
       return { symbol: s, snapshot: st?.status === "ok" ? st.data : null, reviewBy: reviews.get(s) ?? null };
     });
     return buildCalendar(rows, today, days).filter((e) => shown.has(e.kind));
-  }, [today, symbols.join(","), snaps.state, reviews, days, shown]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [today, all.join(","), snaps.state, reviews, days, shown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const label = (e: CalEvent) => (e.kind === "results" ? C.results : e.kind === "deadline" ? fill(C.deadline, { f: e.form ?? "" }) : C.review);
   const note = (e: CalEvent) =>
@@ -110,7 +113,7 @@ export default function CalendarView() {
         </button>
       </section>
 
-      {hydrated && symbols.length === 0 && notes.state.status !== "loading" ? (
+      {hydrated && all.length === 0 && notes.state.status !== "loading" ? (
         <Panel>
           <EmptyState title={C.title}>{C.none}</EmptyState>
         </Panel>
@@ -164,6 +167,7 @@ export default function CalendarView() {
       )}
 
       {failed.length > 0 && <StatusMessage tone="warn">{fill(C.issues, { n: failed.length, t: symbols.length })}</StatusMessage>}
+      {all.length > symbols.length && <p className="text-xs text-muted">{fill(C.capped, { n: symbols.length, t: all.length })}</p>}
       <p className="text-xs text-muted">{C.method}</p>
     </div>
   );
