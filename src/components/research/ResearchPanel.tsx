@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
-import { fill, useI18n } from "@/lib/i18n";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { DeepI18n, fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtNum, fmtPrice } from "@/lib/format";
 import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/research";
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
@@ -11,6 +12,13 @@ import { NumberField } from "../valuation/fields";
 import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
 import { isWatched } from "@/lib/thesis";
 import type { Direction } from "@/lib/thesis";
+import type { Candle, Result } from "@/lib/types";
+
+// The guided plan loads with its text (deep dictionary) only when it's shown.
+const PlanBuilder = dynamic(() => import("./PlanBuilder"), { loading: () => <Skeleton className="h-96 w-full rounded-2xl" /> });
+
+/** Remembered per device: someone who chose to write the plan by hand starts from the form next time. */
+const MODE_KEY = "iep.planMode";
 
 type Lang = "es" | "en";
 
@@ -43,7 +51,7 @@ const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((k) 
 export const signedPct = (v: number, lang: Lang) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${fmtNum(Math.abs(v) * 100, lang, 1)}%`;
 
 /** "My research" tab: thesis, bull and bear points, fair value and plan, dated notes. */
-export default function ResearchPanel({ symbol, price }: { symbol: string; price: number | null }) {
+export default function ResearchPanel({ symbol, price, history = null }: { symbol: string; price: number | null; history?: Promise<Result<Candle[]>> | null }) {
   const { t } = useI18n();
   const { state, retry } = useNote(symbol);
   if (state.status === "error") {
@@ -62,12 +70,37 @@ export default function ResearchPanel({ symbol, price }: { symbol: string; price
       </Panel>
     );
   }
-  return <Notebook symbol={symbol} note={shown} price={price} onReload={retry} />;
+  return <Notebook symbol={symbol} note={shown} price={price} history={history} onReload={retry} />;
 }
 
-function Notebook({ symbol, note, price, onReload }: { symbol: string; note: ResearchNote; price: number | null; onReload: () => void }) {
+function Notebook({ symbol, note, price, history, onReload }: { symbol: string; note: ResearchNote; price: number | null; history: Promise<Result<Candle[]>> | null; onReload: () => void }) {
   const { t, lang } = useI18n();
   const R = t.research;
+  // A notebook with nothing in it opens on the guided plan, unless this device chose the form.
+  const [mode, setMode] = useState<"guided" | "form">(() => {
+    if (isWatched(note) || note.closed || note.thesis || note.bull || note.bear) return "form";
+    try {
+      return localStorage.getItem(MODE_KEY) === "form" ? "form" : "guided";
+    } catch {
+      return "guided";
+    }
+  });
+  const [planned, setPlanned] = useState(false);
+  const plannedRef = useRef<HTMLDivElement>(null);
+  // After the guided plan saves, show its confirmation where the eye is.
+  useEffect(() => {
+    if (planned) plannedRef.current?.scrollIntoView({ block: "center" });
+  }, [planned]);
+  const choose = (m: "guided" | "form") => {
+    setMode(m);
+    setPlanned(false);
+    try {
+      if (m === "form") localStorage.setItem(MODE_KEY, "form");
+      else localStorage.removeItem(MODE_KEY);
+    } catch {
+      /* blocked storage: the choice lasts for this visit */
+    }
+  };
   const [form, setForm] = useState<Form>(() => formOf(note));
   const [base, setBase] = useState<Form>(() => formOf(note));
   const [status, setStatus] = useState<{ kind: "idle" } | { kind: "saving" } | { kind: "error"; issue: SaveIssue }>({ kind: "idle" });
@@ -108,9 +141,46 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
   const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const field = "w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm leading-relaxed placeholder:text-muted focus:border-line-strong";
 
+  if (mode === "guided") {
+    return (
+      <div className="space-y-4">
+        <Suspense fallback={<Skeleton className="h-96 w-full rounded-2xl" />}>
+          <DeepI18n>
+            <PlanBuilder
+              symbol={symbol}
+              note={note}
+              price={price}
+              history={history}
+              onSaved={() => {
+                setMode("form");
+                setPlanned(true);
+              }}
+              onManual={() => choose("form")}
+              onReload={onReload}
+            />
+          </DeepI18n>
+        </Suspense>
+        <DatedNotes symbol={symbol} note={note} />
+        <p className="text-xs text-muted">{R.disclaimer}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {planned && (
+        <div ref={plannedRef}>
+          <StatusMessage tone="info">{R.planSaved}</StatusMessage>
+        </div>
+      )}
       {(isWatched(note) || note.closed) && <ThesisSummary symbol={symbol} note={note} price={price} />}
+      {!note.closed && (
+        <p>
+          <button type="button" onClick={() => choose("guided")} className="link inline-flex min-h-11 items-center text-sm sm:min-h-0">
+            {isWatched(note) ? R.planRedo : R.planGuided}
+          </button>
+        </p>
+      )}
       <form
         className="space-y-4"
         onSubmit={(e) => {

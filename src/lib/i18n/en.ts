@@ -506,6 +506,9 @@ const en: CoreDict = {
     cols: { stock: "Stock", fair: "Fair value", price: "Price", gap: "Gap", updated: "Updated" },
     noThesis: "No thesis yet",
     disclaimer: "These are your notes, not a recommendation.",
+    planGuided: "Build my plan with help",
+    planRedo: "Redo the plan with help",
+    planSaved: "Done: your thesis is being watched. We'll tell you here and on your home page.",
   },
   start: {
     title: "Getting started",

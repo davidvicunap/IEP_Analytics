@@ -31,6 +31,7 @@ const PAGES = [
   { name: "research", path: "/research" },
   { name: "screener", path: "/screener" },
   { name: "notebook", path: "/stock/AAPL", tab: "research" },
+  { name: "plan", path: "/stock/ORCL", tab: "research" }, // an empty notebook: the guided plan
   { name: "reader", path: "/stock/AAPL/report" },
   { name: "packs", path: "/charts/packs?s=AAPL" },
   { name: "methodology", path: "/methodology" },

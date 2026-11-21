@@ -506,6 +506,9 @@ const es = {
     cols: { stock: "Acción", fair: "Valor razonable", price: "Precio", gap: "Diferencia", updated: "Actualizado" },
     noThesis: "Sin tesis escrita",
     disclaimer: "Son tus notas, no una recomendación.",
+    planGuided: "Armar mi plan con ayuda",
+    planRedo: "Rehacer el plan con ayuda",
+    planSaved: "Listo: vigilamos tu tesis. Te avisamos aquí y en tu inicio.",
   },
   start: {
     title: "Primeros pasos",

@@ -36,12 +36,14 @@ const assert = (cond, msg) => {
 };
 
 const browser = await chromium.launch();
-async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, onboarding = false } = {}) {
+async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, onboarding = false, planMode = "form" } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: lang === "es" ? "es-US" : "en-US" });
   await ctx.addCookies([{ name: "lang", value: lang, url: base }]);
   await ctx.addInitScript(
-    ([theme, list, onboarding]) => {
+    ([theme, list, onboarding, planMode]) => {
       if (!sessionStorage.getItem("seeded")) {
+        // An empty notebook opens on the guided plan; journeys use the form unless they test the guide.
+        if (planMode) localStorage.setItem("iep.planMode", planMode);
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
         // The getting-started checklist is hidden except in its own journey.
@@ -50,7 +52,7 @@ async function page({ width = 1280, height = 900, lang = "es", theme = "light", 
         sessionStorage.setItem("seeded", "1");
       }
     },
-    [theme, watchlist, onboarding],
+    [theme, watchlist, onboarding, planMode],
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
@@ -1042,6 +1044,102 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   const row = p.getByRole("link", { name: /KO/ });
   await row.getByText("$75.00").waitFor();
   await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+const verdictFixture = (symbol) => ({
+  ok: true,
+  fetchedAt: new Date().toISOString(),
+  data: {
+    symbol,
+    points: [
+      { key: "quality", level: "good", passed: 9, judged: 10 },
+      { key: "growth", level: "mid", metric: "revenueGrowth", value: 0.05, compare: 0.05 },
+      { key: "debt", level: "weak", metric: "debtToEquity", value: 1.8, compare: 0.9 },
+    ],
+    missing: [],
+    fiscal: "FY2025",
+    industry: "SOAP & DETERGENTS",
+    priceAt: new Date().toISOString(),
+    historyFrom: "2021-11-20",
+    issues: {},
+  },
+});
+
+await test("guided plan: reasons from the data, suggested levels with their reason, a position size, saved as a watched thesis", async () => {
+  const p = await page({ lang: "en", planMode: null });
+  await p.route("**/api/verdict/PG", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(verdictFixture("PG")) }));
+  await p.goto(base + "/stock/PG?tab=research");
+  await p.evaluate(() => fetch("/api/research/PG", { method: "DELETE" }));
+  await p.reload();
+  const guide = p.locator("#plan-builder");
+  await guide.getByText("Step 1 of 3").waitFor();
+  // Writing it by hand is remembered on this device, and the guide is one tap away.
+  await guide.getByRole("button", { name: "I'd rather write it myself" }).click();
+  await p.getByLabel("Thesis", { exact: true }).waitFor();
+  await p.reload();
+  await p.getByRole("button", { name: "Build my plan with help" }).click();
+  await guide.getByText("Step 1 of 3").waitFor();
+  await p.reload();
+  await guide.getByText("Step 1 of 3").waitFor();
+
+  // Step 1: a line from the data goes into the points with its figure and source; tapped again, it leaves.
+  const quality = guide.getByRole("button", { name: /A high-quality business/ });
+  await quality.click();
+  const bull = guide.getByLabel("For (one per line)");
+  assert(/\(9 of 10 tests passed · 10 years of annual reports; SEC, FY2025\)$/.test(await bull.inputValue()), `bull: ${await bull.inputValue()}`);
+  assert((await quality.getAttribute("aria-pressed")) === "true", "chip not pressed");
+  await quality.click();
+  assert((await bull.inputValue()) === "", "line not removed");
+  await quality.click();
+  await guide.getByRole("button", { name: /More debt than most of its industry/ }).click();
+  assert(/More debt/.test(await guide.getByLabel("Against (one per line)").inputValue()), "against line missing");
+  await guide.getByLabel("Your thesis in one sentence").fill("Pricing power keeps margins up.");
+  await axe(p);
+  await guide.getByRole("button", { name: "Next" }).click();
+
+  // Step 2: levels from the price history, each with its reason; a tap fills the field.
+  await guide.getByRole("heading", { name: "What would change your mind?" }).waitFor();
+  const lists = guide.getByRole("list", { name: "Suggestions" });
+  await lists.first().getByRole("button").first().waitFor();
+  const stop = lists.nth(0).getByRole("button").first();
+  const stopText = await stop.innerText();
+  assert(/from the entry/.test(stopText) && /(support|ATR|52-week)/.test(stopText), `stop suggestion: ${stopText}`);
+  await stop.click();
+  const stopField = guide.getByLabel("Stop", { exact: true });
+  await until(async () => (await stopField.inputValue()) !== "", "the stop suggestion didn't fill the field");
+  const stopValue = Number(await stopField.inputValue());
+  assert(stopValue > 0 && stopText.includes(stopValue.toFixed(2)), `stop field ${stopValue} vs ${stopText}`);
+  await lists.nth(1).getByRole("button").first().click();
+  await guide.getByRole("button", { name: /In 3 months/ }).click();
+  await guide.getByTestId("plan-preview").getByText(/we'll tell you if the price falls to it/).waitFor();
+  await axe(p);
+  await guide.getByRole("button", { name: "Next" }).click();
+
+  // Step 3: the size follows from the money, the % at risk and the distance to the stop.
+  await guide.getByText(/Type the money you invest with/).waitFor();
+  await guide.getByLabel("Money you invest with").fill("10000");
+  const sizing = guide.getByTestId("sizing");
+  await sizing.getByText(/To lose no more than \$100\.00 \(1% of \$10,000\.00\): \d+ shares/).waitFor();
+  await guide.getByRole("button", { name: "2%" }).click();
+  await sizing.getByText(/\$200\.00 \(2% of \$10,000\.00\)|Your money covers/).waitFor();
+  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.risk")));
+  assert(saved.account === 10000 && saved.pct === 0.02, `risk settings ${JSON.stringify(saved)}`);
+  await axe(p);
+  await guide.getByRole("button", { name: "Next" }).click();
+
+  // Review, save: a watched thesis, and the form from then on.
+  const summary = guide.getByTestId("plan-summary");
+  await summary.getByText("Pricing power keeps margins up.").waitFor();
+  await summary.getByText(/A high-quality business/).waitFor();
+  await guide.getByRole("button", { name: "Save and watch" }).click();
+  await p.getByText("Done: your thesis is being watched.").waitFor();
+  await p.locator("#thesis-status").getByText("On track").waitFor();
+  assert(Number(await p.getByLabel("Stop", { exact: true }).inputValue()) === stopValue, "stop not saved");
+  await p.reload();
+  await p.getByRole("button", { name: "Redo the plan with help" }).waitFor();
+  assert((await p.locator("#plan-builder").count()) === 0, "a planned notebook should open on the form");
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
