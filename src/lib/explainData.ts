@@ -36,6 +36,8 @@ interface Stored {
   explanation: Explanation;
   generatedAt: string;
   model: string;
+  /** The facts as they were when it was written (what its citations point to). */
+  facts?: Fact[];
 }
 
 export interface ExplainStore {
@@ -52,8 +54,8 @@ function postgresStore(db: Db): ExplainStore {
         .where(and(eq(explanations.symbol, symbol), eq(explanations.lang, lang), eq(explanations.factsHash, hash)))
         .limit(1);
       if (!row) return null;
-      const body = row.body as { explanation: Explanation };
-      return { explanation: body.explanation, generatedAt: row.createdAt.toISOString(), model: row.model };
+      const body = row.body as { explanation: Explanation; facts?: Fact[] };
+      return { explanation: body.explanation, generatedAt: row.createdAt.toISOString(), model: row.model, facts: body.facts };
     },
     async put(symbol, lang, hash, v, facts) {
       await db
@@ -69,8 +71,8 @@ const memoryStore: ExplainStore = {
   async get(symbol, lang, hash) {
     return memory.get(`${symbol}|${lang}|${hash}`) ?? null;
   },
-  async put(symbol, lang, hash, v) {
-    memory.set(`${symbol}|${lang}|${hash}`, v);
+  async put(symbol, lang, hash, v, facts) {
+    memory.set(`${symbol}|${lang}|${hash}`, { ...v, facts });
   },
 };
 
@@ -134,9 +136,19 @@ export const claudeWriter: Writer = async (symbol, name, facts, lang) => {
 
 const configured = () => !!process.env.ANTHROPIC_API_KEY;
 
+/**
+ * True when today's cap is reached, or when the counter can't be read: without it the cap can't
+ * be enforced, so no new explanations are written (stored ones are still shown). Demo mode has
+ * no counter and no real cost.
+ */
 async function capReached(): Promise<boolean> {
   const calls = await providerCallsToday("claude");
-  return calls !== null && calls >= providerDailyLimit(process.env, "claude");
+  if (calls === null) {
+    if (isDemo()) return false;
+    console.warn(JSON.stringify({ event: "explain_cap_unavailable" }));
+    return true;
+  }
+  return calls >= providerDailyLimit(process.env, "claude");
 }
 
 /**
@@ -154,7 +166,8 @@ export async function getExplanation(symbol: string, lang: Lang, opts: { write: 
   const base = { symbol, lang, facts };
   const hasKey = configured() || !!opts.writer;
   const stored = await store.get(symbol, lang, hash);
-  if (stored) return { ok: true, fetchedAt: now, data: { ...base, ...stored, canGenerate: hasKey } };
+  // Served with the facts it was written from, so each sentence's figures match its citations.
+  if (stored) return { ok: true, fetchedAt: now, data: { ...base, ...stored, facts: stored.facts ?? facts, canGenerate: hasKey } };
 
   const capped = hasKey && (await capReached());
   const idle: ExplainPayload = { ...base, explanation: null, generatedAt: null, model: null, canGenerate: hasKey && !capped, ...(hasKey ? (capped ? { why: "daily_cap" as const } : {}) : { why: "not_configured" as const }) };

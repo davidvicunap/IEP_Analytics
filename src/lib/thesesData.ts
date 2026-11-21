@@ -94,8 +94,25 @@ export async function checkThesis(owner: string, note: ResearchNote, alerts: Ale
 }
 
 /** Every watched thesis of one person (the newest first, up to MAX_CHECKED). */
-export async function checkTheses(owner: string, notes: ResearchNote[], alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date): Promise<ThesesPayload> {
+export async function checkTheses(owner: string, notes: ResearchNote[], alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date, limit = MAX_CHECKED): Promise<ThesesPayload> {
   const watched = notes.filter(isWatched);
-  const items = await mapLimit(watched.slice(0, MAX_CHECKED), CONCURRENCY, (n) => checkThesis(owner, n, alerts, facts, now));
-  return { items, skipped: Math.max(0, watched.length - MAX_CHECKED) };
+  // Over the limit, a different batch is checked each hour (so every thesis gets its turn) and the
+  // rest show the alerts they already have. The nightly run checks them all.
+  const fresh = new Set(rotatingBatch(watched.map((n) => n.symbol), limit, now));
+  const items = await mapLimit(watched, CONCURRENCY, (n) => (fresh.has(n.symbol) ? checkThesis(owner, n, alerts, facts, now) : storedView(owner, n, alerts, now)));
+  return { items, skipped: watched.length - fresh.size };
+}
+
+/** `limit` symbols out of `all`, starting at a place that moves every hour. */
+export function rotatingBatch(all: string[], limit: number, now: Date): string[] {
+  if (all.length <= limit) return all;
+  const start = (Math.floor(now.getTime() / 3_600_000) * limit) % all.length;
+  return Array.from({ length: limit }, (_, i) => all[(start + i) % all.length]);
+}
+
+/** A thesis not checked this time: its active alerts and status as last recorded. */
+async function storedView(owner: string, note: ResearchNote, alerts: AlertStore, now: Date): Promise<ThesisView> {
+  const stored = await alerts.recent(owner, note.symbol, new Date(now.getTime() - DEDUP_HOURS * 3_600_000));
+  const active = stored.filter((s) => s.clearedAt === null).sort(byUrgency);
+  return { symbol: note.symbol, status: statusOf(note, active), alerts: active, unchecked: [], priceAt: null };
 }

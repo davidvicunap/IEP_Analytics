@@ -40,7 +40,8 @@ export default function ExplainPanel({ symbol }: { symbol: string }) {
       </Panel>
     );
   }
-  const data = written ?? state.data;
+  // A just-written explanation stands in until the next read, but only for this stock and language.
+  const data = written && written.lang === lang && written.symbol === symbol ? written : state.data;
 
   const write = async () => {
     setWriting({ kind: "busy" });

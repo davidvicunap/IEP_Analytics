@@ -79,7 +79,7 @@ export default function CompareView() {
               <li key={s} className="inline-flex h-11 sm:h-9 items-center gap-1.5 rounded-full border border-line bg-panel-2 pl-3 pr-1 text-sm font-semibold">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: `var(${SLOTS[i]})` }} aria-hidden="true" />
                 {s}
-                <button type="button" onClick={() => set(symbols.filter((x) => x !== s))} className="grid h-9 w-9 sm:h-7 sm:w-7 place-items-center rounded-full text-muted hover:bg-panel hover:text-fg" aria-label={fill(C.remove, { s })}>
+                <button type="button" onClick={() => set(symbols.filter((x) => x !== s))} className="-mr-1 grid h-11 w-11 sm:mr-0 sm:h-7 sm:w-7 place-items-center rounded-full text-muted hover:bg-panel hover:text-fg" aria-label={fill(C.remove, { s })}>
                   <CloseIcon size={14} />
                 </button>
               </li>
@@ -272,7 +272,7 @@ function Grid({ symbols, label, children }: { symbols: string[]; label: string; 
             </th>
             {symbols.map((s, i) => (
               <th key={s} scope="col" className="py-2 px-2 text-left font-semibold">
-                <Link href={`/stock/${enc(s)}`} prefetch={false} className="inline-flex items-center gap-1.5 hover:underline">
+                <Link href={`/stock/${enc(s)}`} prefetch={false} className="inline-flex min-h-11 items-center gap-1.5 hover:underline sm:min-h-0">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: `var(${SLOTS[i]})` }} aria-hidden="true" />
                   {s}
                 </Link>

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyInput, emptyNote, parseInput, type ResearchNote } from "./research";
 import { memoryAlerts } from "./thesisAlertStore";
-import { checkThesis } from "./thesesData";
-import { evaluate, isWatched, previewPlan, type CheckBody, mergeChecks, parseChecks, reconcile, statusOf, thesisReturn, type LiveFields, type Signal, type StoredAlert, type ThesisCheck, type ThesisFacts } from "./thesis";
+import { checkThesis, rotatingBatch } from "./thesesData";
+import { evaluate, fairValueSide, isWatched, previewPlan, type CheckBody, mergeChecks, parseChecks, reconcile, statusOf, thesisReturn, type LiveFields, type Signal, type StoredAlert, type ThesisCheck, type ThesisFacts } from "./thesis";
 
 const TODAY = "2026-11-20";
 const live = (over: Partial<LiveFields> = {}): LiveFields => ({
@@ -57,12 +57,14 @@ describe("evaluating a thesis", () => {
   it("raises the stop and target in the direction the user expects", () => {
     const up = live({ stop: 200, target: 260 });
     expect(kinds(evaluate(up, price(230), TODAY))).toEqual([]);
-    expect(kinds(evaluate(up, price(199), TODAY))).toEqual(["stop"]);
-    expect(kinds(evaluate(up, price(260), TODAY))).toEqual(["target"]);
+    expect(kinds(evaluate(up, price(199), TODAY))).toEqual(["stop:200"]);
+    expect(kinds(evaluate(up, price(260), TODAY))).toEqual(["target:260"]);
     // Expecting a fall: the stop is above, the target below.
     const down = live({ direction: "down", stop: 260, target: 200 });
-    expect(kinds(evaluate(down, price(261), TODAY))).toEqual(["stop"]);
-    expect(evaluate(down, price(200), TODAY).signals.map((s) => [s.key, s.tone])).toEqual([["target", "good"]]);
+    expect(kinds(evaluate(down, price(261), TODAY))).toEqual(["stop:260"]);
+    expect(evaluate(down, price(200), TODAY).signals.map((s) => [s.key, s.tone])).toEqual([["target:200", "good"]]);
+    // A new level is a new alert (its key changes), so an edited stop never shows the old figure.
+    expect(kinds(evaluate({ ...up, stop: 198 }, price(197), TODAY))).toEqual(["stop:198"]);
   });
 
   it("raises the fair value only when the price crosses it from where it was when it was set", () => {
@@ -70,7 +72,7 @@ describe("evaluating a thesis", () => {
     // Set below the price (MSFT: $400 while at $523.88): nothing until the price falls to it.
     const below = setAt(400, 523.88);
     expect(kinds(evaluate(below, price(523.88), TODAY))).toEqual([]);
-    expect(evaluate(below, price(399), TODAY).signals).toEqual([{ key: "fairValue", kind: "fairValue", tone: "attention", data: { price: 399, level: 400, op: "below" } }]);
+    expect(evaluate(below, price(399), TODAY).signals).toEqual([{ key: "fairValue:400", kind: "fairValue", tone: "attention", data: { price: 399, level: 400, op: "below" } }]);
     // Set above the price: the alert is the price rising to it, whatever the direction.
     const above = { ...setAt(250, 230), direction: "down" as const };
     expect(kinds(evaluate(above, price(240), TODAY))).toEqual([]);
@@ -106,11 +108,14 @@ describe("evaluating a thesis", () => {
       nextResults: { date: "2026-11-25" },
     };
     const r = evaluate(n, facts, TODAY);
-    expect(kinds(r)).toEqual(["reviewBy", "price:p", "move:m", "verdict:g", "report:r:0001", "results:e:2026-11-25"]);
+    expect(kinds(r)).toEqual(["reviewBy:2026-11-20", "price:p:above:240", "move:m:5", "verdict:g:good", "report:r:0001", "results:e:2026-11-25"]);
     expect(r.signals.find((s) => s.kind === "verdict")).toMatchObject({ tone: "risk", data: { area: "growth", now: "mid", min: "good" } });
     // A report filed before the check started, results too far off, debt still in line: nothing.
     const older = evaluate(n, { ...facts, report: { accn: "0000", form: "10-K", filed: "2026-10-30" }, nextResults: { date: "2026-12-10" } }, "2026-11-19");
-    expect(kinds(older)).toEqual(["price:p", "move:m", "verdict:g"]);
+    expect(kinds(older)).toEqual(["price:p:above:240", "move:m:5", "verdict:g:good"]);
+    // A verdict without the checked line today (no data) is unknown, not recovered.
+    const gap = evaluate(n, { ...facts, verdict: { debt: "mid" } }, TODAY);
+    expect(gap.unchecked).toContain("verdict");
   });
 
   it("never alerts on a closed thesis", () => {
@@ -188,13 +193,13 @@ describe("checking a thesis with stored alerts", () => {
     const facts = async (): Promise<ThesisFacts> => price(p);
     const first = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T15:00:00Z"));
     expect(first.status).toBe("atRisk");
-    expect(first.alerts.map((a) => a.key)).toEqual(["stop"]);
+    expect(first.alerts.map((a) => a.key)).toEqual(["stop:200"]);
     const again = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T16:00:00Z"));
     expect(again.alerts.map((a) => a.firedAt)).toEqual([first.alerts[0].firedAt]);
     p = 210;
     const later = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T17:00:00Z"));
     expect(later.status).toBe("onTrack");
-    expect((await alerts.history("ana", "AAPL", 10)).map((a) => [a.key, a.clearedAt])).toEqual([["stop", "2026-11-20T17:00:00.000Z"]]);
+    expect((await alerts.history("ana", "AAPL", 10)).map((a) => [a.key, a.clearedAt])).toEqual([["stop:200", "2026-11-20T17:00:00.000Z"]]);
     // Hit again the same day: at risk again, with the same alert (no second firing).
     p = 195;
     const back = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T18:00:00Z"));
@@ -236,7 +241,7 @@ describe("marking an alert as seen", () => {
     let p = 55;
     const facts = async (): Promise<ThesisFacts> => price(p);
     await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T15:00:00Z"));
-    expect(await alerts.dismiss("ana", "KO", "stop", new Date("2026-11-20T16:00:00Z"))).toBe(true);
+    expect(await alerts.dismiss("ana", "KO", "stop:60", new Date("2026-11-20T16:00:00Z"))).toBe(true);
     expect(await alerts.dismiss("ana", "KO", "target", new Date("2026-11-20T16:00:00Z"))).toBe(false);
     const view = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T17:00:00Z"));
     expect(view.status).toBe("atRisk"); // seen, but still true
@@ -247,5 +252,26 @@ describe("marking an alert as seen", () => {
     p = 55;
     const again = await checkThesis("ana", note, alerts, facts, new Date("2026-11-23T15:00:00Z"));
     expect(again.alerts.map((a) => a.dismissedAt ?? null)).toEqual([null]);
+  });
+});
+
+describe("the notebook log", () => {
+  it("keeps the entry behind the current fair value under many newer notes", () => {
+    let n = 0;
+    const id = () => `n${++n}`;
+    let note = applyInput(null, "KO", { fairValue: 80, price: 60, baseUpdatedAt: null }, new Date("2026-11-01T00:00:00Z"), id);
+    for (let i = 0; i < 250; i++) note = applyInput(note, "KO", { addNote: `note ${i}`, baseUpdatedAt: note.updatedAt }, new Date(Date.parse("2026-11-02T00:00:00Z") + i * 60_000), id);
+    expect(note.log.length).toBeLessThanOrEqual(200);
+    expect(fairValueSide(note)).toBe("below");
+  });
+});
+
+describe("checking many theses", () => {
+  it("takes turns: each hour a different batch, every thesis covered within a few hours", () => {
+    const all = Array.from({ length: 95 }, (_, i) => `S${i}`);
+    const seen = new Set<string>();
+    for (let h = 0; h < 3; h++) for (const s of rotatingBatch(all, 40, new Date(Date.UTC(2026, 10, 20, h)))) seen.add(s);
+    expect(seen.size).toBe(95);
+    expect(rotatingBatch(all.slice(0, 10), 40, new Date())).toHaveLength(10);
   });
 });

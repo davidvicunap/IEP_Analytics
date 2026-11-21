@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtNum, fmtPrice } from "@/lib/format";
-import { fairValueHistory, upside, type ResearchNote } from "@/lib/research";
+import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/research";
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
@@ -73,11 +73,11 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
   const [status, setStatus] = useState<{ kind: "idle" } | { kind: "saving" } | { kind: "error"; issue: SaveIssue }>({ kind: "idle" });
   const dirty = !same(form, base);
 
-  // A newer saved version (another tab, a note, the DCF button): take it unless the form has unsaved edits.
+  // A newer saved version (another tab, a note, the DCF button): fields without unsaved edits take it.
   useEffect(() => {
     const saved = formOf(note);
     if (same(base, saved)) return;
-    setForm((f) => (same(f, base) ? saved : f));
+    setForm((f) => rebaseForm(f, base, saved));
     setBase(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when a new version arrives; `base` is read as of that render
   }, [note]);
@@ -266,7 +266,7 @@ function DatedNotes({ symbol, note }: { symbol: string; note: ResearchNote }) {
                 type="button"
                 disabled={busy}
                 onClick={() => run({ removeNote: e.id })}
-                className="-my-1.5 grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted hover:bg-panel-2 hover:text-fg"
+                className="-my-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted hover:bg-panel-2 hover:text-fg sm:-my-1.5 sm:h-9 sm:w-9"
                 aria-label={fill(R.deleteNote, { d: fmtAsOf(e.at, lang) })}
               >
                 <TrashIcon size={16} />

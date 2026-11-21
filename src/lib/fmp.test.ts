@@ -92,6 +92,14 @@ describe("fmpQuote", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("logs a plan restriction as a warning, not an error", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", respond(402, "Payment Required"));
+    await fmpQuote("ZZZZ");
+    expect(logs).toEqual([]);
+    expect(JSON.parse(String(warn.mock.calls[0][0]))).toMatchObject({ event: "provider_error", kind: "plan_restricted", status: 402 });
+  });
+
   it("never writes the API key to the logs", async () => {
     vi.stubGlobal("fetch", respond(429, "Too Many Requests"));
     await fmpQuote("AAPL");

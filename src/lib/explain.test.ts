@@ -7,11 +7,13 @@ vi.mock("./financials", () => ({ getFinancials: vi.fn() }));
 vi.mock("./quarterReview", async (orig) => ({ ...(await orig<typeof import("./quarterReview")>()), quarterReview: vi.fn() }));
 vi.mock("@/db/client", () => ({ getDb: () => null }));
 vi.mock("./quota", () => ({ providerCallsToday: vi.fn(async () => 0), providerDailyLimit: () => 40, recordProviderCall: vi.fn(async () => 1) }));
+vi.mock("./data", async (orig) => ({ ...(await orig<typeof import("./data")>()), isDemo: vi.fn(() => false) }));
 
 const { getVerdict } = await import("./verdictData");
 const { getFinancials } = await import("./financials");
 const { quarterReview } = await import("./quarterReview");
 const { getExplanation } = await import("./explainData");
+const { providerCallsToday } = await import("./quota");
 
 const input: FactInput = {
   symbol: "AAPL",
@@ -66,6 +68,13 @@ describe("the fact sheet", () => {
     expect(factsHash(buildFacts(later, "es"), "es")).not.toBe(factsHash(a, "es"));
   });
 
+  it("ignores a day's price move, but not a change in how the valuation reads", () => {
+    const withPe = (value: number, level: "good" | "mid" | "weak") => ({ ...input, verdict: { ...input.verdict!, points: input.verdict!.points.map((p) => (p.key === "valuation" ? { ...p, value, level } : p)) } });
+    const today = factsHash(buildFacts(input, "en"), "en");
+    expect(factsHash(buildFacts(withPe(35.9, "weak"), "en"), "en")).toBe(today);
+    expect(factsHash(buildFacts(withPe(26, "mid"), "en"), "en")).not.toBe(today);
+  });
+
   it("asks for cited, educational writing in the right language", () => {
     expect(systemPrompt("es")).toMatch(/Spanish/);
     expect(systemPrompt("en")).toMatch(/never tell the reader to buy, sell or hold/);
@@ -99,7 +108,7 @@ describe("writing once per set of facts", () => {
     const m = new Map<string, unknown>();
     return {
       get: vi.fn(async (s: string, l: string, h: string) => (m.get(`${s}|${l}|${h}`) as never) ?? null),
-      put: vi.fn(async (s: string, l: string, h: string, v: unknown) => void m.set(`${s}|${l}|${h}`, v)),
+      put: vi.fn(async (s: string, l: string, h: string, v: object, facts: unknown) => void m.set(`${s}|${l}|${h}`, { ...v, facts })),
     };
   };
   beforeEach(() => {
@@ -121,6 +130,17 @@ describe("writing once per set of facts", () => {
     expect(writer).toHaveBeenCalledTimes(1);
   });
 
+  it("serves a stored one with the figures it was written from, after the price moved", async () => {
+    const store = memory();
+    const writer = vi.fn(async () => ({ ok: true as const, fetchedAt: "x", data: { quarter: [{ text: "Rich multiple.", facts: ["F5"] }], bull: [], bear: [] } }));
+    await getExplanation("AAPL", "en", { write: true, writer, store });
+    const points = input.verdict!.points.map((p) => (p.key === "valuation" ? { ...p, value: 36.1 } : p));
+    vi.mocked(getVerdict).mockResolvedValue({ ok: true, fetchedAt: "x", data: { symbol: "AAPL", points, missing: [], fiscal: "FY2025", industry: "ELECTRONIC COMPUTERS", priceAt: null, historyFrom: null, issues: {} } });
+    const later = await getExplanation("AAPL", "en", { write: true, writer, store });
+    expect(writer).toHaveBeenCalledTimes(1);
+    expect(later.ok && later.data.facts[4].value).toBe("34.2x / 27.1x (weak)");
+  });
+
   it("says when it's off, and when there's too little to explain", async () => {
     const store = memory();
     delete process.env.ANTHROPIC_API_KEY;
@@ -129,6 +149,15 @@ describe("writing once per set of facts", () => {
     vi.mocked(getVerdict).mockResolvedValue({ ok: false, error: "not_found" });
     vi.mocked(quarterReview).mockReturnValue(null);
     expect(await getExplanation("AAPL", "en", { write: false, store })).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("writes nothing new when today's counter can't be read (the cap couldn't be enforced)", async () => {
+    vi.mocked(providerCallsToday).mockResolvedValueOnce(null);
+    const store = memory();
+    const writer = vi.fn();
+    const r = await getExplanation("AAPL", "en", { write: true, writer, store });
+    expect(r.ok && r.data).toMatchObject({ explanation: null, canGenerate: false, why: "daily_cap" });
+    expect(writer).not.toHaveBeenCalled();
   });
 
   it("passes on a failed write without storing anything", async () => {

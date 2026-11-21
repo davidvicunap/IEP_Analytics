@@ -190,31 +190,34 @@ export function evaluate(n: LiveFields, f: ThesisFacts, today: string): { signal
   const p = f.price;
   if (p) {
     const price = p.value;
-    if (n.stop !== null && (up ? price <= n.stop : price >= n.stop)) add("stop", "stop", { price, level: n.stop });
-    if (n.target !== null && (up ? price >= n.target : price <= n.target)) add("target", "target", { price, level: n.target });
+    // Keys carry the level: editing a level makes a new alert with the new figures, not a stale one.
+    if (n.stop !== null && (up ? price <= n.stop : price >= n.stop)) add(`stop:${n.stop}`, "stop", { price, level: n.stop });
+    if (n.target !== null && (up ? price >= n.target : price <= n.target)) add(`target:${n.target}`, "target", { price, level: n.target });
     // The fair value is crossed from the side the price was on when it was set (not judged by direction).
     const side = fairValueSide(n);
     if (n.fairValue !== null && side && (side === "below" ? price >= n.fairValue : price <= n.fairValue)) {
-      add("fairValue", "fairValue", { price, level: n.fairValue, op: side === "below" ? "above" : "below" });
+      add(`fairValue:${n.fairValue}`, "fairValue", { price, level: n.fairValue, op: side === "below" ? "above" : "below" });
     }
   } else if (p === null) {
     for (const k of ["stop", "target", "fairValue", "price", "move"] as const) unchecked.add(k);
   }
-  if (n.reviewBy && today >= n.reviewBy) add("reviewBy", "reviewBy", { date: n.reviewBy });
+  if (n.reviewBy && today >= n.reviewBy) add(`reviewBy:${n.reviewBy}`, "reviewBy", { date: n.reviewBy });
 
   for (const c of n.checks) {
     const since = c.createdAt.slice(0, 10);
     switch (c.type) {
       case "price":
-        if (p && (c.op === "below" ? p.value <= c.value : p.value >= c.value)) add(`price:${c.id}`, "price", { price: p.value, level: c.value, op: c.op });
+        if (p && (c.op === "below" ? p.value <= c.value : p.value >= c.value)) add(`price:${c.id}:${c.op}:${c.value}`, "price", { price: p.value, level: c.value, op: c.op });
         break;
       case "move":
-        if (p && p.changePct !== null && Math.abs(p.changePct) >= c.pct) add(`move:${c.id}`, "move", { price: p.value, changePct: p.changePct, pct: c.pct });
+        if (p && p.changePct !== null && Math.abs(p.changePct) >= c.pct) add(`move:${c.id}:${c.pct}`, "move", { price: p.value, changePct: p.changePct, pct: c.pct });
         break;
       case "verdict": {
         if (f.verdict === null) unchecked.add("verdict");
         const now = f.verdict?.[c.area];
-        if (now && WORSE[c.min].includes(now)) add(`verdict:${c.id}`, "verdict", { area: c.area, now, min: c.min });
+        // Verdict in hand but no line for this area today (e.g. no valuation history): unknown, not recovered.
+        if (f.verdict && !now) unchecked.add("verdict");
+        if (now && WORSE[c.min].includes(now)) add(`verdict:${c.id}:${c.min}`, "verdict", { area: c.area, now, min: c.min });
         break;
       }
       case "report":

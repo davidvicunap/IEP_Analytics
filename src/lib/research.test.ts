@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "@/db/schema";
 import type { Db } from "@/db/client";
-import { LIMITS, applyInput, emptyNote, fairValueHistory, isStale, parseInput, upside } from "./research";
+import { LIMITS, applyInput, emptyNote, fairValueHistory, isStale, parseInput, rebaseForm, upside } from "./research";
 import { memoryStore, postgresStore, type ResearchStore } from "./researchStore";
 
 let ids = 0;
@@ -118,5 +118,16 @@ describe.each([
     expect((await store.get("david", "NVDA"))?.thesis).toBe("from tab A");
     // A first save over an existing note is also an outdated edit.
     expect(await store.save("david", "NVDA", { thesis: "blind", baseUpdatedAt: null }, at("10:07"))).toEqual({ ok: false, error: "conflict" });
+  });
+});
+
+describe("a newer version arriving while the form has unsaved edits", () => {
+  it("keeps the user's edits and takes the new values everywhere else", () => {
+    const base = { thesis: "old", fairValue: 100 as number | null, checks: [{ kind: "price", value: 1 }] };
+    const form = { ...base, thesis: "my edit" };
+    const saved = { thesis: "old", fairValue: 140, checks: [{ kind: "price", value: 2 }] };
+    expect(rebaseForm(form, base, saved)).toEqual({ thesis: "my edit", fairValue: 140, checks: [{ kind: "price", value: 2 }] });
+    // An edited list stays the user's.
+    expect(rebaseForm({ ...base, checks: [] }, base, saved).checks).toEqual([]);
   });
 });

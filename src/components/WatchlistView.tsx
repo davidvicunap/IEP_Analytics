@@ -264,7 +264,8 @@ function ColumnsMenu({ columns, onToggle }: { columns: Column[]; onToggle: (c: C
 
 /** True from the `sm` breakpoint up (after mount; phones get cards, wider screens the table). */
 function useWide() {
-  const [wide, setWide] = useState(true);
+  // Rendered only after hydration (the list lives in this browser), so the first render can ask.
+  const [wide, setWide] = useState(() => typeof window === "undefined" || window.matchMedia("(min-width: 640px)").matches);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");
     const update = () => setWide(mq.matches);

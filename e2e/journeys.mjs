@@ -23,6 +23,14 @@ async function test(name, fn) {
     console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n").slice(0, process.env.ONLY || process.env.VERBOSE ? 6 : 1).join("\n    ")}`);
   }
 }
+/** Waits until a condition holds (it may be async, e.g. a control's value, or a request the test saw). */
+async function until(cond, msg, timeout = 10_000) {
+  const end = Date.now() + timeout;
+  while (!(await cond())) {
+    if (Date.now() > end) throw new Error(typeof msg === "function" ? await msg() : msg);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
 const assert = (cond, msg) => {
   if (!cond) throw new Error(msg);
 };
@@ -457,7 +465,7 @@ await test("watchlist dashboard: phone keeps the page from scrolling sideways", 
 
 // ---- Filing reader ------------------------------------------------------------------------------
 
-const report = (section) => {
+const report = (section, accn) => {
   const reports = [
     { accn: "0000320193-26-000026", form: "10-K", filed: "2026-11-03", reportDate: "2026-09-26", primaryDocument: "a.htm" },
     { accn: "0000320193-25-000079", form: "10-K", filed: "2025-10-31", reportDate: "2025-09-27", primaryDocument: "b.htm" },
@@ -486,7 +494,7 @@ const report = (section) => {
     symbol: "AAPL",
     cik: 320193,
     name: "Apple Inc.",
-    filing: reports[0],
+    filing: reports.find((r) => r.accn === accn) ?? reports[0], // the requested report, like the real endpoint
     reports,
     section,
     content,
@@ -501,7 +509,7 @@ await test("filing reader: sections in the URL, risk changes flagged, only-chang
   await p.route(/\/api\/sec\/report\//, (r) => {
     const u = new URL(r.request().url());
     asked.push(`${u.searchParams.get("s")}|${u.searchParams.get("accn") ?? ""}`);
-    r.fulfill(json({ ok: true, data: report(u.searchParams.get("s")), fetchedAt: new Date().toISOString() }));
+    r.fulfill(json({ ok: true, data: report(u.searchParams.get("s"), u.searchParams.get("accn")), fetchedAt: new Date().toISOString() }));
   });
   await p.goto(base + "/stock/AAPL/report");
   await p.getByRole("heading", { level: 1, name: "Apple Inc.: informe anual 10-K" }).waitFor();
@@ -519,9 +527,15 @@ await test("filing reader: sections in the URL, risk changes flagged, only-chang
   await p.getByText("No encontramos esta sección en este informe", { exact: false }).waitFor();
   await p.getByLabel("Informe", { exact: true }).selectOption("0000320193-25-000079");
   await p.waitForURL(/accn=0000320193-25-000079/);
+  // The older report is read before going back (going back at once could cancel the read).
+  await until(() => asked.includes("mdna|0000320193-25-000079"), () => `requests: ${asked}`);
+  await p.getByText("No encontramos esta sección en este informe", { exact: false }).waitFor();
+  assert((await p.getByLabel("Informe", { exact: true }).inputValue()) === "0000320193-25-000079", "older report not selected");
   await p.goBack();
   await p.waitForURL((u) => !u.search.includes("accn"));
-  assert(asked.includes("mdna|0000320193-25-000079"), `requests: ${asked}`);
+  // Back reads the latest report again; the picker follows once it's in.
+  const picker = p.getByLabel("Informe", { exact: true });
+  await until(async () => (await picker.inputValue()) === "0000320193-26-000026", async () => `back didn't return to the latest report (shows ${await picker.inputValue()})`);
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(over <= 0, `page overflows by ${over}px`);
   assert(p.errors.length === 0, p.errors.join(" | "));
@@ -713,9 +727,9 @@ await test("chart packs: save a chart from the generator, open it for another co
   const p = await page();
   await withSeries(p);
   await p.goto(base + "/charts?s=AAPL&m=roic&f=annual&k=line&r=10");
+  await p.locator("main svg").first().waitFor(); // the chart is drawn: the page's scripts are running
   await p.getByRole("button", { name: "Mediana de pares" }).click();
   await p.waitForURL(/p=1/);
-  await p.locator("main svg").first().waitFor();
   await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
   await p.getByLabel("Nombre del nuevo paquete").fill("Mi foso");
   await p.getByRole("button", { name: "Crear y guardar" }).click();

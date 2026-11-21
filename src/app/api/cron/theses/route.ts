@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   const summary = { owners: 0, checked: 0, alerts: 0, skipped: 0, failed: 0 };
   for (const owner of await notes.owners()) {
     try {
-      const r = await checkTheses(owner, await notes.list(owner), alerts, facts, now);
+      const r = await checkTheses(owner, await notes.list(owner), alerts, facts, now, Infinity); // every thesis, every night
       summary.owners++;
       summary.checked += r.items.length;
       summary.alerts += r.items.reduce((n, i) => n + i.alerts.length, 0);

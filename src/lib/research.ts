@@ -183,8 +183,24 @@ export function applyInput(prev: ResearchNote | null, symbol: string, input: Not
   }
   if (input.addNote) added.push({ id: newId(), at, kind: "note", text: input.addNote });
   const kept = input.removeNote ? base.log.filter((e) => !(e.kind === "note" && e.id === input.removeNote)) : base.log;
-  next.log = [...added.reverse(), ...kept].slice(0, LIMITS.log);
+  const all = [...added.reverse(), ...kept];
+  next.log = all.slice(0, LIMITS.log);
+  // The entry that set the current fair value says which way its alert fires (thesis.ts,
+  // fairValueSide): it's never trimmed, even under many newer notes.
+  const current = all.find((e) => e.kind === "fairValue" && e.value === next.fairValue);
+  if (next.fairValue !== null && current && !next.log.includes(current)) next.log = [...next.log.slice(0, LIMITS.log - 1), current];
   return next;
+}
+
+/**
+ * A form with unsaved edits, moved onto a newer saved version: the fields the user changed keep
+ * their edits, the others take the new values (so saving doesn't undo someone else's change).
+ */
+export function rebaseForm<T extends object>(form: T, base: T, saved: T): T {
+  const eq = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const out = { ...form };
+  for (const k of Object.keys(saved) as (keyof T)[]) if (eq(form[k], base[k])) out[k] = saved[k];
+  return out;
 }
 
 /** How far the fair value is from the price: +0.2 means the fair value is 20 % above the price. */
