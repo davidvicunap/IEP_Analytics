@@ -527,17 +527,23 @@ await test("filing reader: sections in the URL, risk changes flagged, only-chang
   await axe(p);
   await p.getByRole("button", { name: "Análisis de la dirección" }).tap();
   await p.getByText("No encontramos esta sección en este informe", { exact: false }).waitFor();
-  await p.getByLabel("Informe", { exact: true }).selectOption("0000320193-25-000079");
+  const picker = p.getByLabel("Informe", { exact: true });
+  await picker.selectOption("0000320193-25-000079");
   await p.waitForURL(/accn=0000320193-25-000079/);
-  // The older report is read before going back (going back at once could cancel the read).
-  await until(() => asked.includes("mdna|0000320193-25-000079"), () => `requests: ${asked}`);
+  // The URL moves before the older report is in: until then the latest one stays on screen, and its
+  // MD&A is missing too. The header's filing date says which report is shown, so wait for it
+  // before checking the picker or going back (going back while it loads could cancel the read).
+  await p.locator("header", { has: p.getByRole("heading", { level: 1 }) }).getByText(/Presentado el .*2025/).waitFor();
+  assert((await picker.inputValue()) === "0000320193-25-000079", "older report not selected");
   await p.getByText("No encontramos esta sección en este informe", { exact: false }).waitFor();
-  assert((await p.getByLabel("Informe", { exact: true }).inputValue()) === "0000320193-25-000079", "older report not selected");
   await p.goBack();
   await p.waitForURL((u) => !u.search.includes("accn"));
   // Back reads the latest report again; the picker follows once it's in.
-  const picker = p.getByLabel("Informe", { exact: true });
   await until(async () => (await picker.inputValue()) === "0000320193-26-000026", async () => `back didn't return to the latest report (shows ${await picker.inputValue()})`);
+  // Every section on screen came from its own request, the older report's with its accession number.
+  // Read once all of them have rendered; the order of the log isn't what this journey checks.
+  const requested = [...new Set(asked)].sort().join(", ");
+  assert(requested === "business|, mdna|, mdna|0000320193-25-000079, risks|", `requests: ${asked}`);
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(over <= 0, `page overflows by ${over}px`);
   assert(p.errors.length === 0, p.errors.join(" | "));
