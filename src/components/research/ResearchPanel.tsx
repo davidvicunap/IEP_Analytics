@@ -7,6 +7,7 @@ import { fmtAsOf, fmtNum, fmtPrice } from "@/lib/format";
 import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/research";
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
+import PushSettings from "../PushSettings";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
@@ -169,8 +170,9 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
   return (
     <div className="space-y-4">
       {planned && (
-        <div ref={plannedRef}>
+        <div ref={plannedRef} className="space-y-2">
           <StatusMessage tone="info">{R.planSaved}</StatusMessage>
+          <PushSettings variant="prompt" />
         </div>
       )}
       {(isWatched(note) || note.closed) && <ThesisSummary symbol={symbol} note={note} price={price} />}

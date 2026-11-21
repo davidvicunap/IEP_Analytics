@@ -1,13 +1,14 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { getRedis } from "./redis";
 
-export type LimitKind = "api" | "login" | "explain";
+export type LimitKind = "api" | "login" | "explain" | "push";
 
 /** Requests allowed per client IP (or person) and window. */
 export const LIMITS: Record<LimitKind, { requests: number; window: `${number} m` }> = {
   api: { requests: 120, window: "1 m" },
   login: { requests: 10, window: "10 m" }, // invite-code attempts
   explain: { requests: 6, window: "10 m" }, // new AI explanations per person (each one costs money)
+  push: { requests: 5, window: "10 m" }, // test notifications per person
 };
 
 const limiters = new Map<LimitKind, Ratelimit>();

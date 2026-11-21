@@ -48,6 +48,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except build assets and public files that reveal no data.
-  matcher: ["/((?!_next/static|_next/image|icon.svg|favicon.ico|robots.txt).*)"],
+  // Everything except build assets and public files that reveal no data (the app icons, the
+  // manifest that makes it installable and the service worker that shows notifications).
+  matcher: ["/((?!_next/static|_next/image|icon.svg|icon-192.png|icon-512.png|icon-maskable.png|apple-touch-icon.png|manifest.webmanifest|sw.js|favicon.ico|robots.txt).*)"],
 };

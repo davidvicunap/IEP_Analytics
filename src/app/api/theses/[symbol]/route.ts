@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { normalizeSymbol } from "@/lib/data";
 import { emptyNote } from "@/lib/research";
 import { notebookOwner, researchStore, sameOrigin } from "@/lib/researchServer";
 import { alertStore } from "@/lib/thesisAlertStore";
 import { checkThesis, factsCache, marketDate } from "@/lib/thesesData";
+import { notifyFired, recordingFires } from "@/lib/thesisNotify";
 
 export const maxDuration = 30;
 const HISTORY = 50;
@@ -19,12 +20,14 @@ export async function GET(_request: Request, ctx: Ctx) {
   const owner = await notebookOwner(await cookies());
   if (!owner) return NextResponse.json({ error: "beta_required" }, { status: 401, headers });
   const notes = researchStore();
-  const alerts = alertStore();
-  if (!notes || !alerts) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503, headers });
+  const store = alertStore();
+  if (!notes || !store) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503, headers });
   try {
     const now = new Date();
     const note = (await notes.get(owner, symbol)) ?? emptyNote(symbol);
+    const { alerts, fired } = recordingFires(store);
     const view = await checkThesis(owner, note, alerts, factsCache(marketDate(now)), now);
+    if (fired.size) after(() => notifyFired(fired, { now }));
     const history = await alerts.history(owner, symbol, HISTORY);
     return NextResponse.json({ ok: true, data: { ...view, history }, fetchedAt: now.toISOString() }, { headers });
   } catch (e) {

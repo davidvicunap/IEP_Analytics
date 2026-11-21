@@ -1144,6 +1144,73 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   await p.context().close();
 });
 
+await test("phone alerts: turn on (saved with the language), send a test, turn off; a blocked browser and an iPhone outside the app are told what to do", async () => {
+  const p = await page({ lang: "en" });
+  // Headless Chromium has no push service: the browser's push and permission APIs are stood in for.
+  await p.addInitScript(() => {
+    let perm = sessionStorage.getItem("perm") || "default";
+    Object.defineProperty(Notification, "permission", { get: () => perm, configurable: true });
+    Notification.requestPermission = async () => (perm = window.__nextPermission || "granted");
+    let current = null;
+    PushManager.prototype.subscribe = async function (o) {
+      current = {
+        endpoint: "https://push.example.com/send/e2e",
+        options: { applicationServerKey: new Uint8Array(o.applicationServerKey).buffer },
+        toJSON() {
+          return { endpoint: this.endpoint, expirationTime: null, keys: { p256dh: "B".repeat(87), auth: "a".repeat(22) } };
+        },
+        async unsubscribe() {
+          current = null;
+          return true;
+        },
+      };
+      return current;
+    };
+    PushManager.prototype.getSubscription = async () => current;
+  });
+  await p.route("**/api/push/test", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, fetchedAt: new Date().toISOString(), data: { devices: 1, sent: 1 } }) }));
+  await p.goto(base + "/research");
+  const box = p.getByTestId("push-settings");
+  const saved = p.waitForRequest((r) => r.url().endsWith("/api/push") && r.method() === "POST");
+  await box.getByRole("button", { name: "Turn on alerts on this device" }).click();
+  const body = (await saved).postDataJSON();
+  assert(body.lang === "en" && body.subscription.endpoint === "https://push.example.com/send/e2e" && body.subscription.keys.auth, `saved ${JSON.stringify(body)}`);
+  await box.getByText("On for this device.").waitFor();
+  assert(await p.evaluate(async () => !!(await navigator.serviceWorker.getRegistration("/"))), "service worker not registered");
+  await box.getByRole("button", { name: "Send a test alert" }).click();
+  await box.getByText(/Sent: it should arrive/).waitFor();
+  await axe(p);
+  const removed = p.waitForRequest((r) => r.url().endsWith("/api/push") && r.method() === "DELETE");
+  await box.getByRole("button", { name: "Turn off on this device" }).click();
+  assert((await removed).postDataJSON().endpoint === "https://push.example.com/send/e2e", "wrong endpoint removed");
+  // Blocked in the browser (refused at the prompt, or earlier): says how to allow it.
+  await p.evaluate(() => sessionStorage.setItem("perm", "denied"));
+  await p.reload();
+  await box.getByText(/blocked in your browser/).waitFor();
+  assert((await box.getByRole("button", { name: "Turn on alerts on this device" }).count()) === 0, "a blocked browser still offers the button");
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  // An iPhone in Safari (not added to the home screen) has no push: the page says how to get it.
+  const ios = await page({ lang: "en", width: 390, height: 844, touch: true });
+  await ios.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", { get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
+    delete window.PushManager;
+  });
+  await ios.goto(base + "/research");
+  await ios.getByTestId("push-settings").getByText(/Add to Home Screen/).waitFor();
+  await ios.context().close();
+});
+
+await test("installable app: the manifest, icons and service worker are served without the beta session", async () => {
+  for (const [path, type] of [["/manifest.webmanifest", "manifest"], ["/sw.js", "javascript"], ["/icon-192.png", "image/png"], ["/apple-touch-icon.png", "image/png"]]) {
+    const r = await fetch(base + path);
+    assert(r.ok && (r.headers.get("content-type") ?? "").includes(type), `${path}: ${r.status} ${r.headers.get("content-type")}`);
+  }
+  const m = await (await fetch(base + "/manifest.webmanifest")).json();
+  assert(m.display === "standalone" && m.icons.some((i) => i.sizes === "512x512"), "manifest incomplete");
+});
+
 await test("research notebook: an edit from an outdated tab is refused, not silently overwritten", async () => {
   const a = await page({ lang: "en" });
   const b = await a.context().newPage();

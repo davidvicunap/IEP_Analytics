@@ -7,6 +7,7 @@ import { upside } from "@/lib/research";
 import { useNotes, useTheses } from "@/lib/researchClient";
 import { isWatched } from "@/lib/thesis";
 import { useQuotes } from "@/lib/useQuotes";
+import PushSettings from "../PushSettings";
 import { EmptyState, IssueNote, Panel, Skeleton } from "../ui";
 import { signedPct } from "./ResearchPanel";
 import { StatusBadge } from "./Thesis";
@@ -82,6 +83,7 @@ export default function ResearchList() {
           </ul>
         )}
       </Panel>
+      <PushSettings />
       <p className="text-xs text-muted">{R.disclaimer}</p>
     </div>
   );
