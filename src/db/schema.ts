@@ -233,3 +233,23 @@ export const splits = pgTable(
   },
   (t) => [primaryKey({ columns: [t.symbol, t.date] })],
 );
+
+/** Telegram chats that receive a beta label's alerts (linked with a one-time code, see lib/telegram.ts). */
+export const telegramChats = pgTable(
+  "telegram_chats",
+  {
+    chatId: text("chat_id").primaryKey(),
+    owner: text("owner").notNull(),
+    lang: text("lang").notNull().default("es"),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("telegram_chats_owner_idx").on(t.owner)],
+);
+
+/** One-time codes behind the "Connect Telegram" link: valid for a few minutes, used once. */
+export const telegramCodes = pgTable("telegram_codes", {
+  code: text("code").primaryKey(),
+  owner: text("owner").notNull(),
+  lang: text("lang").notNull().default("es"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

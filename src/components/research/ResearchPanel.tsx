@@ -8,6 +8,7 @@ import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/r
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
 import PushSettings from "../PushSettings";
+import ListingNotice from "./ListingNotice";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
@@ -159,6 +160,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
   if (mode === "guided") {
     return (
       <div className="space-y-4">
+        <ListingNotice symbol={symbol} />
         <Suspense fallback={<Skeleton className="h-96 w-full rounded-2xl" />}>
           <DeepI18n>
             <PlanBuilder
@@ -184,6 +186,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
 
   return (
     <div className="space-y-4">
+      <ListingNotice symbol={symbol} />
       {planned && (
         <div ref={plannedRef} className="space-y-2">
           <StatusMessage tone="info">{R.planSaved}</StatusMessage>

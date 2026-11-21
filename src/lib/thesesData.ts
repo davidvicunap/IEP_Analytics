@@ -6,7 +6,13 @@ import { getQuote, mapLimit } from "./data";
 import { getFilings } from "./filings";
 import type { ResearchNote } from "./research";
 import { pickFilings } from "./snapshotShared";
-import { DEDUP_HOURS, byUrgency, evaluate, isWatched, latestByKey, needs, reconcile, statusOf, type SignalKind, type StoredAlert, type ThesisFacts, type ThesisStatus } from "./thesis";
+import { holdingSignals, isHoldingKey } from "./holdingAlerts";
+import type { Listing } from "./listings";
+import { levelsBeforeSplit } from "./research";
+import type { ResearchStore } from "./researchStore";
+import type { Split } from "./splits";
+import type { SymbolInfo } from "./symbolsData";
+import { DEDUP_HOURS, TONE, byUrgency, evaluate, isWatched, latestByKey, needs, reconcile, statusOf, type Signal, type SignalKind, type StoredAlert, type ThesisFacts, type ThesisStatus } from "./thesis";
 import type { AlertStore } from "./thesisAlertStore";
 import { getVerdict } from "./verdictData";
 
@@ -75,32 +81,90 @@ export function factsCache(today: string) {
   };
 }
 
+/** What the check knows besides the note: splits and listing of the stock, and where notes are saved. */
+export interface CheckContext {
+  splits?: Split[];
+  listing?: Listing | null;
+  /** To restate a note after a split (without it, the split is only reported). */
+  notes?: ResearchStore | null;
+}
+
+/** A split is reported for this many days after it took effect. */
+export const SPLIT_ALERT_DAYS = 7;
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+
 /** Checks one note, records what changed and returns what it says now. */
-export async function checkThesis(owner: string, note: ResearchNote, alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date): Promise<ThesisView> {
+export async function checkThesis(owner: string, note: ResearchNote, alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date, ctx: CheckContext = {}): Promise<ThesisView> {
   const today = marketDate(now);
-  const f = isWatched(note) ? await facts(note.symbol, needs(note)) : {};
-  const { signals, unchecked } = evaluate(note, f, today);
-  const stored = await alerts.recent(owner, note.symbol, new Date(now.getTime() - DEDUP_HOURS * 3_600_000));
+  let n = note;
+  const f = isWatched(n) ? await facts(n.symbol, needs(n)) : {};
+  const extra: Signal[] = [];
+  // Splits since the levels were set: restate the note when its levels are still in old prices
+  // (never "you hit your stop" because of a split), and say so either way for a few days.
+  const splits = (ctx.splits ?? []).filter((x) => x.symbol === n.symbol && x.date <= today).sort((a, b) => a.date.localeCompare(b.date));
+  for (const x of splits) {
+    if (!isWatched(n)) break;
+    const logged = () => n.log.some((e) => e.kind === "split" && e.date === x.date);
+    let unsure = false;
+    if (!logged()) {
+      const old = levelsBeforeSplit(n, f.price?.value ?? null, x.ratio) ?? (n.updatedAt !== null && n.updatedAt.slice(0, 10) < x.date);
+      if (!old) continue; // levels already in new prices: nothing to say
+      const r = ctx.notes ? await ctx.notes.save(owner, n.symbol, { splitAdjust: { ratio: x.ratio, date: x.date }, baseUpdatedAt: null }, now) : null;
+      if (r?.ok) n = r.note;
+      else unsure = true; // couldn't restate: ask the user to check
+    }
+    if (daysBetween(x.date, today) <= SPLIT_ALERT_DAYS && (logged() || unsure)) extra.push({ key: `split:${x.date}`, kind: "split", tone: TONE.split, data: { ratio: x.ratio, date: x.date, adjusted: logged() } });
+  }
+  if (isWatched(n) && ctx.listing && (ctx.listing.status === "renamed" || ctx.listing.status === "delisted")) {
+    const to = ctx.listing.status === "renamed" ? ctx.listing.to : undefined;
+    extra.push({ key: `listing:${to ?? "gone"}`, kind: "listing", tone: TONE.listing, data: to ? { to } : {} });
+  }
+  const evaluated = evaluate(n, f, today);
+  const signals = [...evaluated.signals, ...extra];
+  const unchecked = evaluated.unchecked;
+  // A holding's own alerts (results, reports) are reconciled by checkHoldings, not here.
+  const stored = (await alerts.recent(owner, n.symbol, new Date(now.getTime() - DEDUP_HOURS * 3_600_000))).filter((a) => !isHoldingKey(a.key));
   const { fire, clear, revive } = reconcile(stored, signals, unchecked, now);
   const revived = latestByKey(stored, revive);
-  if (fire.length || clear.length || revived.length) await alerts.apply(owner, note.symbol, fire, clear, now, revived);
+  if (fire.length || clear.length || revived.length) await alerts.apply(owner, n.symbol, fire, clear, now, revived);
   const t = now.toISOString();
   const active = [
     ...stored.filter((s) => s.clearedAt === null && !clear.includes(s.key)),
     ...revived.map((s) => ({ ...s, clearedAt: null })),
     ...fire.map((s) => ({ ...s, firedAt: t, clearedAt: null, dismissedAt: null })),
   ].sort(byUrgency);
-  return { symbol: note.symbol, status: statusOf(note, active), alerts: active, unchecked, priceAt: f.price?.at ?? null };
+  return { symbol: n.symbol, status: statusOf(n, active), alerts: active, unchecked, priceAt: f.price?.at ?? null };
 }
 
 /** Every watched thesis of one person (the newest first, up to MAX_CHECKED). */
-export async function checkTheses(owner: string, notes: ResearchNote[], alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date, limit = MAX_CHECKED): Promise<ThesesPayload> {
+export async function checkTheses(owner: string, notes: ResearchNote[], alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date, limit = MAX_CHECKED, ctx: { info?: Map<string, SymbolInfo>; notes?: ResearchStore | null } = {}): Promise<ThesesPayload> {
   const watched = notes.filter(isWatched);
   // Over the limit, a different batch is checked each hour (so every thesis gets its turn) and the
   // rest show the alerts they already have. The nightly run checks them all.
   const fresh = new Set(rotatingBatch(watched.map((n) => n.symbol), limit, now));
-  const items = await mapLimit(watched, CONCURRENCY, (n) => (fresh.has(n.symbol) ? checkThesis(owner, n, alerts, facts, now) : storedView(owner, n, alerts, now)));
+  const one = (n: ResearchNote) => checkThesis(owner, n, alerts, facts, now, { splits: ctx.info?.get(n.symbol)?.splits, listing: ctx.info?.get(n.symbol)?.listing, notes: ctx.notes });
+  const items = await mapLimit(watched, CONCURRENCY, (n) => (fresh.has(n.symbol) ? one(n) : storedView(owner, n, alerts, now)));
   return { items, skipped: watched.length - fresh.size };
+}
+
+/**
+ * What the user owns, checked for news a broker doesn't send (results today or tomorrow, a fresh
+ * report), from SEC data only (no price quota). Records what changed; returns what couldn't be checked.
+ */
+export async function checkHoldings(owner: string, symbols: string[], notesBySymbol: Map<string, ResearchNote>, alerts: AlertStore, facts: ReturnType<typeof factsCache>, now: Date): Promise<{ symbol: string; unchecked: SignalKind[] }[]> {
+  const today = marketDate(now);
+  const out = await mapLimit(symbols, CONCURRENCY, async (symbol) => {
+    const note = notesBySymbol.get(symbol);
+    const watching = note && isWatched(note) ? note.checks : [];
+    const f = await facts(symbol, { price: false, verdict: false, filings: true });
+    const { signals, unchecked } = holdingSignals(f, today, { results: watching.some((c) => c.type === "results"), report: watching.some((c) => c.type === "report") });
+    const stored = (await alerts.recent(owner, symbol, new Date(now.getTime() - DEDUP_HOURS * 3_600_000))).filter((a) => isHoldingKey(a.key));
+    const { fire, clear, revive } = reconcile(stored, signals, unchecked, now);
+    const revived = latestByKey(stored, revive);
+    if (fire.length || clear.length || revived.length) await alerts.apply(owner, symbol, fire, clear, now, revived);
+    return { symbol, unchecked };
+  });
+  return out.filter((x) => x.unchecked.length > 0);
 }
 
 /** `limit` symbols out of `all`, starting at a place that moves every hour. */

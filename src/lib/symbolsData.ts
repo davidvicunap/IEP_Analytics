@@ -43,6 +43,20 @@ export async function listings(symbols: string[]): Promise<Map<string, Listing>>
   return new Map(symbols.map((s) => [s, listingOf(s, rows)]));
 }
 
+/**
+ * The same, keyed by ticker, for the checks: a failure gives an empty map (the checks then run
+ * as before, without split or listing news) and is logged.
+ */
+export async function symbolInfoMap(symbols: string[]): Promise<Map<string, SymbolInfo>> {
+  if (!symbols.length) return new Map();
+  try {
+    return new Map((await getSymbolInfo([...new Set(symbols)])).map((i) => [i.symbol, i]));
+  } catch (e) {
+    console.error(JSON.stringify({ event: "symbols_info_error", message: e instanceof Error ? e.message : String(e) }));
+    return new Map();
+  }
+}
+
 export async function getSymbolInfo(symbols: string[]): Promise<SymbolInfo[]> {
   const [l, sp] = await Promise.all([listings(symbols), splitStore()?.list(symbols) ?? Promise.resolve([])]);
   return symbols.map((symbol) => ({ symbol, listing: l.get(symbol) ?? { status: "unknown" }, splits: sp.filter((x) => x.symbol === symbol) }));

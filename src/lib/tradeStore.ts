@@ -11,6 +11,10 @@ export interface TradeStore {
   add(owner: string, trade: Trade): Promise<void>;
   /** The removed trade, or null when this owner has none with that id. */
   remove(owner: string, id: string): Promise<Trade | null>;
+  /** Everyone with at least one trade (the scheduled holding checks). */
+  owners(): Promise<string[]>;
+  /** Moves a stock's trades to its new ticker; how many moved. */
+  rename(owner: string, from: string, to: string): Promise<number>;
 }
 
 type Row = typeof trades.$inferSelect;
@@ -40,6 +44,14 @@ export function postgresTrades(db: Db): TradeStore {
       const rows = await db.delete(trades).where(and(eq(trades.owner, owner), eq(trades.id, id))).returning();
       return rows[0] ? fromRow(rows[0]) : null;
     },
+    async owners() {
+      const rows = await db.selectDistinct({ owner: trades.owner }).from(trades);
+      return rows.map((r) => r.owner);
+    },
+    async rename(owner, from, to) {
+      const rows = await db.update(trades).set({ symbol: to }).where(and(eq(trades.owner, owner), eq(trades.symbol, from))).returning({ id: trades.id });
+      return rows.length;
+    },
   };
 }
 
@@ -57,6 +69,17 @@ export function memoryTrades(): TradeStore {
       const hit = of(owner).find((t) => t.id === id) ?? null;
       if (hit) rows.set(owner, of(owner).filter((t) => t.id !== id));
       return hit;
+    },
+    async owners() {
+      return [...rows].filter(([, list]) => list.length > 0).map(([o]) => o);
+    },
+    async rename(owner, from, to) {
+      let n = 0;
+      rows.set(
+        owner,
+        of(owner).map((t) => (t.symbol === from ? (n++, { ...t, symbol: to }) : t)),
+      );
+      return n;
     },
   };
 }
