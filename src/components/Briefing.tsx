@@ -7,12 +7,12 @@ import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { buildBrief, partOfDay, type Brief } from "@/lib/brief";
 import { daysUntil } from "@/lib/earnings";
 import { filingDocUrl, formGroup } from "@/lib/filingsShared";
-import { useNotes, useTheses } from "@/lib/researchClient";
+import { dismissAlert, useNotes, useTheses } from "@/lib/researchClient";
 import { byUrgency, isWatched } from "@/lib/thesis";
 import { alertText } from "./research/Thesis";
 import { useSnapshots, type SnapState } from "@/lib/snapshotClient";
 import { useQuotes } from "@/lib/useQuotes";
-import { ChevronRightIcon, FileTextIcon } from "./icons";
+import { CheckIcon, ChevronRightIcon, FileTextIcon } from "./icons";
 import { IssueNote, Panel, Skeleton, StatusMessage } from "./ui";
 
 type Lang = "es" | "en";
@@ -195,9 +195,10 @@ function Theses() {
   const { state, retry } = useTheses();
   if (watched === 0) return null;
   const data = state.status === "ok" ? state.data : state.status === "loading" ? state.previous?.data : undefined;
-  const rows = (data?.items ?? [])
-    .flatMap((i) => i.alerts.map((a) => ({ ...a, symbol: i.symbol })))
-    .sort(byUrgency);
+  const all = (data?.items ?? []).flatMap((i) => i.alerts.map((a) => ({ ...a, symbol: i.symbol })));
+  // Alerts marked as seen leave the home page; they stay on each thesis.
+  const rows = all.filter((a) => !a.dismissedAt).sort(byUrgency);
+  const seen = all.length - rows.length;
   return (
     <Panel title={T.briefTitle} id="theses">
       {state.status === "error" ? (
@@ -212,15 +213,7 @@ function Theses() {
       ) : (
         <ul className="-mx-2 -my-1">
           {rows.slice(0, THESIS_ROWS).map((a) => (
-            <Row key={`${a.symbol}-${a.key}`} symbol={a.symbol} href={`/stock/${encodeURIComponent(a.symbol)}?tab=research`}>
-              <span className="flex items-start gap-2">
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.tone === "risk" ? "bg-down" : a.tone === "good" ? "bg-up" : "bg-warn"}`} aria-hidden="true" />
-                <span className="num">
-                  <span className="sr-only">{T.tones[a.tone]}: </span>
-                  {alertText(a, T, lang)}
-                </span>
-              </span>
-            </Row>
+            <AlertRow key={`${a.symbol}-${a.key}`} symbol={a.symbol} alertKey={a.key} text={alertText(a, T, lang)} tone={a.tone} />
           ))}
         </ul>
       )}
@@ -231,8 +224,51 @@ function Theses() {
           </Link>
         </p>
       )}
+      {seen > 0 && (
+        <p className="mt-3 text-xs text-muted">
+          <Link href="/research" prefetch={false} className="link">
+            {seen === 1 ? T.briefSeenOne : fill(T.briefSeen, { n: seen })}
+          </Link>
+        </p>
+      )}
       {data && data.skipped > 0 && <p className="mt-3 text-xs text-muted">{fill(T.skipped, { n: data.skipped })}</p>}
     </Panel>
+  );
+}
+
+/** An alert on the home page: opens the thesis, or is marked as seen in place. */
+function AlertRow({ symbol, alertKey, text, tone }: { symbol: string; alertKey: string; text: string; tone: "risk" | "attention" | "good" }) {
+  const { t } = useI18n();
+  const T = t.thesis;
+  const [state, setState] = useState<"idle" | "busy" | "failed">("idle");
+  return (
+    <li className="flex items-start gap-1">
+      <Link href={`/stock/${encodeURIComponent(symbol)}?tab=research`} prefetch={false} className="flex min-h-11 min-w-0 flex-1 items-start gap-3 rounded-lg px-2 py-2.5 hover:bg-panel-2">
+        <span className="w-16 shrink-0 font-semibold">{symbol}</span>
+        <span className="flex min-w-0 flex-1 items-start gap-2 text-sm">
+          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${tone === "risk" ? "bg-down" : tone === "good" ? "bg-up" : "bg-warn"}`} aria-hidden="true" />
+          <span className="num">
+            <span className="sr-only">{T.tones[tone]}: </span>
+            {text}
+            {state === "failed" && <span className="block text-xs text-warn">{T.dismissFailed}</span>}
+          </span>
+        </span>
+      </Link>
+      <button
+        type="button"
+        disabled={state === "busy"}
+        onClick={async () => {
+          setState("busy");
+          const r = await dismissAlert(symbol, alertKey);
+          setState(r.ok ? "idle" : "failed");
+        }}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted hover:bg-panel-2 hover:text-fg"
+        aria-label={fill(T.dismissLabel, { a: `${symbol}: ${text}` })}
+        title={T.dismiss}
+      >
+        <CheckIcon size={16} />
+      </button>
+    </li>
   );
 }
 

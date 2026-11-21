@@ -6,6 +6,7 @@ import type { DataSource, QuoteEntry } from "@/lib/types";
 import { useHydrated, useRecent, useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
 import Briefing from "./Briefing";
+import GettingStarted from "./GettingStarted";
 import TickerSearch from "./TickerSearch";
 import { ChartIcon, ChevronRightIcon, StarIcon } from "./icons";
 import { QuoteRows, QuoteRowsSkeleton, ServerQuotes, latestAsOf } from "./QuoteList";
@@ -44,6 +45,7 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
             </>
           }
         />
+        <GettingStarted />
         {marketsSection}
         <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
           <MiniWatchlist />
@@ -68,6 +70,8 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
         </div>
         <RecentlyViewed />
       </section>
+
+      <GettingStarted />
 
       {marketsSection}
 

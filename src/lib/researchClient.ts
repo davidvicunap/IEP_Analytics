@@ -66,6 +66,20 @@ export function useThesis(symbol: string) {
   return r;
 }
 
+/** Marks an alert as seen; every view of the thesis reloads. */
+export async function dismissAlert(symbol: string, key: string): Promise<{ ok: true } | { ok: false; error: SaveIssue }> {
+  let res: Response;
+  try {
+    res = await fetch(thesisUrl(symbol), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ dismiss: key }) });
+  } catch {
+    return { ok: false, error: "upstream" };
+  }
+  const r = toViewResult<{ key: string }>(res.status, await res.json().catch(() => null));
+  if (!r.ok) return { ok: false, error: r.error };
+  changed(symbol);
+  return { ok: true };
+}
+
 const matchers = new Map<string, (s: string) => boolean>();
 function useMatch(symbol: string) {
   let m = matchers.get(symbol);

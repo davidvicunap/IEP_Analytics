@@ -362,6 +362,8 @@ const enDeep: DeepDict = {
     source: "Source: SEC EDGAR, original document filed {d}. Text extracted automatically: if in doubt, the original prevails.",
   },
   watch: {
+    sortLabel: "Sort by",
+    sortSaved: "Your list's order",
     intro: "What matters for each stock on your list: your fair value against the price, the quality of the business, its latest SEC filings and whether insiders are buying or selling.",
     columns: "Columns",
     cols: {
@@ -414,6 +416,8 @@ const enDeep: DeepDict = {
     source: "Quality, filings and insiders: SEC EDGAR, using no price-data calls. Fair value: your notebook. Tags and columns are saved in this browser.",
   },
   screener: {
+    moreFilters: "More filters: sector, size and ratios",
+    moreFiltersOn: "More filters ({n} on)",
     title: "Stock screener",
     intro: "Filter {n} US companies by profitability, growth and debt, using their {year} figures filed with the SEC.",
     presets: "Quick screens",

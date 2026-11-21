@@ -27,7 +27,7 @@ import {
 import { useResource } from "@/lib/useResource";
 import { useSavedScreens } from "@/lib/screens";
 import SyncNote from "../SyncNote";
-import { ChartIcon, CloseIcon } from "../icons";
+import { ChartIcon, ChevronDownIcon, CloseIcon } from "../icons";
 import { IssueNote, Panel, Segmented, Skeleton, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 
@@ -64,6 +64,8 @@ export default function ScreenerView() {
   // The screen lives in state (instant) and in the URL (shareable); the request follows the
   // URL after a short pause, so typing a threshold doesn't fire a request per keystroke.
   const [screen, setScreen] = useState<Screen>(() => parseScreen(new URLSearchParams(params.toString())));
+  const [moreFilters, setMoreFilters] = useState(false);
+  const activeFilters = Object.values(screen.bounds).filter((v) => v !== null && v !== undefined).length + (screen.division ? 1 : 0) + (screen.industry ? 1 : 0);
   const [query, setQuery] = useState(() => writeScreen(screen));
   useEffect(() => {
     const qs = writeScreen(screen);
@@ -116,6 +118,18 @@ export default function ScreenerView() {
           </div>
         </div>
 
+        {/* Phones: quick screens first, the detailed filters behind one button, so results come sooner. */}
+        <button
+          type="button"
+          aria-expanded={moreFilters}
+          aria-controls="screener-more"
+          onClick={() => setMoreFilters((v) => !v)}
+          className={buttonClass("secondary", true, "w-full justify-between sm:hidden")}
+        >
+          <span>{activeFilters > 0 ? fill(S.moreFiltersOn, { n: activeFilters }) : S.moreFilters}</span>
+          <ChevronDownIcon size={16} className={moreFilters ? "rotate-180" : ""} />
+        </button>
+        <div id="screener-more" className={`space-y-5 ${moreFilters ? "" : "hidden"} sm:block`}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
           <SelectField label={S.sector} value={screen.division ?? ""} onChange={(v) => setScreen((s) => ({ ...s, division: (v || null) as Division | null }))}>
             <option value="">{S.allSectors}</option>
@@ -150,6 +164,7 @@ export default function ScreenerView() {
             ))}
           </div>
         </fieldset>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setScreen((s) => ({ ...EMPTY_SCREEN, size: s.size }))} className={buttonClass("ghost", true, "text-muted")}>

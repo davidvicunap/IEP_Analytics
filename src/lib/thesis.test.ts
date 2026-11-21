@@ -228,3 +228,24 @@ describe("plan preview", () => {
     expect(previewPlan({ direction: "up", fairValue: 400, stop: null, target: null }, null)).toEqual([]);
   });
 });
+
+describe("marking an alert as seen", () => {
+  it("keeps it active on the thesis, marked seen; a new firing later is unseen", async () => {
+    const alerts = memoryAlerts();
+    const note: ResearchNote = { ...emptyNote("KO"), stop: 60, updatedAt: "2026-11-01T00:00:00.000Z" };
+    let p = 55;
+    const facts = async (): Promise<ThesisFacts> => price(p);
+    await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T15:00:00Z"));
+    expect(await alerts.dismiss("ana", "KO", "stop", new Date("2026-11-20T16:00:00Z"))).toBe(true);
+    expect(await alerts.dismiss("ana", "KO", "target", new Date("2026-11-20T16:00:00Z"))).toBe(false);
+    const view = await checkThesis("ana", note, alerts, facts, new Date("2026-11-20T17:00:00Z"));
+    expect(view.status).toBe("atRisk"); // seen, but still true
+    expect(view.alerts.map((a) => a.dismissedAt)).toEqual(["2026-11-20T16:00:00.000Z"]);
+    // Recovers, then hits the stop again two days later: a new, unseen alert.
+    p = 65;
+    await checkThesis("ana", note, alerts, facts, new Date("2026-11-21T15:00:00Z"));
+    p = 55;
+    const again = await checkThesis("ana", note, alerts, facts, new Date("2026-11-23T15:00:00Z"));
+    expect(again.alerts.map((a) => a.dismissedAt ?? null)).toEqual([null]);
+  });
+});

@@ -11,6 +11,8 @@ export interface AlertStore {
   recent(owner: string, symbol: string, since: Date): Promise<StoredAlert[]>;
   /** Records new alerts, clears the ones no longer true and makes `revive` (alerts by firing time) active again. */
   apply(owner: string, symbol: string, fire: Signal[], clear: string[], now: Date, revive?: StoredAlert[]): Promise<void>;
+  /** Marks the active alert with this key as seen. False when there's no such alert. */
+  dismiss(owner: string, symbol: string, key: string, now: Date): Promise<boolean>;
   /** Forgets every alert of a stock (its notebook was deleted). */
   remove(owner: string, symbol: string): Promise<void>;
   /** The newest alerts for a stock, active or cleared. */
@@ -25,6 +27,7 @@ const fromRow = (r: Row): StoredAlert => ({
   data: r.data as SignalData,
   firedAt: r.firedAt.toISOString(),
   clearedAt: r.clearedAt ? r.clearedAt.toISOString() : null,
+  dismissedAt: r.dismissedAt ? r.dismissedAt.toISOString() : null,
 });
 
 export function postgresAlerts(db: Db): AlertStore {
@@ -57,6 +60,14 @@ export function postgresAlerts(db: Db): AlertStore {
           .where(and(mine(owner, symbol), eq(thesisAlerts.key, key), isNull(thesisAlerts.clearedAt)));
       }
     },
+    async dismiss(owner, symbol, key, now) {
+      const rows = await db
+        .update(thesisAlerts)
+        .set({ dismissedAt: now })
+        .where(and(mine(owner, symbol), eq(thesisAlerts.key, key), isNull(thesisAlerts.clearedAt)))
+        .returning({ key: thesisAlerts.key });
+      return rows.length > 0;
+    },
     async remove(owner, symbol) {
       await db.delete(thesisAlerts).where(mine(owner, symbol));
     },
@@ -83,8 +94,13 @@ export function memoryAlerts(): AlertStore {
       const list = at(owner, symbol);
       const t = now.toISOString();
       for (const a of list) if (revive.some((r) => r.key === a.key && r.firedAt === a.firedAt)) a.clearedAt = null;
-      for (const s of fire) list.push({ key: s.key, kind: s.kind, tone: s.tone, data: s.data, firedAt: t, clearedAt: null });
+      for (const s of fire) list.push({ key: s.key, kind: s.kind, tone: s.tone, data: s.data, firedAt: t, clearedAt: null, dismissedAt: null });
       for (const a of list) if (a.clearedAt === null && clear.includes(a.key)) a.clearedAt = t;
+    },
+    async dismiss(owner, symbol, key, now) {
+      const hit = at(owner, symbol).filter((a) => a.key === key && a.clearedAt === null);
+      for (const a of hit) a.dismissedAt = now.toISOString();
+      return hit.length > 0;
     },
     async remove(owner, symbol) {
       rows.delete(`${owner}\u0000${symbol}`);

@@ -241,6 +241,8 @@ export interface StoredAlert {
   data: SignalData;
   firedAt: string;
   clearedAt: string | null;
+  /** When the user marked it as seen: it leaves the home page but stays on the thesis. */
+  dismissedAt?: string | null;
 }
 
 /**

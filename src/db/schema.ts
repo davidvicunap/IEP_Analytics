@@ -172,6 +172,7 @@ export const thesisAlerts = pgTable(
     data: jsonb("data").notNull(),
     firedAt: timestamp("fired_at", { withTimezone: true }).notNull(),
     clearedAt: timestamp("cleared_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.owner, t.symbol, t.key, t.firedAt] }), index("thesis_alerts_owner_idx").on(t.owner, t.symbol, t.firedAt)],
 );

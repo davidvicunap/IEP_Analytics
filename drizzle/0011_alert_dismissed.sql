@@ -1,0 +1,1 @@
+ALTER TABLE "thesis_alerts" ADD COLUMN "dismissed_at" timestamp with time zone;
