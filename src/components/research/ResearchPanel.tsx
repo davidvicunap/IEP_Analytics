@@ -17,6 +17,18 @@ import type { Candle, Result } from "@/lib/types";
 
 // The guided plan loads with its text (deep dictionary) only when it's shown.
 const PlanBuilder = dynamic(() => import("./PlanBuilder"), { loading: () => <Skeleton className="h-96 w-full rounded-2xl" /> });
+const TradesPanel = dynamic(() => import("./TradesPanel"), { loading: () => <Skeleton className="h-40 w-full rounded-2xl" /> });
+
+/** The trades logged for this stock, with its text from the deep dictionary. */
+function Trades(props: { symbol: string; price: number | null; note: ResearchNote }) {
+  return (
+    <Suspense fallback={<Skeleton className="h-40 w-full rounded-2xl" />}>
+      <DeepI18n>
+        <TradesPanel {...props} />
+      </DeepI18n>
+    </Suspense>
+  );
+}
 
 /** Remembered per device: someone who chose to write the plan by hand starts from the form next time. */
 const MODE_KEY = "iep.planMode";
@@ -161,6 +173,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
             />
           </DeepI18n>
         </Suspense>
+        <Trades symbol={symbol} price={price} note={note} />
         <DatedNotes symbol={symbol} note={note} />
         <p className="text-xs text-muted">{R.disclaimer}</p>
       </div>
@@ -250,6 +263,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
         </div>
       </form>
 
+      <Trades symbol={symbol} price={price} note={note} />
       <DatedNotes symbol={symbol} note={note} />
       <ThesisHistory symbol={symbol} note={note} />
       <FairValueHistory note={note} lang={lang} />

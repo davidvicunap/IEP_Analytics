@@ -28,6 +28,11 @@ export default function ResearchList() {
       <div>
         <h1 className="text-[26px] font-semibold tracking-[-0.02em] leading-tight">{R.pageTitle}</h1>
         <p className="mt-1 text-[15px] text-muted">{R.pageIntro}</p>
+        <p className="mt-2 text-sm">
+          <Link href="/research/results" prefetch={false} className="link inline-flex min-h-11 items-center sm:min-h-0">
+            {R.results}
+          </Link>
+        </p>
       </div>
       <Panel>
         {state.status === "error" ? (

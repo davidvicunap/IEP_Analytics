@@ -92,6 +92,13 @@
       "when": 1795290190412,
       "tag": "0012_push_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795290775459,
+      "tag": "0013_trades",
+      "breakpoints": true
     }
   ]
 }

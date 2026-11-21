@@ -202,3 +202,22 @@ export const pushKeys = pgTable("push_keys", {
   privateKey: text("private_key").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Buys and sells the user logs against their theses (the track record), per beta label. */
+export const trades = pgTable(
+  "trades",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(), // buy | sell
+    date: text("date").notNull(), // YYYY-MM-DD
+    shares: doublePrecision("shares").notNull(),
+    price: doublePrecision("price").notNull(),
+    fees: doublePrecision("fees").notNull().default(0),
+    stop: doublePrecision("stop"),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("trades_owner_idx").on(t.owner, t.symbol, t.date)],
+);
