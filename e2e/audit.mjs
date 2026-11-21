@@ -127,6 +127,8 @@ function targetProbe() {
     if (r.width === 0 || r.height === 0) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden") continue;
+    // Visually hidden until focused (the skip link): not a target anyone taps.
+    if (r.width <= 1 && r.height <= 1) continue;
     // Inline links inside running text are exempt (WCAG 2.5.8 inline exception).
     if (el.tagName === "A" && cs.display === "inline") continue;
     // Disclosure summaries ("What is this?") are secondary: 24×24 minimum (WCAG 2.5.8).
