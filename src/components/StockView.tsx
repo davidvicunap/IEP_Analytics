@@ -170,7 +170,7 @@ export default function StockView({
     <div className="space-y-5">
       <StockHeader identity={identity} quote={quote} quoteFetchedAt={quoteFetchedAt} priceIssue={priceIssue} source={sections.source} profile={sections.profile} goTo={setTab} />
 
-      <div role="tablist" aria-label={fill(t.ux.sectionsOf, { s: symbol })} className="-mx-4 px-4 sm:mx-0 sm:px-0 flex gap-1 overflow-x-auto border-b border-line scrollbar-none">
+      <div role="tablist" aria-label={fill(t.ux.sectionsOf, { s: symbol })} className="-mx-4 pl-4 pr-12 sm:mx-0 sm:px-0 flex gap-1 overflow-x-auto border-b border-line scrollbar-none [mask-image:linear-gradient(to_right,black_80%,transparent)] sm:[mask-image:none]">
         {TABS.map((k, i) => (
           <button
             key={k}
@@ -270,7 +270,8 @@ function StockHeader({
   const { t, lang } = useI18n();
   return (
     <section aria-labelledby="stock-title" className="pt-1">
-      <div className="flex items-start gap-3">
+      {/* Phones: the name gets the full width and the actions drop to their own row. */}
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
         <Suspense fallback={<Initial symbol={identity.symbol} />}>
           <Logo profile={profile} symbol={identity.symbol} />
         </Suspense>
@@ -286,7 +287,7 @@ function StockHeader({
             </Suspense>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
           <Link
             href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
             className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
@@ -294,7 +295,7 @@ function StockHeader({
             aria-label={t.stock.packsTitle}
           >
             <GridIcon size={16} />
-            <span className="hidden sm:inline">{t.stock.packs}</span>
+            <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
           </Link>
           <Link
             href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
@@ -303,7 +304,7 @@ function StockHeader({
             aria-label={t.compare.title}
           >
             <ColumnsIcon size={16} />
-            <span className="hidden sm:inline">{t.compare.button}</span>
+            <span className="hidden min-[360px]:inline">{t.compare.button}</span>
           </Link>
           <WatchButton symbol={identity.symbol} />
         </div>

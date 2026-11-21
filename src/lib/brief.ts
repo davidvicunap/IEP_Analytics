@@ -14,7 +14,8 @@ export interface BriefInput {
 }
 
 export interface Brief {
-  filings: { symbol: string; cik: number; filing: FilingRef }[]; // last 7 days, newest first
+  /** Last 7 days, one row per stock and form (five proxy supplements are one row), newest first. */
+  filings: { symbol: string; cik: number; filing: FilingRef; count: number }[];
   results: { symbol: string; date: string; basedOn: string }[]; // next 2 weeks, soonest first
   fairValue: { symbol: string; price: number; fairValue: number; gap: number }[]; // gap = fair value ÷ price − 1, widest first
   insiders: { symbol: string; bought: number; sold: number; buyers: number; partial: boolean }[]; // open-market buying, largest first
@@ -32,7 +33,14 @@ export function buildBrief(rows: BriefInput[], today: string): Brief {
   for (const r of rows) {
     const s = r.snapshot;
     if (s?.filings.ok) {
-      for (const f of s.filings.data.recent) filings.push({ symbol: r.symbol, cik: s.cik, filing: f });
+      for (const f of s.filings.data.recent) {
+        const same = filings.find((x) => x.symbol === r.symbol && x.filing.form === f.form);
+        if (!same) filings.push({ symbol: r.symbol, cik: s.cik, filing: f, count: 1 });
+        else {
+          same.count++;
+          if (f.filed > same.filing.filed) same.filing = f;
+        }
+      }
       const n = s.filings.data.nextResults;
       if (n && n.date >= today && n.date <= until) results.push({ symbol: r.symbol, ...n });
     }

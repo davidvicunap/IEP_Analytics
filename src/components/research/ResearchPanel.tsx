@@ -8,7 +8,8 @@ import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
-import { ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
+import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
+import { isWatched } from "@/lib/thesis";
 import type { Direction } from "@/lib/thesis";
 
 type Lang = "es" | "en";
@@ -109,7 +110,7 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
 
   return (
     <div className="space-y-4">
-      <ThesisSummary symbol={symbol} note={note} price={price} />
+      {(isWatched(note) || note.closed) && <ThesisSummary symbol={symbol} note={note} price={price} />}
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -133,13 +134,20 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
           </div>
         </Panel>
 
-        <Panel title={R.plan}>
+        <Panel title={t.thesis.plan} description={t.thesis.planIntro}>
+          <PlanControls direction={form.direction} reviewBy={form.reviewBy} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <NumberField label={R.fairValue} value={form.fairValue} onChange={set("fairValue")} suffix="$" />
             <NumberField label={R.entry} value={form.entry} onChange={set("entry")} suffix="$" />
             <NumberField label={R.stop} value={form.stop} onChange={set("stop")} suffix="$" />
             <NumberField label={R.target} value={form.target} onChange={set("target")} suffix="$" />
           </div>
+          {price !== null && form.entry === null && (
+            <button type="button" className="link mt-1 inline-flex min-h-11 items-center text-xs sm:min-h-0 sm:py-1" onClick={() => set("entry")(Math.round(price * 100) / 100)}>
+              {fill(t.thesis.usePrice, { p: fmtPrice(price, lang) })}
+            </button>
+          )}
+          <PlanPreview plan={form} price={price} />
           <PlanSummary form={form} price={price} lang={lang} />
         </Panel>
 
@@ -193,27 +201,12 @@ function TextArea({ label, hint, value, onChange, rows, className }: { label: st
   );
 }
 
-/** Where the price sits against the user's own numbers, in words. */
-function PlanSummary({ form, price, lang }: { form: Form; price: number | null; lang: Lang }) {
+/** Risk against reward from the entry, when the plan has all three levels (the preview covers the rest). */
+function PlanSummary({ form, lang }: { form: Form; price: number | null; lang: Lang }) {
   const { t } = useI18n();
-  const R = t.research;
-  const lines: string[] = [];
-  const up = upside(form.fairValue, price);
-  if (up !== null) lines.push(`${R.fairValue}: ${up >= 0 ? fill(R.above, { p: signedPct(up, lang).replace("+", "") }) : fill(R.below, { p: signedPct(-up, lang).replace("+", "") })}`);
-  for (const k of ["stop", "target"] as const) {
-    const d = upside(form[k], price);
-    if (d !== null) lines.push(`${R[k]}: ${fill(R.fromPrice, { p: signedPct(d, lang) })}`);
-  }
   const { entry, stop, target } = form;
-  if (entry && stop && target && entry > stop && target > entry) lines.push(fill(R.riskReward, { r: fmtNum((target - entry) / (entry - stop), lang, 1) }));
-  if (lines.length === 0) return null;
-  return (
-    <ul className="mt-4 space-y-1 text-sm text-muted">
-      {lines.map((l) => (
-        <li key={l}>{l}</li>
-      ))}
-    </ul>
-  );
+  if (!(entry && stop && target && entry > stop && target > entry)) return null;
+  return <p className="mt-3 text-sm text-muted">{fill(t.research.riskReward, { r: fmtNum((target - entry) / (entry - stop), lang, 1) })}</p>;
 }
 
 function DatedNotes({ symbol, note }: { symbol: string; note: ResearchNote }) {

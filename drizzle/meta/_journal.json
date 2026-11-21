@@ -71,6 +71,13 @@
       "when": 1795146355958,
       "tag": "0009_explanations",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795229999065,
+      "tag": "0010_drop_wrong_fair_value_alerts",
+      "breakpoints": true
     }
   ]
 }

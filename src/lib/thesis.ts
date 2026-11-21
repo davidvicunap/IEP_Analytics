@@ -45,6 +45,20 @@ export interface LiveFields {
   checks: ThesisCheck[];
   closed: Closed | null;
   updatedAt: string | null;
+  /** The notebook's history: the price when the fair value was set says which way it must be crossed. */
+  log?: readonly { kind: string; value?: number | null; price?: number | null }[];
+}
+
+/**
+ * Where the price was when the current fair value was set: "below" (the fair value was above the
+ * price, so the alert is the price rising to it) or "above" (falling to it). Null when unknown.
+ */
+export function fairValueSide(n: Pick<LiveFields, "fairValue" | "log">): "below" | "above" | null {
+  if (n.fairValue === null) return null;
+  const set = n.log?.find((e) => e.kind === "fairValue" && e.value === n.fairValue);
+  const p = set?.price;
+  if (typeof p !== "number" || p === n.fairValue) return null;
+  return p < n.fairValue ? "below" : "above";
 }
 
 /** True when the note is open and has something to watch. */
@@ -178,7 +192,11 @@ export function evaluate(n: LiveFields, f: ThesisFacts, today: string): { signal
     const price = p.value;
     if (n.stop !== null && (up ? price <= n.stop : price >= n.stop)) add("stop", "stop", { price, level: n.stop });
     if (n.target !== null && (up ? price >= n.target : price <= n.target)) add("target", "target", { price, level: n.target });
-    if (n.fairValue !== null && (up ? price >= n.fairValue : price <= n.fairValue)) add("fairValue", "fairValue", { price, level: n.fairValue });
+    // The fair value is crossed from the side the price was on when it was set (not judged by direction).
+    const side = fairValueSide(n);
+    if (n.fairValue !== null && side && (side === "below" ? price >= n.fairValue : price <= n.fairValue)) {
+      add("fairValue", "fairValue", { price, level: n.fairValue, op: side === "below" ? "above" : "below" });
+    }
   } else if (p === null) {
     for (const k of ["stop", "target", "fairValue", "price", "move"] as const) unchecked.add(k);
   }
@@ -271,4 +289,33 @@ export function thesisReturn(direction: Direction, opened: number | null | undef
   if (!opened || !closed || opened <= 0) return null;
   const r = closed / opened - 1;
   return direction === "up" ? r : -r;
+}
+
+// ---- Plan preview: what each level will do, in words, before saving ----------------------------
+
+export type PreviewItem =
+  | { kind: "fairValue" | "stop" | "target"; level: number; pct: number; trigger: "rises" | "falls" }
+  /** The level is already on the "hit" side of the price: it would alert at once. */
+  | { kind: "stop" | "target"; level: number; pct: number; trigger: "now" };
+
+/**
+ * For each level of the plan, how far it is from the price and what will raise its alert, using
+ * the same rules as `evaluate` (stop and target by the expected direction, fair value by crossing
+ * from where the price is now). Empty without a price.
+ */
+export function previewPlan(p: { direction: Direction; fairValue: number | null; stop: number | null; target: number | null }, price: number | null): PreviewItem[] {
+  if (!price || price <= 0) return [];
+  const out: PreviewItem[] = [];
+  const pct = (v: number) => v / price - 1;
+  const up = p.direction === "up";
+  if (p.fairValue !== null && p.fairValue > 0 && p.fairValue !== price) out.push({ kind: "fairValue", level: p.fairValue, pct: pct(p.fairValue), trigger: p.fairValue > price ? "rises" : "falls" });
+  if (p.stop !== null && p.stop > 0) {
+    const ok = up ? p.stop < price : p.stop > price;
+    out.push(ok ? { kind: "stop", level: p.stop, pct: pct(p.stop), trigger: up ? "falls" : "rises" } : { kind: "stop", level: p.stop, pct: pct(p.stop), trigger: "now" });
+  }
+  if (p.target !== null && p.target > 0) {
+    const ok = up ? p.target > price : p.target < price;
+    out.push(ok ? { kind: "target", level: p.target, pct: pct(p.target), trigger: up ? "rises" : "falls" } : { kind: "target", level: p.target, pct: pct(p.target), trigger: "now" });
+  }
+  return out;
 }

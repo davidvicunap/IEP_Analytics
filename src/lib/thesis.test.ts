@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyInput, emptyNote, parseInput, type ResearchNote } from "./research";
 import { memoryAlerts } from "./thesisAlertStore";
 import { checkThesis } from "./thesesData";
-import { evaluate, isWatched, type CheckBody, mergeChecks, parseChecks, reconcile, statusOf, thesisReturn, type LiveFields, type Signal, type StoredAlert, type ThesisCheck, type ThesisFacts } from "./thesis";
+import { evaluate, isWatched, previewPlan, type CheckBody, mergeChecks, parseChecks, reconcile, statusOf, thesisReturn, type LiveFields, type Signal, type StoredAlert, type ThesisCheck, type ThesisFacts } from "./thesis";
 
 const TODAY = "2026-11-20";
 const live = (over: Partial<LiveFields> = {}): LiveFields => ({
@@ -54,20 +54,30 @@ describe("what a thesis watches", () => {
 });
 
 describe("evaluating a thesis", () => {
-  it("raises the stop, target and fair value in the direction the user expects", () => {
-    const up = live({ stop: 200, target: 260, fairValue: 250 });
+  it("raises the stop and target in the direction the user expects", () => {
+    const up = live({ stop: 200, target: 260 });
     expect(kinds(evaluate(up, price(230), TODAY))).toEqual([]);
     expect(kinds(evaluate(up, price(199), TODAY))).toEqual(["stop"]);
-    expect(kinds(evaluate(up, price(255), TODAY))).toEqual(["fairValue"]);
-    expect(kinds(evaluate(up, price(260), TODAY))).toEqual(["target", "fairValue"]);
-    // Expecting a fall: the stop is above, the target and fair value below.
-    const down = live({ direction: "down", stop: 260, target: 200, fairValue: 210 });
+    expect(kinds(evaluate(up, price(260), TODAY))).toEqual(["target"]);
+    // Expecting a fall: the stop is above, the target below.
+    const down = live({ direction: "down", stop: 260, target: 200 });
     expect(kinds(evaluate(down, price(261), TODAY))).toEqual(["stop"]);
-    expect(kinds(evaluate(down, price(205), TODAY))).toEqual(["fairValue"]);
-    expect(evaluate(down, price(200), TODAY).signals.map((s) => [s.key, s.tone])).toEqual([
-      ["target", "good"],
-      ["fairValue", "attention"],
-    ]);
+    expect(evaluate(down, price(200), TODAY).signals.map((s) => [s.key, s.tone])).toEqual([["target", "good"]]);
+  });
+
+  it("raises the fair value only when the price crosses it from where it was when it was set", () => {
+    const setAt = (fairValue: number, at: number | null) => live({ fairValue, log: [{ kind: "fairValue", value: fairValue, price: at }] });
+    // Set below the price (MSFT: $400 while at $523.88): nothing until the price falls to it.
+    const below = setAt(400, 523.88);
+    expect(kinds(evaluate(below, price(523.88), TODAY))).toEqual([]);
+    expect(evaluate(below, price(399), TODAY).signals).toEqual([{ key: "fairValue", kind: "fairValue", tone: "attention", data: { price: 399, level: 400, op: "below" } }]);
+    // Set above the price: the alert is the price rising to it, whatever the direction.
+    const above = { ...setAt(250, 230), direction: "down" as const };
+    expect(kinds(evaluate(above, price(240), TODAY))).toEqual([]);
+    expect(evaluate(above, price(251), TODAY).signals[0].data).toEqual({ price: 251, level: 250, op: "above" });
+    // Unknown price when it was set: no guess.
+    expect(kinds(evaluate(setAt(250, null), price(300), TODAY))).toEqual([]);
+    expect(kinds(evaluate(live({ fairValue: 250 }), price(300), TODAY))).toEqual([]);
   });
 
   it("says what it couldn't check instead of guessing", () => {
@@ -193,5 +203,28 @@ describe("checking a thesis with stored alerts", () => {
     await alerts.remove("ana", "AAPL");
     expect(await alerts.history("ana", "AAPL", 10)).toEqual([]);
     expect(await alerts.history("bob", "AAPL", 10)).toEqual([]);
+  });
+});
+
+describe("plan preview", () => {
+  it("says what each level will do, from the price now", () => {
+    // The MSFT case: fair value $400 at a price of $523.88 alerts only on a fall to $400.
+    expect(previewPlan({ direction: "up", fairValue: 400, stop: 480, target: 600 }, 523.88)).toEqual([
+      { kind: "fairValue", level: 400, pct: 400 / 523.88 - 1, trigger: "falls" },
+      { kind: "stop", level: 480, pct: 480 / 523.88 - 1, trigger: "falls" },
+      { kind: "target", level: 600, pct: 600 / 523.88 - 1, trigger: "rises" },
+    ]);
+  });
+
+  it("flags a stop or target already on the wrong side of the price", () => {
+    expect(previewPlan({ direction: "up", fairValue: null, stop: 550, target: 500 }, 523.88).map((i) => [i.kind, i.trigger])).toEqual([
+      ["stop", "now"],
+      ["target", "now"],
+    ]);
+    expect(previewPlan({ direction: "down", fairValue: null, stop: 550, target: 500 }, 523.88).map((i) => [i.kind, i.trigger])).toEqual([
+      ["stop", "rises"],
+      ["target", "falls"],
+    ]);
+    expect(previewPlan({ direction: "up", fairValue: 400, stop: null, target: null }, null)).toEqual([]);
   });
 });
