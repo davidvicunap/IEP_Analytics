@@ -7,11 +7,13 @@ vi.mock("./financials", () => ({ getFinancials: vi.fn() }));
 vi.mock("./quarterReview", async (orig) => ({ ...(await orig<typeof import("./quarterReview")>()), quarterReview: vi.fn() }));
 vi.mock("@/db/client", () => ({ getDb: () => null }));
 vi.mock("./quota", () => ({ providerCallsToday: vi.fn(async () => 0), providerDailyLimit: () => 40, recordProviderCall: vi.fn(async () => 1) }));
+vi.mock("./data", async (orig) => ({ ...(await orig<typeof import("./data")>()), isDemo: vi.fn(() => false) }));
 
 const { getVerdict } = await import("./verdictData");
 const { getFinancials } = await import("./financials");
 const { quarterReview } = await import("./quarterReview");
 const { getExplanation } = await import("./explainData");
+const { providerCallsToday } = await import("./quota");
 
 const input: FactInput = {
   symbol: "AAPL",
@@ -129,6 +131,15 @@ describe("writing once per set of facts", () => {
     vi.mocked(getVerdict).mockResolvedValue({ ok: false, error: "not_found" });
     vi.mocked(quarterReview).mockReturnValue(null);
     expect(await getExplanation("AAPL", "en", { write: false, store })).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("writes nothing new when today's counter can't be read (the cap couldn't be enforced)", async () => {
+    vi.mocked(providerCallsToday).mockResolvedValueOnce(null);
+    const store = memory();
+    const writer = vi.fn();
+    const r = await getExplanation("AAPL", "en", { write: true, writer, store });
+    expect(r.ok && r.data).toMatchObject({ explanation: null, canGenerate: false, why: "daily_cap" });
+    expect(writer).not.toHaveBeenCalled();
   });
 
   it("passes on a failed write without storing anything", async () => {

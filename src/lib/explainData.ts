@@ -134,9 +134,19 @@ export const claudeWriter: Writer = async (symbol, name, facts, lang) => {
 
 const configured = () => !!process.env.ANTHROPIC_API_KEY;
 
+/**
+ * True when today's cap is reached, or when the counter can't be read: without it the cap can't
+ * be enforced, so no new explanations are written (stored ones are still shown). Demo mode has
+ * no counter and no real cost.
+ */
 async function capReached(): Promise<boolean> {
   const calls = await providerCallsToday("claude");
-  return calls !== null && calls >= providerDailyLimit(process.env, "claude");
+  if (calls === null) {
+    if (isDemo()) return false;
+    console.warn(JSON.stringify({ event: "explain_cap_unavailable" }));
+    return true;
+  }
+  return calls >= providerDailyLimit(process.env, "claude");
 }
 
 /**

@@ -67,11 +67,15 @@ export interface Fetched {
   fetchedAt: string;
 }
 
+/** Answers that are expected and handled (shown as "not in the data plan" / "not found"): not errors. */
+const EXPECTED = new Set(["plan_restricted", "not_found"]);
+
 function logged(err: ProviderError, endpoint: string): ProviderError {
-  // The request URL is never logged: it carries the API key.
-  console.error(
-    JSON.stringify({ event: "provider_error", provider: "fmp", endpoint, kind: err.kind, status: err.status ?? null }),
-  );
+  // The request URL is never logged: it carries the API key. Expected answers are warnings, so
+  // real failures (upstream, unauthorized, rate limited) stand out in the error log.
+  const line = JSON.stringify({ event: "provider_error", provider: "fmp", endpoint, kind: err.kind, status: err.status ?? null });
+  if (EXPECTED.has(err.kind)) console.warn(line);
+  else console.error(line);
   return err;
 }
 

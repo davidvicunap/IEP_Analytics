@@ -35,6 +35,10 @@ const PAGES = [
   { name: "packs", path: "/charts/packs?s=AAPL" },
   { name: "methodology", path: "/methodology" },
   { name: "watchlist", path: "/watchlist" },
+  { name: "compare", path: "/compare?s=AAPL,MSFT" },
+  { name: "compare-empty", path: "/compare" },
+  { name: "calendar", path: "/calendar" },
+  { name: "home-new", path: "/", empty: true },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },
   { name: "notfound", path: "/stock/1NOPE" },
@@ -81,6 +85,10 @@ async function open(browser, page, width, lang, theme) {
   // Account sync off: the demo server keeps settings in shared memory across these contexts.
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   const tab = await ctx.newPage();
+  // Script errors are bugs; failed requests the audit answers on purpose (503 above) are not.
+  tab.errors = [];
+  tab.on("pageerror", (e) => tab.errors.push(e.message));
+  tab.on("console", (m) => m.type() === "error" && !/Failed to load resource/.test(m.text()) && tab.errors.push(m.text()));
   await tab.goto(base + page.path, { waitUntil: "load", timeout: 60_000 });
   if (page.tab) {
     await tab.getByRole("tab", { name: TAB_LABEL[lang][page.tab], exact: true }).click();
@@ -154,13 +162,14 @@ for (const page of PAGES) {
       if (shots && ["390", "1440"].includes(width.name) && (lang === "es" && theme === "light" || page.name === "home" || page.name === "stock")) {
         await tab.screenshot({ path: path.join(outDir, shotName), fullPage: true });
       }
-      const row = { page: page.name, width: width.name, lang, theme, overflow, axe, small };
+      const row = { page: page.name, width: width.name, lang, theme, overflow, axe, small, errors: tab.errors };
       report.push(row);
       const serious = axe ? axe.filter((v) => v.impact === "serious" || v.impact === "critical") : [];
       console.log(
         `${page.name.padEnd(16)} ${width.name.padEnd(9)} ${lang}-${theme.padEnd(5)} overflow ${overflow.count ? "✗ " + overflow.count : "✓"}` +
           (axe ? ` axe ${axe.length} (${serious.length} serious/critical${serious.length ? ": " + serious.map((v) => v.id).join(",") : ""})` : "") +
-          (small ? ` small-targets ${small.length}` : ""),
+          (small ? ` small-targets ${small.length}` : "") +
+          (tab.errors.length ? ` ERRORS ${tab.errors.length}: ${tab.errors[0].slice(0, 120)}` : ""),
       );
       await ctx.close();
     }
@@ -173,6 +182,7 @@ const sum = {
   axeSeriousCritical: report.reduce((n, r) => n + (r.axe ?? []).filter((v) => v.impact === "serious" || v.impact === "critical").length, 0),
   axeTotal: report.reduce((n, r) => n + (r.axe ?? []).length, 0),
   smallTargets: report.reduce((n, r) => n + (r.small ?? []).length, 0),
+  scriptErrors: report.reduce((n, r) => n + r.errors.length, 0),
   checks: report.length,
 };
 console.log("SUMMARY", JSON.stringify(sum));
