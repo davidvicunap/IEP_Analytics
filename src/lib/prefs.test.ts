@@ -3,7 +3,7 @@ import { MAX_SCREENS, PREF_KEYS, isEmptyPref, isPrefKey, mergePref, normalizePre
 
 describe("account settings", () => {
   it("knows its keys", () => {
-    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "chartpacks", "screens"]);
+    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk"]);
     expect(isPrefKey("watchlist")).toBe(true);
     expect(isPrefKey("theme")).toBe(false);
   });
@@ -61,5 +61,15 @@ describe("sync plan per device", () => {
     expect(planSync("watchlist", a, ["AAPL"], "2026-11-19T10:00:00.000Z", false)).toEqual({ apply: ["MSFT"], upload: false, mark: "2026-11-19T11:00:00.000Z" });
     expect(planSync("watchlist", a, ["AAPL"], "2026-11-19T10:00:00.000Z", true)).toEqual({ upload: true });
     expect(planSync("watchlist", a, ["MSFT"], "2026-11-19T11:00:00.000Z", false)).toEqual({ upload: false });
+  });
+});
+
+describe("risk settings (guided plan)", () => {
+  it("are an object, empty until an account size is set, and the account's choice wins once it has one", () => {
+    expect(normalizePref("risk", { account: 5000, pct: 0.02 })).toEqual({ account: 5000, pct: 0.02 });
+    expect(normalizePref("risk", [1])).toBeNull();
+    expect(isEmptyPref("risk", { account: null, pct: 0.01 })).toBe(true);
+    expect(mergePref("risk", { account: 8000, pct: 0.01 }, { account: 3000, pct: 0.02 })).toEqual({ account: 8000, pct: 0.01 });
+    expect(mergePref("risk", { account: null, pct: 0.01 }, { account: 3000, pct: 0.02 })).toEqual({ account: 3000, pct: 0.02 });
   });
 });

@@ -147,7 +147,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
         <Section title={B.fairValue.title} empty={B.fairValue.empty} loading={quotesLoading || notes.state.status === "loading"} items={brief?.fairValue ?? []} hideEmpty>
           {(f) => (
             <Row key={f.symbol} symbol={f.symbol} href={`/stock/${encodeURIComponent(f.symbol)}?tab=research`}>
-              {fill(f.gap > 0 ? B.fairValue.below : B.fairValue.above, { p: pct(f.price / f.fairValue - 1, lang), v: fmtPrice(f.fairValue, lang) })}
+              {fill(f.gap > 0 ? B.fairValue.above : B.fairValue.below, { p: pct(f.gap, lang), v: fmtPrice(f.fairValue, lang) })}
               <span className="block text-xs text-muted num">{fmtPrice(f.price, lang)}</span>
             </Row>
           )}
@@ -220,7 +220,7 @@ function Theses() {
           <Skeleton className="h-4 w-1/2" />
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted">{fill(T.briefEmpty, { n: data.items.length })}</p>
+        <p className="text-sm text-muted">{data.items.length === 1 ? T.briefEmptyOne : fill(T.briefEmpty, { n: data.items.length })}</p>
       ) : (
         <ul className="-mx-2 -my-1">
           {rows.slice(0, THESIS_ROWS).map((a) => (

@@ -3,10 +3,12 @@
 // device's own settings merge with the account's the first time that device syncs, so nothing
 // you saved before is lost. Pure: storage is prefsStore.ts, the browser side prefsSync.ts.
 import { MAX_PACKS, parsePacks, type Pack } from "./chartPacks";
+import { parseRisk } from "./planBuilder";
 import { parseColumns, parseTags, toggleTag, type Tags } from "./watchDashboard";
 import { WATCHLIST_LIMIT, sanitizeList } from "./watchlistShared";
 
-export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "chartpacks", "screens"] as const;
+/** `risk`: the account size and % at risk the guided plan sizes positions with. */
+export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk"] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 export const isPrefKey = (k: string): k is PrefKey => (PREF_KEYS as readonly string[]).includes(k);
 
@@ -41,11 +43,15 @@ const PARSE: Record<PrefKey, (raw: unknown) => unknown> = {
   watchcols: parseColumns,
   chartpacks: parsePacks,
   screens: parseScreens,
+  risk: parseRisk,
 };
+
+/** Keys whose value is an object rather than a list. */
+const OBJECT_KEYS = new Set<PrefKey>(["watchtags", "risk"]);
 
 /** The value as the app would read it back, or null when it isn't the right shape at all. */
 export function normalizePref(key: PrefKey, raw: unknown): unknown {
-  if (key === "watchtags" ? !raw || typeof raw !== "object" || Array.isArray(raw) : !Array.isArray(raw)) return null;
+  if (OBJECT_KEYS.has(key) ? !raw || typeof raw !== "object" || Array.isArray(raw) : !Array.isArray(raw)) return null;
   return PARSE[key](raw);
 }
 
@@ -53,6 +59,7 @@ export function normalizePref(key: PrefKey, raw: unknown): unknown {
 export function isEmptyPref(key: PrefKey, value: unknown): boolean {
   if (key === "watchcols") return false; // the column choice is never "empty": it's a choice
   if (key === "watchtags") return !value || Object.keys(value as object).length === 0;
+  if (key === "risk") return parseRisk(value).account === null;
   return !Array.isArray(value) || value.length === 0;
 }
 
@@ -81,6 +88,9 @@ export function mergePref(key: PrefKey, account: unknown, device: unknown): unkn
     }
     case "screens":
       return parseScreens([...parseScreens(account), ...parseScreens(device)]);
+    case "risk":
+      // One choice: the account's, unless it has none yet.
+      return parseRisk(account).account !== null ? parseRisk(account) : parseRisk(device);
   }
 }
 

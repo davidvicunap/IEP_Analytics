@@ -65,7 +65,4 @@ export function useI18n(): Ctx {
   return ctx;
 }
 
-/** Replace {v} style placeholders. */
-export function fill(s: string, vars: Record<string, string | number>): string {
-  return s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
-}
+export { fill } from "./fill";

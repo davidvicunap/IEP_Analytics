@@ -176,3 +176,48 @@ export const thesisAlerts = pgTable(
   },
   (t) => [primaryKey({ columns: [t.owner, t.symbol, t.key, t.firedAt] }), index("thesis_alerts_owner_idx").on(t.owner, t.symbol, t.firedAt)],
 );
+
+/**
+ * Phones and browsers that receive live-thesis alerts (Web Push), per beta label. The endpoint
+ * is the push service's address for one browser; a browser that subscribes again replaces it.
+ */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    endpoint: text("endpoint").primaryKey(),
+    owner: text("owner").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    lang: text("lang").notNull().default("es"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+  },
+  (t) => [index("push_subscriptions_owner_idx").on(t.owner)],
+);
+
+/** The server's Web Push (VAPID) key pair, created once on first use unless set in env vars. One row (id 1). */
+export const pushKeys = pgTable("push_keys", {
+  id: integer("id").primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Buys and sells the user logs against their theses (the track record), per beta label. */
+export const trades = pgTable(
+  "trades",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    symbol: text("symbol").notNull(),
+    side: text("side").notNull(), // buy | sell
+    date: text("date").notNull(), // YYYY-MM-DD
+    shares: doublePrecision("shares").notNull(),
+    price: doublePrecision("price").notNull(),
+    fees: doublePrecision("fees").notNull().default(0),
+    stop: doublePrecision("stop"),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("trades_owner_idx").on(t.owner, t.symbol, t.date)],
+);

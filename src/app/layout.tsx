@@ -14,7 +14,9 @@ export const metadata: Metadata = {
   title: { default: "IEP Analytics", template: "%s · IEP Analytics" },
   description: "Análisis de acciones de EE.UU. explicado simple · US stock analysis made simple",
   applicationName: "IEP Analytics",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  // Installable on phones (Add to Home Screen), which iPhone needs for notifications.
+  appleWebApp: { capable: true, title: "IEP", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

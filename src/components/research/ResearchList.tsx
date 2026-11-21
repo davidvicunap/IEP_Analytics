@@ -7,6 +7,7 @@ import { upside } from "@/lib/research";
 import { useNotes, useTheses } from "@/lib/researchClient";
 import { isWatched } from "@/lib/thesis";
 import { useQuotes } from "@/lib/useQuotes";
+import PushSettings from "../PushSettings";
 import { EmptyState, IssueNote, Panel, Skeleton } from "../ui";
 import { signedPct } from "./ResearchPanel";
 import { StatusBadge } from "./Thesis";
@@ -27,6 +28,11 @@ export default function ResearchList() {
       <div>
         <h1 className="text-[26px] font-semibold tracking-[-0.02em] leading-tight">{R.pageTitle}</h1>
         <p className="mt-1 text-[15px] text-muted">{R.pageIntro}</p>
+        <p className="mt-2 text-sm">
+          <Link href="/research/results" prefetch={false} className="link inline-flex min-h-11 items-center sm:min-h-0">
+            {R.results}
+          </Link>
+        </p>
       </div>
       <Panel>
         {state.status === "error" ? (
@@ -82,6 +88,7 @@ export default function ResearchList() {
           </ul>
         )}
       </Panel>
+      <PushSettings />
       <p className="text-xs text-muted">{R.disclaimer}</p>
     </div>
   );

@@ -229,7 +229,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("research", <ResearchPanel symbol={symbol} price={quote?.price ?? null} />)}
+      {panel("research", <ResearchPanel symbol={symbol} price={quote?.price ?? null} history={sections.history} />)}
     </div>
   );
 }
