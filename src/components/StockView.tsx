@@ -13,10 +13,11 @@ import type { StockIdentity, StockSections } from "@/lib/data";
 import type { Candle, DataIssue, DataSource, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
 import AtAGlance from "./AtAGlance";
+import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { ClockIcon, ExternalIcon, GridIcon } from "./icons";
+import { ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
 import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -36,6 +37,8 @@ type BusinessView = "summary" | "statements";
 type FilingsView = "filings" | "insiders" | "news";
 const BUSINESS_VIEWS: BusinessView[] = ["summary", "statements"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
+type ValuationView = "comps" | "history" | "dcf" | "expectations";
+const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "dcf", "expectations"];
 
 /** Links from before the tabs were merged keep working (bookmarks, shared links, journeys). */
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
@@ -58,6 +61,7 @@ function useStockUrlState() {
   const rawView = legacy?.view ?? params.get("view");
   const businessView: BusinessView = (BUSINESS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as BusinessView) : "summary";
   const filingsView: FilingsView = (FILINGS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as FilingsView) : "filings";
+  const valuationView: ValuationView = (VALUATION_VIEWS as string[]).includes(rawView ?? "") ? (rawView as ValuationView) : "comps";
   const chart = useMemo(() => parseChartSettings(new URLSearchParams(params.toString())), [params]);
 
   // Rewrite an old link to its new address once, without a history entry.
@@ -92,7 +96,7 @@ function useStockUrlState() {
     go(p, true);
   };
   const setChart = (s: ChartSettings) => go(writeChartSettings(new URLSearchParams(window.location.search), s), false);
-  return { tab, setTab, businessView, filingsView, setView, chart, setChart };
+  return { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart };
 }
 
 /** A failed section shows a message; the rest of the page keeps working. */
@@ -134,7 +138,7 @@ export default function StockView({
   sections: StockSections;
 }) {
   const { t } = useI18n();
-  const { tab, setTab, businessView, filingsView, setView, chart, setChart } = useStockUrlState();
+  const { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart } = useStockUrlState();
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([tab]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { record } = useRecent();
@@ -209,7 +213,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} view={valuationView} onView={setView} /></Deep>)}
       {panel(
         "filings",
         <div className="space-y-4">
@@ -291,6 +295,15 @@ function StockHeader({
           >
             <GridIcon size={16} />
             <span className="hidden sm:inline">{t.stock.packs}</span>
+          </Link>
+          <Link
+            href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
+            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+            title={t.compare.title}
+            aria-label={t.compare.title}
+          >
+            <ColumnsIcon size={16} />
+            <span className="hidden sm:inline">{t.compare.button}</span>
           </Link>
           <WatchButton symbol={identity.symbol} />
         </div>
@@ -417,6 +430,7 @@ function Overview({
         </div>
         <div className="order-3 min-w-0">
           <QuarterCard symbol={identity.symbol} />
+          <ExplainPanel symbol={identity.symbol} />
         </div>
       </div>
       <div className="max-lg:contents lg:space-y-4 min-w-0">

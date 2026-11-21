@@ -15,6 +15,8 @@ export interface SnapshotPayload {
   quality: Part<{ passed: number; failed: number; na: number; level: QualityLevel; fiscal: string | null }>;
   filings: Part<{
     report: FilingRef | null;
+    /** The newest annual report (its period end gives the fiscal year end: the calendar's deadlines). */
+    annual?: FilingRef | null;
     latest: FilingRef | null;
     /** Filings about the business in the last 7 days, newest first (the home briefing). */
     recent: FilingRef[];
@@ -40,6 +42,7 @@ const ref = (f: Filing): FilingRef => ({ accn: f.accn, form: f.form, filed: f.fi
 export function pickFilings(filings: Filing[], today = new Date().toISOString().slice(0, 10)): Extract<SnapshotPayload["filings"], { ok: true }>["data"] {
   const sorted = [...filings].sort((a, b) => (a.filed < b.filed ? 1 : a.filed > b.filed ? -1 : 0));
   const report = sorted.find((f) => REPORT.test(f.form));
+  const annual = sorted.find((f) => /^(10-K|20-F|40-F)$/.test(f.form));
   const latest = sorted.find((f) => MATERIAL.has(formGroup(f.form)));
   const weekAgo = new Date(Date.parse(today) - RECENT_DAYS * 86_400_000).toISOString().slice(0, 10);
   const recent = sorted.filter((f) => MATERIAL.has(formGroup(f.form)) && f.filed >= weekAgo && f.filed <= today).slice(0, MAX_RECENT).map(ref);
@@ -47,6 +50,7 @@ export function pickFilings(filings: Filing[], today = new Date().toISOString().
   const next = estimateFromReleases(releases, today);
   return {
     report: report ? ref(report) : null,
+    annual: annual ? ref(annual) : null,
     latest: latest ? ref(latest) : null,
     recent,
     nextResults: next && next.kind === "estimated" ? { date: next.date, basedOn: next.basedOn } : null,

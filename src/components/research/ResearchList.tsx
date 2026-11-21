@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPrice } from "@/lib/format";
 import { upside } from "@/lib/research";
-import { useNotes } from "@/lib/researchClient";
+import { useNotes, useTheses } from "@/lib/researchClient";
+import { isWatched } from "@/lib/thesis";
 import { useQuotes } from "@/lib/useQuotes";
 import { EmptyState, IssueNote, Panel, Skeleton } from "../ui";
 import { signedPct } from "./ResearchPanel";
+import { StatusBadge } from "./Thesis";
 
 /** Every notebook the user has started, with today's price next to their fair value. */
 export default function ResearchList() {
@@ -17,6 +19,8 @@ export default function ResearchList() {
   const notes = state.status === "ok" ? state.data : state.status === "loading" ? (state.previous?.data ?? null) : null;
   const q = useQuotes((notes ?? []).map((n) => n.symbol), { enabled: !!notes && notes.length > 0 });
   const price = (s: string) => q.items.find((i) => i.symbol === s)?.quote?.price ?? null;
+  const theses = useTheses();
+  const statusOf = (s: string) => (theses.state.status === "ok" ? theses.state.data.items.find((i) => i.symbol === s)?.status : undefined);
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
@@ -47,7 +51,10 @@ export default function ResearchList() {
                     className="-mx-2 flex flex-col gap-1 rounded-lg px-2 py-3 hover:bg-panel-2 sm:flex-row sm:items-start sm:gap-4"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{n.symbol}</span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{n.symbol}</span>
+                        {n.closed ? <StatusBadge status="closed" /> : isWatched(n) && statusOf(n.symbol) ? <StatusBadge status={statusOf(n.symbol)!} /> : null}
+                      </span>
                       <span className={`mt-0.5 block line-clamp-2 text-sm ${n.thesis ? "" : "text-muted"}`}>{n.thesis || R.noThesis}</span>
                     </span>
                     <span className="num grid grid-cols-3 gap-3 text-sm sm:w-80 sm:text-right">

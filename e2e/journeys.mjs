@@ -12,6 +12,7 @@ const base = process.argv[2] ?? "http://localhost:3123";
 
 const results = [];
 async function test(name, fn) {
+  if (process.env.ONLY && !name.includes(process.env.ONLY)) return; // ONLY="live thesis" runs the matching journeys
   const t0 = Date.now();
   try {
     await fn();
@@ -19,7 +20,7 @@ async function test(name, fn) {
     console.log(`✓ ${name} (${Date.now() - t0} ms)`);
   } catch (e) {
     results.push({ name, ok: false });
-    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n")[0]}`);
+    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n").slice(0, process.env.ONLY ? 6 : 1).join("\n    ")}`);
   }
 }
 const assert = (cond, msg) => {
@@ -151,6 +152,57 @@ await test("search: ignores the / shortcut inside editable content; Ctrl+K works
   assert(await p.evaluate(() => document.activeElement?.id === "ed"), "/ stole focus from contenteditable");
   await p.keyboard.press("Control+k");
   assert(await p.evaluate(() => document.activeElement?.getAttribute("role") === "combobox"), "Ctrl+K didn't focus search");
+  await p.context().close();
+});
+
+await test("command palette: Ctrl+K goes to a stock's section, follows it, switches theme and opens pages, by keyboard", async () => {
+  const p = await page({ lang: "en" });
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("heading", { name: "Apple Inc." }).waitFor();
+  const open = async () => {
+    await p.keyboard.press("Control+k");
+    await p.getByRole("dialog", { name: "Commands" }).waitFor();
+  };
+  const box = () => p.getByRole("combobox", { name: "Type a command, an action or a company" });
+  // A ticker and a section, in any order.
+  await open();
+  await box().fill("dcf msft");
+  await p.getByRole("option", { name: /MSFT · DCF/ }).waitFor();
+  await axe(p);
+  await p.keyboard.press("Enter");
+  await p.waitForURL(/\/stock\/MSFT\?tab=valuation&view=dcf$/);
+  await p.getByRole("button", { name: "DCF", pressed: true }).waitFor();
+  // A section alone means the stock on screen; arrows move, Enter runs.
+  await open();
+  await box().fill("insiders");
+  await p.getByRole("option", { name: /MSFT · Insiders/ }).waitFor();
+  await p.keyboard.press("Enter");
+  await p.waitForURL(/view=insiders/);
+  // Follow it, then dark theme.
+  await open();
+  await box().fill("follow");
+  await p.getByRole("option", { name: /Follow MSFT/ }).waitFor();
+  await p.keyboard.press("Enter");
+  await p.getByText("MSFT is in your list.").waitFor();
+  assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("MSFT"), "not followed");
+  await open();
+  await box().fill("dark");
+  await p.getByRole("option", { name: /Dark theme/ }).waitFor();
+  await p.keyboard.press("Enter");
+  assert((await p.evaluate(() => document.documentElement.dataset.theme)) === "dark", "theme not applied");
+  // Escape closes and gives the focus back; the button opens it too.
+  await open();
+  await p.keyboard.press("Escape");
+  await p.getByRole("dialog", { name: "Commands" }).waitFor({ state: "detached" });
+  await p.getByRole("button", { name: /^Commands/ }).click();
+  await box().fill("screener");
+  await p.getByRole("option", { name: /Stock screener/ }).click();
+  await p.waitForURL(/\/screener$/);
+  // Nothing matches: it says so and suggests a form that works.
+  await open();
+  await box().fill("zzzz qqqq xx");
+  await p.getByText(/Try a ticker and a section/).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
 
@@ -873,7 +925,7 @@ await test("every stock opens: no price, last close or stored price, each said p
 await test("research notebook: write a thesis and fair value, add a note, find it everywhere", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/stock/KO?tab=research");
-  const thesis = p.getByLabel("Thesis");
+  const thesis = p.getByLabel("Thesis", { exact: true });
   await thesis.waitFor();
   const thesisText = `Pricing power and a global distribution moat (${Date.now()}).`; // unique: the demo store outlives a run
   await thesis.fill(thesisText);
@@ -891,8 +943,8 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   await p.getByRole("button", { name: "Add note" }).click();
   await p.getByText(note).waitFor();
   await p.reload();
-  await p.getByLabel("Thesis").waitFor();
-  assert((await p.getByLabel("Thesis").inputValue()).startsWith("Pricing power"), "thesis not kept");
+  await p.getByLabel("Thesis", { exact: true }).waitFor();
+  assert((await p.getByLabel("Thesis", { exact: true }).inputValue()).startsWith("Pricing power"), "thesis not kept");
   await axe(p);
   // The overview card and the list page show it too.
   await p.getByRole("tab", { name: "Overview" }).click();
@@ -910,18 +962,251 @@ await test("research notebook: an edit from an outdated tab is refused, not sile
   const b = await a.context().newPage();
   for (const p of [a, b]) {
     await p.goto(base + "/stock/PEP?tab=research");
-    await p.getByLabel("Thesis").waitFor();
+    await p.getByLabel("Thesis", { exact: true }).waitFor();
   }
   const run = Date.now(); // the demo store lives as long as the server: make this run's text unique
-  await b.getByLabel("Thesis").fill(`Written in tab B ${run}`);
+  await b.getByLabel("Thesis", { exact: true }).fill(`Written in tab B ${run}`);
   await b.getByRole("button", { name: "Save" }).click();
   await b.getByText(/^Saved ·/).waitFor();
-  await a.getByLabel("Thesis").fill(`Written in tab A ${run}`);
+  await a.getByLabel("Thesis", { exact: true }).fill(`Written in tab A ${run}`);
   await a.getByRole("button", { name: "Save" }).click();
   await a.getByText(/changed on another device/).waitFor();
-  assert((await a.getByLabel("Thesis").inputValue()) === `Written in tab A ${run}`, "draft lost");
+  assert((await a.getByLabel("Thesis", { exact: true }).inputValue()) === `Written in tab A ${run}`, "draft lost");
   await a.getByRole("button", { name: "Reload" }).waitFor();
   await a.context().close();
+});
+
+await test("live thesis: a stop and a condition raise alerts in the tab, on the home page and in the list; closing and reopening are recorded", async () => {
+  const p = await page({ lang: "en", watchlist: ["JPM"] });
+  await p.goto(base + "/stock/JPM?tab=research");
+  // The demo store outlives a run: start from an empty notebook.
+  await p.evaluate(() => fetch("/api/research/JPM", { method: "DELETE" }));
+  await p.reload();
+  await p.getByText("Set a stop, a target, a date or a condition and we'll watch it.").waitFor();
+  await p.getByLabel("Stop").fill("250"); // the demo price is $240: the stop is already hit
+  await p.getByRole("button", { name: "Add condition" }).click();
+  await p.getByLabel("Tell me if…").selectOption("move");
+  await p.getByLabel("A move of at least").fill("0.05");
+  await p.getByRole("button", { name: "Add condition" }).last().click();
+  await p.getByRole("button", { name: "Add condition" }).click();
+  await p.getByLabel("The price", { exact: true }).selectOption("above");
+  await p.getByLabel("Level").fill("1000");
+  await p.getByRole("button", { name: "Add condition" }).last().click();
+  await p.getByText("The price rises above $1,000.00").waitFor();
+  await p.getByRole("button", { name: "Save" }).click();
+  const status = p.locator("#thesis-status");
+  await status.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  await status.getByText("At risk").waitFor();
+  await status.getByText(/Moved \+0\.1% in a day \(your alert: ±0\.05%\)/).waitFor();
+  assert((await status.getByText(/Rose above/).count()) === 0, "a condition that isn't true raised an alert");
+  await p.getByRole("heading", { name: "Thesis history" }).waitFor();
+  await p.getByText(/Started being watched · price \$240\.00/).waitFor();
+  await axe(p);
+  // Removing a condition and saving keeps the rest.
+  await p.getByRole("button", { name: "Remove condition: The price rises above $1,000.00" }).click();
+  await p.getByRole("button", { name: "Save" }).click();
+  await p.getByText(/^Saved ·/).waitFor();
+  await p.reload();
+  await status.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  assert((await p.getByText("The price rises above $1,000.00").count()) === 0, "removed condition came back");
+  // The home briefing and the list page show it.
+  await p.goto(base + "/");
+  const theses = p.locator("#theses");
+  await theses.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
+  await theses.getByRole("link", { name: /JPM/ }).first().waitFor();
+  await p.goto(base + "/research");
+  await p.getByRole("link", { name: /JPM/ }).getByText("At risk").waitFor();
+  // Close it with an outcome and a lesson, then reopen it.
+  await p.goto(base + "/stock/JPM?tab=research");
+  await status.getByRole("button", { name: "Close thesis" }).click();
+  await status.getByRole("button", { name: "Partly" }).click();
+  await status.getByLabel("What I learned (optional)").fill("Sized too big.");
+  await status.locator("form").getByRole("button", { name: "Close thesis" }).click();
+  await p.getByText(/^Closed on .*: Partly\.$/).waitFor();
+  await p.getByText("Sized too big.").waitFor();
+  await p.getByText(/Closed: Partly · price \$240\.00/).waitFor();
+  assert((await p.getByText(/^No longer true/).count()) === 0, "closing listed its alerts as no longer true");
+  await p.goto(base + "/research");
+  await p.getByRole("link", { name: /JPM/ }).getByText("Closed").waitFor();
+  await p.goto(base + "/stock/JPM?tab=research");
+  await p.getByRole("button", { name: "Reopen thesis" }).click();
+  await status.getByText("At risk").waitFor();
+  await p.getByText("Reopened · price $240.00").waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("live thesis: when the check fails, the home page says so and offers a retry", async () => {
+  const p = await page({ lang: "en", watchlist: ["JPM"] });
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: [{ symbol: "JPM", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: 1, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-20T10:00:00Z" }] })));
+  await p.route(/\/api\/theses$/, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
+  await p.goto(base + "/");
+  await p.locator("#theses").getByRole("button", { name: /Try again|Retry/ }).waitFor();
+  await p.context().close();
+});
+
+// ---- Calendar (SEC summaries and notebooks answered with fixtures) ----------------------------
+
+await test("calendar: results, SEC deadlines and review dates by week; range, filters and .ics download", async () => {
+  const p = await page({ lang: "en", watchlist: ["AAPL", "MSFT"] });
+  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  const filing = (form, reportDate) => ({ accn: `${form}-${reportDate}`, form, filed: reportDate, reportDate, primaryDocument: "a.htm", items: [] });
+  const snap = (symbol, f) => ({ symbol, cik: 1, quality: { ok: false, error: "not_found" }, insiders: { ok: false, error: "not_found" }, filings: { ok: true, data: { report: null, annual: null, latest: null, recent: [], nextResults: null, ...f } } });
+  const data = {
+    AAPL: snap("AAPL", { nextResults: { date: day(10), basedOn: day(-355) } }),
+    MSFT: snap("MSFT", { report: filing("10-Q", day(-60)), annual: filing("10-K", day(-240)) }), // next 10-Q due in ~71 days
+  };
+  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [{ symbol: "KO", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: day(20), checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-01T00:00:00Z" }] })));
+  await p.route(/\/api\/theses/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: { items: [], skipped: 0 } })));
+  await p.goto(base + "/calendar");
+  await p.getByRole("heading", { name: "Calendar", level: 1 }).waitFor();
+  await p.getByRole("link", { name: /AAPL.*Results \(estimated\)/ }).waitFor();
+  await p.getByRole("link", { name: /KO.*Review your thesis/ }).waitFor();
+  assert((await p.getByText("10-Q due").count()) === 0, "a deadline beyond 60 days is shown");
+  await p.getByRole("button", { name: "90 days" }).click();
+  await p.getByRole("link", { name: /MSFT.*10-Q due/ }).waitFor();
+  await axe(p);
+  // Hide results; the download has what's on screen.
+  await p.getByRole("button", { name: "Results" }).click();
+  await p.getByRole("link", { name: /AAPL.*Results/ }).waitFor({ state: "detached" });
+  const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Add to my calendar (.ics)" }).click()]);
+  const ics = readFileSync(await download.path(), "utf8");
+  assert(ics.includes("SUMMARY:KO: review thesis") && ics.includes("SUMMARY:MSFT: 10-Q due") && !ics.includes("AAPL"), ics);
+  // The home briefing links here.
+  await p.goto(base + "/");
+  await p.getByRole("link", { name: "See calendar" }).click();
+  await p.waitForURL(/\/calendar$/);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  const empty = await page({ lang: "es" });
+  await empty.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await empty.goto(base + "/calendar");
+  await empty.getByText("Sigue acciones o pon una fecha de revisión en «Mi análisis» para ver aquí sus fechas.").waitFor();
+  await empty.context().close();
+});
+
+// ---- AI explanation (its endpoint answered with fixtures: no Claude calls in tests) ------------
+
+const explainFacts = [
+  { id: "F1", label: "Revenue · Q4 FY2026", value: "$102.5B (+8% vs Q4 FY2025)", source: "10-K filed on 2026-10-31", href: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000105/" },
+  { id: "F2", label: "Quality tests (Buffett) passed", value: "9 of 10 (good)", source: "10-K FY2025" },
+  { id: "F3", label: "Today's multiple against its 5-year average", value: "34.2x / 27.1x (weak)", source: "price from Financial Modeling Prep and SEC figures" },
+];
+const explainBase = { symbol: "AAPL", lang: "en", facts: explainFacts, explanation: null, generatedAt: null, model: null, canGenerate: true };
+
+await test("AI explanation: written on request, every sentence links to the facts it cites; off and empty states are plain", async () => {
+  const p = await page({ lang: "en" });
+  let posts = 0;
+  await p.route(/\/api\/explain\/AAPL/, (r) => {
+    if (r.request().method() === "POST") {
+      posts++;
+      return r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { ...explainBase, generatedAt: "2026-11-20T15:00:00Z", model: "claude-opus-5-5", explanation: {
+        quarter: [{ text: "Revenue grew 8% from a year earlier.", facts: ["F1"] }],
+        bull: [{ text: "It passes 9 of the 10 quality tests.", facts: ["F2"] }],
+        bear: [{ text: "Its earnings multiple is above its 5-year average.", facts: ["F3"] }],
+      } } }));
+    }
+    r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: explainBase }));
+  });
+  await p.goto(base + "/stock/AAPL");
+  const panel = p.locator("#explain");
+  await panel.getByText("There's no explanation yet for the latest figures.").waitFor();
+  await panel.getByRole("button", { name: "Write the explanation" }).click();
+  await panel.getByRole("heading", { name: "What happened last quarter" }).waitFor();
+  await panel.getByText("Revenue grew 8% from a year earlier.").waitFor();
+  assert(posts === 1, `posts: ${posts}`);
+  // The citation opens the fact, with its source linked to the SEC filing.
+  await panel.getByRole("link", { name: "Fact 1: Revenue · Q4 FY2026" }).click();
+  await p.waitForURL(/#fact-F1$/);
+  await panel.locator("#fact-F1").getByRole("link", { name: /10-K filed on 2026-10-31/ }).waitFor();
+  await panel.getByText(/Written by Claude \(claude-opus-5-5\)/).waitFor();
+  await panel.getByText(/AI can be wrong: check each figure at its source\. Not a recommendation\./).waitFor();
+  await axe(p);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  // Not turned on: it says so, with no button.
+  const off = await page({ lang: "es" });
+  await off.route(/\/api\/explain\/AAPL/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { ...explainBase, lang: "es", canGenerate: false, why: "not_configured" } })));
+  await off.goto(base + "/stock/AAPL");
+  await off.locator("#explain").getByText("Las explicaciones con IA aún no están activadas en este sitio.").waitFor();
+  assert((await off.locator("#explain").getByRole("button").count()) === 0, "button shown while off");
+  await off.context().close();
+
+  // Too many requests: the writing fails plainly and can be tried later.
+  const busy = await page({ lang: "en" });
+  await busy.route(/\/api\/explain\/AAPL/, (r) => (r.request().method() === "POST" ? r.fulfill(json({ ok: false, error: "rate_limited" }, 429)) : r.fulfill(json({ ok: true, fetchedAt: "x", data: explainBase }))));
+  await busy.goto(base + "/stock/AAPL");
+  await busy.locator("#explain").getByRole("button", { name: "Write the explanation" }).click();
+  await busy.locator("#explain").getByText(/You asked for several explanations in a row/).waitFor();
+  await busy.context().close();
+});
+
+// ---- Compare (SEC and price endpoints answered with fixtures) ---------------------------------
+
+const verdictFix = (sym, growth) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, points: [
+  { key: "quality", level: "good", passed: 9, judged: 10 },
+  { key: "growth", level: growth, metric: "revenueGrowth", value: growth === "good" ? 0.15 : 0.04, compare: 0.06, peers: 40 },
+  { key: "profitability", level: "good", metric: "roic", value: 0.31, compare: 0.12 },
+  { key: "debt", level: "mid", metric: "debtToEquity", value: 0.6, compare: 0.6 },
+  { key: "valuation", level: "weak", metric: "pe", value: 34, compare: 27 },
+], missing: [], fiscal: "FY2025", industry: "SOFTWARE", priceAt: "2026-11-20T15:00:00Z", historyFrom: "2021-11-30", issues: {} } });
+const ratioRow = (key, better, value, percentile) => ({ key, group: "profitability", better, applicable: true, value, note: null, history: [], own: null, sector: { percentile, median: 0.1, n: 40, sicPrefix: "737" } });
+const ratiosFix = (sym, roic, debt) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, cik: 1, businessType: "general", sic: 7372, sicDescription: "SOFTWARE", period: { label: "FY2025", end: "2025-09-30" }, peersYear: 2025, ratios: [
+  ratioRow("revenueGrowth", "higher", 0.08, 60), ratioRow("roic", "higher", roic, roic > 0.3 ? 92 : 70), ratioRow("debtToEquity", "lower", debt, 40),
+] } });
+const valFix = (sym, pe) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: [{ key: "pe", applicable: true, higherIsCheaper: false, value: pe, note: null, own: { mean: 25 } }, { key: "fcfYield", applicable: false, higherIsCheaper: true, value: null, note: null, own: null }] } });
+const months = Array.from({ length: 24 }, (_, i) => `${2024 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
+const marketFix = (sym, start, step) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: "ok", monthly: { keys: months, ends: months.map((m) => `${m}-28`), values: { price: months.map((_, i) => start + i * step) } } } });
+
+await test("compare: companies side by side from the URL, add and remove, phone table scrolls inside its box", async () => {
+  const p = await page({ lang: "en" });
+  await p.route(/\/api\/verdict\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(verdictFix(s, s === "MSFT" ? "good" : "mid"))); });
+  await p.route(/\/api\/sec\/ratios\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(ratiosFix(s, s === "AAPL" ? 0.52 : 0.28, s === "AAPL" ? 1.5 : 0.4))); });
+  await p.route(/\/api\/valuation\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(valFix(s, s === "AAPL" ? 33.4 : 30))); });
+  await p.route(/\/api\/charts\/market\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(marketFix(s, 100, s === "AAPL" ? 2 : 1))); });
+  await p.goto(base + "/compare?s=aapl,msft");
+  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
+  const glance = p.getByRole("region", { name: "At a glance" });
+  await glance.getByText("ROIC 31% · industry median 12%").first().waitFor();
+  const ratios = p.getByRole("region", { name: "Against its industry" });
+  await ratios.getByText("above 92% of its industry").waitFor();
+  // Higher ROIC is better (AAPL); lower debt is better (MSFT): the best in each row is marked.
+  const roic = ratios.getByRole("row", { name: /ROIC/ });
+  await roic.getByText("best in the group").waitFor();
+  assert((await roic.getByRole("cell").nth(0).innerText()).includes("52.0%") || (await roic.getByRole("cell").nth(0).innerText()).includes("52%"), "AAPL ROIC");
+  const debtRow = ratios.getByRole("row", { name: /Debt/ });
+  assert((await debtRow.getByRole("cell").nth(1).innerText()).includes("●"), "lower debt not marked as best");
+  await p.getByRole("region", { name: "Valuation" }).getByText("33.4x").waitFor();
+  await p.getByRole("region", { name: "Valuation" }).getByText("Not applicable").first().waitFor();
+  await p.getByRole("group", { name: /Price performance: AAPL, MSFT/ }).waitFor();
+  await axe(p);
+  // Add a third company with the search, remove one: the URL follows.
+  await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "KO", name: "The Coca-Cola Company" }])));
+  await p.getByRole("combobox", { name: "Add a company" }).fill("coca");
+  await p.getByRole("option", { name: /KO/ }).click();
+  await p.waitForURL(/s=AAPL,MSFT,KO$/);
+  await p.getByRole("button", { name: "Remove MSFT from the comparison" }).click();
+  await p.waitForURL(/s=AAPL,KO$/);
+  await p.getByRole("heading", { name: "Compare: AAPL · KO" }).waitFor();
+  // The stock page links here.
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("link", { name: "Compare" }).click();
+  await p.waitForURL(/\/compare\?s=AAPL$/);
+  await p.getByText("Add at least one more company to compare.").waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  const m = await page({ lang: "es", width: 320, height: 700 });
+  await m.route(/\/api\/(verdict|sec\/ratios|valuation|charts\/market)\//, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
+  await m.goto(base + "/compare?s=AAPL,MSFT,GOOGL,NVDA");
+  await m.getByRole("heading", { name: "Comparar: AAPL · MSFT · GOOGL · NVDA" }).waitFor();
+  await m.getByText("Puedes comparar hasta 4 empresas.").waitFor();
+  await m.waitForTimeout(500);
+  assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 320, "page scrolls sideways at 320 px");
+  await m.context().close();
 });
 
 // ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------

@@ -7,11 +7,13 @@ import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { buildBrief, partOfDay, type Brief } from "@/lib/brief";
 import { daysUntil } from "@/lib/earnings";
 import { filingDocUrl } from "@/lib/filingsShared";
-import { useNotes } from "@/lib/researchClient";
+import { useNotes, useTheses } from "@/lib/researchClient";
+import { byUrgency, isWatched } from "@/lib/thesis";
+import { alertText } from "./research/Thesis";
 import { useSnapshots, type SnapState } from "@/lib/snapshotClient";
 import { useQuotes } from "@/lib/useQuotes";
 import { ChevronRightIcon, FileTextIcon } from "./icons";
-import { Panel, Skeleton, StatusMessage } from "./ui";
+import { IssueNote, Panel, Skeleton, StatusMessage } from "./ui";
 
 type Lang = "es" | "en";
 const MAX_CHECKED = 40; // SEC summaries asked for at most (3 at a time; cached for half an hour)
@@ -69,7 +71,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           {now ? B.greeting[partOfDay(now.getHours())] : " "}
         </h1>
         <p className="mt-1 text-[15px] text-muted">
-          {now && <span className="capitalize">{new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric" }).format(now)}</span>}
+          {now && <span>{sentenceCase(new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { weekday: "long", month: "long", day: "numeric" }).format(now))}</span>}
           {" · "}
           {fill(B.subtitle, { n: list.length })}
         </p>
@@ -80,6 +82,8 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
         )}
         {search && <div className="mt-4 max-w-xl">{search}</div>}
       </div>
+
+      <Theses />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={B.filings.title} empty={B.filings.empty} loading={loading && !brief?.filings.length} items={brief?.filings ?? []}>
@@ -100,7 +104,18 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           )}
         </Section>
 
-        <Section title={B.results.title} empty={B.results.empty} loading={loading && !brief?.results.length} items={brief?.results ?? []} note={brief?.results.length ? B.results.note : undefined}>
+        <Section
+          title={B.results.title}
+          empty={B.results.empty}
+          loading={loading && !brief?.results.length}
+          items={brief?.results ?? []}
+          note={brief?.results.length ? B.results.note : undefined}
+          more={
+            <Link href="/calendar" prefetch={false} className="link text-xs">
+              {t.calendar.open}
+            </Link>
+          }
+        >
           {(r) => (
             <Row key={r.symbol} symbol={r.symbol} href={`/stock/${encodeURIComponent(r.symbol)}`}>
               {fill(B.results.around, { d: fmtDate(r.date, lang) })}
@@ -138,7 +153,62 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
   );
 }
 
-function Section<T>({ title, empty, loading, items, note, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; children: (item: T) => React.ReactNode }) {
+/** "Monday, November 23": only the first letter in capitals (Spanish keeps "de noviembre" lower case). */
+export const sentenceCase = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
+
+const THESIS_ROWS = 6;
+
+/** Live theses with an active alert, most urgent first; quiet when every thesis is on track. */
+function Theses() {
+  const { t, lang } = useI18n();
+  const T = t.thesis;
+  const notes = useNotes();
+  const watched = notes.state.status === "ok" ? notes.state.data.filter(isWatched).length : 0;
+  const { state, retry } = useTheses();
+  if (watched === 0) return null;
+  const data = state.status === "ok" ? state.data : state.status === "loading" ? state.previous?.data : undefined;
+  const rows = (data?.items ?? [])
+    .flatMap((i) => i.alerts.map((a) => ({ ...a, symbol: i.symbol })))
+    .sort(byUrgency);
+  return (
+    <Panel title={T.briefTitle} id="theses">
+      {state.status === "error" ? (
+        <IssueNote issue={state.issue} onRetry={retry} />
+      ) : !data ? (
+        <div className="space-y-3" aria-hidden="true">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted">{fill(T.briefEmpty, { n: data.items.length })}</p>
+      ) : (
+        <ul className="-mx-2 -my-1">
+          {rows.slice(0, THESIS_ROWS).map((a) => (
+            <Row key={`${a.symbol}-${a.key}`} symbol={a.symbol} href={`/stock/${encodeURIComponent(a.symbol)}?tab=research`}>
+              <span className="flex items-start gap-2">
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.tone === "risk" ? "bg-down" : a.tone === "good" ? "bg-up" : "bg-warn"}`} aria-hidden="true" />
+                <span className="num">
+                  <span className="sr-only">{T.tones[a.tone]}: </span>
+                  {alertText(a, T, lang)}
+                </span>
+              </span>
+            </Row>
+          ))}
+        </ul>
+      )}
+      {rows.length > THESIS_ROWS && (
+        <p className="mt-3 text-xs">
+          <Link href="/research" prefetch={false} className="link">
+            {fill(T.briefMore, { n: rows.length - THESIS_ROWS })}
+          </Link>
+        </p>
+      )}
+      {data && data.skipped > 0 && <p className="mt-3 text-xs text-muted">{fill(T.skipped, { n: data.skipped })}</p>}
+    </Panel>
+  );
+}
+
+function Section<T>({ title, empty, loading, items, note, more, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; more?: React.ReactNode; children: (item: T) => React.ReactNode }) {
   return (
     <Panel title={title} className="min-w-0">
       {items.length > 0 ? (
@@ -152,6 +222,7 @@ function Section<T>({ title, empty, loading, items, note, children }: { title: s
         <p className="text-sm text-muted">{empty}</p>
       )}
       {note && <p className="mt-3 text-xs text-muted">{note}</p>}
+      {more && <p className="mt-2">{more}</p>}
     </Panel>
   );
 }

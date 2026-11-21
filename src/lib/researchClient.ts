@@ -5,16 +5,24 @@
 // stock reads it again, so they never disagree.
 import { useEffect } from "react";
 import type { NoteInput, ResearchNote } from "./research";
+import type { StoredAlert } from "./thesis";
+import type { ThesesPayload, ThesisView } from "./thesesData";
 import { sharedLoader, toViewResult, type ViewIssue } from "./resource";
 import { useResource } from "./useResource";
 
 export const noteUrl = (symbol: string) => `/api/research/${encodeURIComponent(symbol)}`;
 export const NOTES_URL = "/api/research";
+export const THESES_URL = "/api/theses";
+export const thesisUrl = (symbol: string) => `/api/theses/${encodeURIComponent(symbol)}`;
+
+export type ThesisDetail = ThesisView & { history: StoredAlert[] };
 
 const listeners = new Set<(symbol: string) => void>();
 function changed(symbol: string) {
   sharedLoader.forget(noteUrl(symbol));
   sharedLoader.forget(NOTES_URL);
+  sharedLoader.forget(THESES_URL);
+  sharedLoader.forget(thesisUrl(symbol));
   for (const l of listeners) l(symbol);
 }
 
@@ -41,6 +49,20 @@ export function useNote(symbol: string) {
 export function useNotes() {
   const r = useResource<ResearchNote[]>(NOTES_URL, { shared: true, keepPrevious: true });
   useRefreshOn(any, r.retry);
+  return r;
+}
+
+/** Every live thesis, checked now (status and active alerts); reloads after any notebook edit. */
+export function useTheses() {
+  const r = useResource<ThesesPayload>(THESES_URL, { shared: true, keepPrevious: true });
+  useRefreshOn(any, r.retry);
+  return r;
+}
+
+/** One live thesis, checked now, with its alert history; reloads after an edit of that stock. */
+export function useThesis(symbol: string) {
+  const r = useResource<ThesisDetail>(thesisUrl(symbol), { shared: true, keepPrevious: true });
+  useRefreshOn(useMatch(symbol), r.retry);
   return r;
 }
 

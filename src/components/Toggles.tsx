@@ -19,24 +19,32 @@ export function LangToggle() {
 
 type Theme = "dark" | "light";
 
+const currentTheme = (): Theme => {
+  const attr = document.documentElement.dataset.theme;
+  return attr === "light" || attr === "dark" ? attr : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+/** Sets and remembers the theme; the toggle and the charts follow (the "iep-theme" event). */
+export function applyTheme(next: Theme) {
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem("iep.theme", next);
+  } catch {}
+  window.dispatchEvent(new Event("iep-theme"));
+}
+
 export function ThemeToggle() {
   const { t } = useI18n();
   const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
-    const attr = document.documentElement.dataset.theme;
-    setTheme(attr === "light" || attr === "dark" ? attr : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(currentTheme());
+    const sync = () => setTheme(currentTheme());
+    window.addEventListener("iep-theme", sync);
+    return () => window.removeEventListener("iep-theme", sync);
   }, []);
 
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("iep.theme", next);
-    } catch {}
-    setTheme(next);
-    window.dispatchEvent(new Event("iep-theme"));
-  };
+  const toggle = () => applyTheme(theme === "dark" ? "light" : "dark");
 
   const label = `${t.app.theme}: ${theme === "dark" ? t.app.themeLight : t.app.themeDark}`;
   return (

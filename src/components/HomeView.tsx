@@ -102,7 +102,10 @@ export function MarketsSection({ entries, source }: { entries: QuoteEntry[]; sou
 
 export function PopularSection({ entries, source }: { entries: QuoteEntry[]; source: DataSource }) {
   const { t } = useI18n();
-  return <ServerQuotes entries={entries} source={source} caption={t.home.popular} />;
+  const { list } = useWatchlist();
+  // Ideas, not repeats: stocks already in the list are left out (unless that leaves too few).
+  const others = entries.filter((e) => !list.includes(e.symbol));
+  return <ServerQuotes entries={others.length >= 3 ? others : entries} source={source} caption={t.home.popular} />;
 }
 
 function RecentlyViewed() {

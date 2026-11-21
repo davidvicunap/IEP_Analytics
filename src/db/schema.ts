@@ -123,6 +123,11 @@ export const researchNotes = pgTable(
     entry: doublePrecision("entry"),
     stop: doublePrecision("stop"),
     target: doublePrecision("target"),
+    direction: text("direction").notNull().default("up"),
+    reviewBy: text("review_by"), // YYYY-MM-DD
+    checks: jsonb("checks").notNull().default([]),
+    opened: jsonb("opened"),
+    closed: jsonb("closed"),
     log: jsonb("log").notNull().default([]),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
@@ -139,4 +144,34 @@ export const userPrefs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },
   (t) => [primaryKey({ columns: [t.owner, t.key] })],
+);
+
+/** AI explanations, one per stock, language and set of facts: a new filing means new facts and a new row. */
+export const explanations = pgTable(
+  "explanations",
+  {
+    symbol: text("symbol").notNull(),
+    lang: text("lang").notNull(),
+    factsHash: text("facts_hash").notNull(),
+    body: jsonb("body").notNull(), // { facts, explanation }
+    model: text("model").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.lang, t.factsHash] })],
+);
+
+/** Alerts raised by live theses: one row each time an alert fires, cleared when no longer true. */
+export const thesisAlerts = pgTable(
+  "thesis_alerts",
+  {
+    owner: text("owner").notNull(),
+    symbol: text("symbol").notNull(),
+    key: text("key").notNull(),
+    kind: text("kind").notNull(),
+    tone: text("tone").notNull(),
+    data: jsonb("data").notNull(),
+    firedAt: timestamp("fired_at", { withTimezone: true }).notNull(),
+    clearedAt: timestamp("cleared_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.owner, t.symbol, t.key, t.firedAt] }), index("thesis_alerts_owner_idx").on(t.owner, t.symbol, t.firedAt)],
 );

@@ -4,10 +4,13 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { researchNotes } from "@/db/schema";
 import { applyInput, isStale, type LogEntry, type NoteInput, type ResearchNote } from "./research";
+import type { Closed, Opened, ThesisCheck } from "./thesis";
 
 export interface ResearchStore {
   get(owner: string, symbol: string): Promise<ResearchNote | null>;
   list(owner: string): Promise<ResearchNote[]>;
+  /** Everyone with at least one notebook (the nightly thesis check). */
+  owners(): Promise<string[]>;
   /** Applies an edit. `conflict`: someone saved a newer version since `baseUpdatedAt`. */
   save(owner: string, symbol: string, input: NoteInput, now?: Date): Promise<{ ok: true; note: ResearchNote } | { ok: false; error: "conflict" }>;
   remove(owner: string, symbol: string): Promise<void>;
@@ -26,6 +29,11 @@ function fromRow(r: Row): ResearchNote {
     entry: r.entry,
     stop: r.stop,
     target: r.target,
+    direction: r.direction === "down" ? "down" : "up",
+    reviewBy: r.reviewBy,
+    checks: Array.isArray(r.checks) ? (r.checks as ThesisCheck[]) : [],
+    opened: (r.opened as Opened | null) ?? null,
+    closed: (r.closed as Closed | null) ?? null,
     log: Array.isArray(r.log) ? (r.log as LogEntry[]) : [],
     updatedAt: r.updatedAt.toISOString(),
   };
@@ -43,6 +51,10 @@ export function postgresStore(db: Db): ResearchStore {
       const rows = await db.select().from(researchNotes).where(eq(researchNotes.owner, owner)).orderBy(desc(researchNotes.updatedAt));
       return rows.map(fromRow);
     },
+    async owners() {
+      const rows = await db.selectDistinct({ owner: researchNotes.owner }).from(researchNotes);
+      return rows.map((r) => r.owner);
+    },
     async save(owner, symbol, input, now = new Date()) {
       const prev = await get(owner, symbol);
       if (isStale(prev, input)) return { ok: false, error: "conflict" };
@@ -57,6 +69,11 @@ export function postgresStore(db: Db): ResearchStore {
         entry: note.entry,
         stop: note.stop,
         target: note.target,
+        direction: note.direction,
+        reviewBy: note.reviewBy,
+        checks: note.checks,
+        opened: note.opened,
+        closed: note.closed,
         log: note.log,
         updatedAt: now,
       };
@@ -93,6 +110,9 @@ export function memoryStore(): ResearchStore {
         .filter(([k]) => k.startsWith(`${owner}\u0000`))
         .map(([, n]) => n)
         .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+    },
+    async owners() {
+      return [...new Set([...notes.keys()].map((k) => k.split("\u0000")[0]))];
     },
     async save(owner, symbol, input, now = new Date()) {
       const prev = notes.get(key(owner, symbol)) ?? null;

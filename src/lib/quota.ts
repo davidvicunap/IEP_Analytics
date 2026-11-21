@@ -2,9 +2,14 @@
 // the provider starts refusing requests. Counts by UTC day; a no-op without Redis.
 import { getRedis } from "./redis";
 
-export type Provider = "fmp";
+export type Provider = "fmp" | "claude";
 
-export function providerDailyLimit(env: Record<string, string | undefined> = process.env): number {
+export function providerDailyLimit(env: Record<string, string | undefined> = process.env, provider: Provider = "fmp"): number {
+  if (provider === "claude") {
+    // AI explanations: a spending cap, not a provider limit (each one costs a few cents).
+    const c = Number(env.CLAUDE_DAILY_LIMIT);
+    return Number.isFinite(c) && c >= 0 && env.CLAUDE_DAILY_LIMIT !== undefined && env.CLAUDE_DAILY_LIMIT !== "" ? c : 40;
+  }
   const n = Number(env.FMP_DAILY_LIMIT);
   return Number.isFinite(n) && n > 0 ? n : 250; // FMP Basic (free) plan
 }
@@ -27,7 +32,7 @@ export async function recordProviderCall(provider: Provider): Promise<number | n
     const key = quotaKey(provider);
     const calls = await redis.incr(key);
     if (calls === 1) await redis.expire(key, 3 * 24 * 60 * 60);
-    const limit = providerDailyLimit();
+    const limit = providerDailyLimit(process.env, provider);
     const threshold = crossedThreshold(calls, limit);
     if (threshold) console.warn(JSON.stringify({ event: "provider_quota_warning", provider, calls, limit, threshold }));
     return calls;

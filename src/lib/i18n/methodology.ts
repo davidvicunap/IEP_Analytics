@@ -165,6 +165,14 @@ const es: MethodologyText = {
       ],
     },
     {
+      id: "ai",
+      title: "Explicado con IA",
+      body: [
+        "Claude (Anthropic) escribe tres apartados (el último trimestre, a favor y en contra) a partir de una lista numerada de datos que ya mostramos: el trimestre frente al año anterior (10-Q o 10-K de la SEC) y las cinco líneas de «De un vistazo». No recibe noticias ni otras fuentes.",
+        "Cada frase debe citar los números de los datos en los que se apoya; las que no citan ninguno de los datos dados se descartan. La explicación se escribe una vez por empresa, idioma y conjunto de datos, y se vuelve a escribir solo cuando una nueva presentación cambia los datos. La IA puede equivocarse: cada cifra enlaza a su fuente para comprobarla. No es una recomendación.",
+      ],
+    },
+    {
       id: "chart",
       title: "Soportes y resistencias",
       body: [
@@ -178,6 +186,7 @@ const es: MethodologyText = {
         {
           list: [
             "Mi análisis (tesis, puntos a favor y en contra, valor justo, notas): se guarda en la base de datos, ligado a tu invitación de la beta. Cada cambio de valor justo queda registrado con el precio de ese momento.",
+            "Tesis vivas: una tesis abierta con stop, objetivo, valor justo, fecha de revisión o condiciones propias se vigila al abrir la app y cada día hábil después del cierre (precio de Financial Modeling Prep con su hora; «De un vistazo», informes y fechas de resultados de la SEC). Una alerta salta una vez mientras su condición se cumple, no se repite en 24 horas y se apaga cuando deja de cumplirse. Si un dato no está disponible, lo decimos y no apagamos ni inventamos alertas. Al cerrar una tesis se guardan el resultado, lo aprendido y el precio de ese momento.",
             "Lista, etiquetas, columnas, paquetes de gráficos y búsquedas guardadas: en tu cuenta, iguales en todos tus dispositivos. La primera vez que un dispositivo se sincroniza, lo que ya tenía guardado se suma a lo de tu cuenta, sin perder nada. Sin conexión se guardan en el navegador y se suben después.",
             "En cada navegador: acciones vistas recientemente, escenarios del DCF, proyecciones de los estados, pares elegidos en Comparables y la vista del gráfico.",
           ],
@@ -344,6 +353,14 @@ const en: MethodologyText = {
       ],
     },
     {
+      id: "ai",
+      title: "Explained by AI",
+      body: [
+        "Claude (Anthropic) writes three sections (the latest quarter, for and against) from a numbered list of facts we already show: the quarter against a year earlier (the SEC 10-Q or 10-K) and the five lines of \"At a glance\". It is given no news or other sources.",
+        "Every sentence must cite the numbers of the facts it rests on; sentences that cite none of the given facts are dropped. An explanation is written once per company, language and set of facts, and written again only when a new filing changes the facts. AI can be wrong: every figure links to its source so you can check it. Not a recommendation.",
+      ],
+    },
+    {
       id: "chart",
       title: "Support and resistance",
       body: [
@@ -357,6 +374,7 @@ const en: MethodologyText = {
         {
           list: [
             "Research (thesis, points for and against, fair value, notes): saved in the database, tied to your beta invite. Every fair-value change is logged with the price at that moment.",
+            "Live theses: an open thesis with a stop, target, fair value, review date or conditions of your own is checked when you open the app and every weekday after the close (price from Financial Modeling Prep with its time; \"At a glance\", reports and results dates from the SEC). An alert fires once while its condition holds, doesn't repeat within 24 hours and clears when the condition no longer holds. When some data is unavailable we say so, and we neither clear nor invent alerts. Closing a thesis records its outcome, what you learned and the price at that moment.",
             "Watchlist, tags, columns, chart packs and saved screens: in your account, the same on all your devices. The first time a device syncs, what it already had is added to your account, so nothing is lost. Offline, they are kept in the browser and saved later.",
             "Kept in each browser: recently viewed stocks, DCF scenarios, statement projections, chosen comps peers and the chart view.",
           ],

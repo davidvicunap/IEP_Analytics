@@ -2,12 +2,16 @@
 // with dated notes and the history of their fair value. Pure: validation and edits live
 // here (and are tested here); storage is researchStore.ts, the API is /api/research.
 
+import { isDate, mergeChecks, parseChecks, isWatched, type CheckBody, type Closed, type Direction, type Opened, type Outcome, type ThesisCheck } from "./thesis";
+
 export type FairValueSource = "manual" | "dcf";
 
 export type LogEntry =
   | { id: string; at: string; kind: "note"; text: string }
   /** The fair value changed: the new value (null: cleared), the price at that moment and how it was set. */
-  | { id: string; at: string; kind: "fairValue"; value: number | null; price: number | null; source: FairValueSource };
+  | { id: string; at: string; kind: "fairValue"; value: number | null; price: number | null; source: FairValueSource }
+  /** The thesis started being watched, was closed (with its outcome) or was reopened. */
+  | { id: string; at: string; kind: "status"; to: "opened" | "closed" | "reopened"; price: number | null; outcome?: Outcome };
 
 export interface ResearchNote {
   symbol: string;
@@ -18,6 +22,12 @@ export interface ResearchNote {
   entry: number | null;
   stop: number | null;
   target: number | null;
+  /** Live thesis: which way the user expects the price to go, when to review it, what else to watch. */
+  direction: Direction;
+  reviewBy: string | null; // YYYY-MM-DD
+  checks: ThesisCheck[];
+  opened: Opened | null; // when it first had something to watch
+  closed: Closed | null;
   log: LogEntry[]; // newest first
   updatedAt: string | null; // null: never saved
 }
@@ -32,6 +42,12 @@ export interface NoteInput {
   entry?: number | null;
   stop?: number | null;
   target?: number | null;
+  direction?: Direction;
+  reviewBy?: string | null;
+  checks?: (CheckBody & { id?: string })[];
+  /** Close the thesis with its outcome; reopen a closed one. */
+  close?: { outcome: Outcome; lesson: string };
+  reopen?: boolean;
   addNote?: string;
   removeNote?: string; // id of a note entry
   price?: number | null; // the price on screen when saving, recorded with fair-value changes
@@ -39,10 +55,10 @@ export interface NoteInput {
   baseUpdatedAt: string | null;
 }
 
-export const LIMITS = { text: 4000, note: 2000, log: 200, value: 1e9 } as const;
+export const LIMITS = { text: 4000, note: 2000, lesson: 2000, log: 200, value: 1e9 } as const;
 
 export function emptyNote(symbol: string): ResearchNote {
-  return { symbol, thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, log: [], updatedAt: null };
+  return { symbol, thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: null };
 }
 
 export type ParseError = "invalid";
@@ -76,6 +92,30 @@ export function parseInput(body: unknown): { ok: true; input: NoteInput } | { ok
     if (b.fairValueSource !== "manual" && b.fairValueSource !== "dcf") return { ok: false, error: "invalid" };
     input.fairValueSource = b.fairValueSource;
   }
+  if (b.direction !== undefined) {
+    if (b.direction !== "up" && b.direction !== "down") return { ok: false, error: "invalid" };
+    input.direction = b.direction;
+  }
+  if (b.reviewBy !== undefined) {
+    if (b.reviewBy !== null && !isDate(b.reviewBy)) return { ok: false, error: "invalid" };
+    input.reviewBy = b.reviewBy as string | null;
+  }
+  if (b.checks !== undefined) {
+    const checks = parseChecks(b.checks);
+    if (!checks) return { ok: false, error: "invalid" };
+    input.checks = checks;
+  }
+  if (b.close !== undefined) {
+    const c = b.close as Record<string, unknown> | null;
+    const outcome = c?.outcome;
+    const lesson = c?.lesson ?? "";
+    if ((outcome !== "right" && outcome !== "wrong" && outcome !== "mixed") || typeof lesson !== "string" || lesson.length > LIMITS.lesson) return { ok: false, error: "invalid" };
+    input.close = { outcome, lesson: lesson.trim() };
+  }
+  if (b.reopen !== undefined) {
+    if (b.reopen !== true) return { ok: false, error: "invalid" };
+    input.reopen = true;
+  }
   if (b.addNote !== undefined) {
     if (typeof b.addNote !== "string" || b.addNote.length > LIMITS.note) return { ok: false, error: "invalid" };
     if (b.addNote.trim()) input.addNote = b.addNote.trim();
@@ -97,13 +137,16 @@ export function parseInput(body: unknown): { ok: true; input: NoteInput } | { ok
  * setting the fair value only append or replace their own piece, so they never conflict.
  */
 export function isStale(saved: ResearchNote | null, input: NoteInput): boolean {
-  const touchesForm = (["thesis", "bull", "bear", "entry", "stop", "target"] as const).some((k) => input[k] !== undefined);
+  const touchesForm = (["thesis", "bull", "bear", "entry", "stop", "target", "direction", "reviewBy", "checks"] as const).some((k) => input[k] !== undefined);
   if (!touchesForm) return false;
   const savedAt = saved?.updatedAt ?? null;
   return savedAt !== null && savedAt !== input.baseUpdatedAt;
 }
 
-/** The note after an edit. A changed fair value is added to the history with the price shown. */
+/**
+ * The note after an edit. A changed fair value is added to the history with the price shown;
+ * so are the thesis's milestones: watched for the first time, closed, reopened.
+ */
 export function applyInput(prev: ResearchNote | null, symbol: string, input: NoteInput, now: Date, newId: () => string): ResearchNote {
   const base = prev ?? emptyNote(symbol);
   const at = now.toISOString();
@@ -116,9 +159,25 @@ export function applyInput(prev: ResearchNote | null, symbol: string, input: Not
     entry: input.entry !== undefined ? input.entry : base.entry,
     stop: input.stop !== undefined ? input.stop : base.stop,
     target: input.target !== undefined ? input.target : base.target,
+    direction: input.direction ?? base.direction,
+    reviewBy: input.reviewBy !== undefined ? input.reviewBy : base.reviewBy,
+    checks: input.checks ? mergeChecks(base.checks, input.checks, at, newId) : base.checks,
     updatedAt: at,
   };
+  const price = input.price ?? null;
   const added: LogEntry[] = [];
+  if (input.close && !base.closed) {
+    next.closed = { at, price, outcome: input.close.outcome, lesson: input.close.lesson };
+    added.push({ id: newId(), at, kind: "status", to: "closed", price, outcome: input.close.outcome });
+  } else if (input.reopen && base.closed) {
+    next.closed = null;
+    next.opened = isWatched(next) ? { at, price } : null;
+    added.push({ id: newId(), at, kind: "status", to: "reopened", price });
+  }
+  if (!next.opened && isWatched(next)) {
+    next.opened = { at, price };
+    added.push({ id: newId(), at, kind: "status", to: "opened", price });
+  }
   if (next.fairValue !== base.fairValue) {
     added.push({ id: newId(), at, kind: "fairValue", value: next.fairValue, price: input.price ?? null, source: input.fairValueSource ?? "manual" });
   }
