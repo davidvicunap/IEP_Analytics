@@ -138,7 +138,9 @@ function targetProbe() {
 
 const browser = await chromium.launch();
 const report = [];
-for (const page of PAGES) {
+// AUDIT_PAGES=compare,calendar audits just those pages (the full run is long).
+const only = process.env.AUDIT_PAGES ? new Set(process.env.AUDIT_PAGES.split(",")) : null;
+for (const page of PAGES.filter((p) => !only || only.has(p.name))) {
   for (const width of WIDTHS) {
     for (const [lang, theme] of COMBOS) {
       const { ctx, tab } = await open(browser, page, width, lang, theme);
