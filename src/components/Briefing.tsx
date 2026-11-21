@@ -165,9 +165,12 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
       {quiet.length > 0 && (
         <p className="text-sm text-muted" data-testid="brief-quiet">
           {fill(B.quiet, { list: quiet.map((q) => q.charAt(0).toLowerCase() + q.slice(1)).join(" · ") })}{" "}
-          <Link href="/calendar" prefetch={false} className="link">
-            {t.calendar.open}
-          </Link>
+          {/* The calendar link sits here only when the results list is folded (otherwise it's under the list). */}
+          {quiet.includes(B.results.title) && (
+            <Link href="/calendar" prefetch={false} className="link">
+              {t.calendar.open}
+            </Link>
+          )}
           {fair.size === 0 && notes.state.status === "ok" && <span className="mt-1 block text-xs">{B.fairValueTip}</span>}
         </p>
       )}

@@ -727,9 +727,9 @@ await test("chart packs: save a chart from the generator, open it for another co
   const p = await page();
   await withSeries(p);
   await p.goto(base + "/charts?s=AAPL&m=roic&f=annual&k=line&r=10");
+  await p.locator("main svg").first().waitFor(); // the chart is drawn: the page's scripts are running
   await p.getByRole("button", { name: "Mediana de pares" }).click();
   await p.waitForURL(/p=1/);
-  await p.locator("main svg").first().waitFor();
   await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
   await p.getByLabel("Nombre del nuevo paquete").fill("Mi foso");
   await p.getByRole("button", { name: "Crear y guardar" }).click();
