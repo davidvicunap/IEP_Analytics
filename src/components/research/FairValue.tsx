@@ -83,7 +83,7 @@ function CardStatus({ symbol }: { symbol: string }) {
 function CardAlert({ symbol }: { symbol: string }) {
   const { t, lang } = useI18n();
   const { state } = useThesis(symbol);
-  const a = state.status === "ok" ? state.data.alerts[0] : undefined;
+  const a = state.status === "ok" ? state.data.alerts.find((x) => !x.dismissedAt) : undefined;
   if (!a) return null;
   return (
     <p className="num">

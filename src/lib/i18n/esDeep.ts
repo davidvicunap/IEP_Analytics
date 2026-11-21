@@ -361,6 +361,8 @@ const esDeep = {
     source: "Fuente: SEC EDGAR, documento original del {d}. Texto extraído automáticamente: ante cualquier duda, manda el original.",
   },
   watch: {
+    sortLabel: "Ordenar por",
+    sortSaved: "El orden de tu lista",
     intro: "Lo que importa de cada acción de tu lista: tu valor justo frente al precio, la calidad del negocio, lo último que presentó a la SEC y si sus directivos compran o venden.",
     columns: "Columnas",
     cols: {
@@ -413,6 +415,8 @@ const esDeep = {
     source: "Calidad, presentaciones y directivos: SEC EDGAR, sin gastar consultas de precios. Valor justo: tu cuaderno. Las etiquetas y columnas se guardan en este navegador.",
   },
   screener: {
+    moreFilters: "Más filtros: sector, tamaño y ratios",
+    moreFiltersOn: "Más filtros ({n} activos)",
     title: "Buscador de acciones",
     intro: "Filtra {n} empresas de EE. UU. por rentabilidad, crecimiento y deuda, con sus cifras de {year} presentadas a la SEC.",
     presets: "Búsquedas rápidas",

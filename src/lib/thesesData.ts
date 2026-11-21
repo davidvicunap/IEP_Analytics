@@ -88,7 +88,7 @@ export async function checkThesis(owner: string, note: ResearchNote, alerts: Ale
   const active = [
     ...stored.filter((s) => s.clearedAt === null && !clear.includes(s.key)),
     ...revived.map((s) => ({ ...s, clearedAt: null })),
-    ...fire.map((s) => ({ ...s, firedAt: t, clearedAt: null })),
+    ...fire.map((s) => ({ ...s, firedAt: t, clearedAt: null, dismissedAt: null })),
   ].sort(byUrgency);
   return { symbol: note.symbol, status: statusOf(note, active), alerts: active, unchecked, priceAt: f.price?.at ?? null };
 }

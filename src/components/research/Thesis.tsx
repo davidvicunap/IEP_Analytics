@@ -5,7 +5,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import type { CoreDict } from "@/lib/i18n/es";
 import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import type { ResearchNote } from "@/lib/research";
-import { saveNote, useThesis, type SaveIssue } from "@/lib/researchClient";
+import { dismissAlert, saveNote, useThesis, type SaveIssue } from "@/lib/researchClient";
 import { CHECK_LIMIT, RESULTS_DAYS, isWatched, previewPlan, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type SignalData, type SignalKind, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
 import { VERDICT_KEYS, type VerdictKey } from "@/lib/verdict";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, PlusIcon } from "../icons";
@@ -125,7 +125,7 @@ export function ThesisSummary({ symbol, note, price }: { symbol: string; note: R
       ) : (
         <div aria-live="polite">
           <p className="text-sm">{T.statusHint[status]}</p>
-          {view.alerts.length > 0 && <AlertList alerts={view.alerts} T={T} lang={lang} />}
+          {view.alerts.length > 0 && <AlertList symbol={symbol} alerts={view.alerts} T={T} lang={lang} />}
           {view.unchecked.length > 0 && (
             <StatusMessage tone="warn" className="mt-3">
               {fill(T.unchecked, { list: [...new Set(view.unchecked.map((k) => T.uncheckedNames[k]))].join(", ") })}
@@ -149,20 +149,48 @@ export function ThesisSummary({ symbol, note, price }: { symbol: string; note: R
   );
 }
 
-function AlertList({ alerts, T, lang }: { alerts: StoredAlert[]; T: T; lang: Lang }) {
+function AlertList({ symbol, alerts, T, lang }: { symbol: string; alerts: StoredAlert[]; T: T; lang: Lang }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   return (
-    <ul className="mt-3 space-y-2">
-      {alerts.map((a) => (
-        <li key={`${a.key}-${a.firedAt}`} className="flex items-start gap-2 text-sm">
-          <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.tone === "risk" ? "bg-down" : a.tone === "good" ? "bg-up" : "bg-warn"}`} aria-hidden="true" />
-          <span className="min-w-0">
-            <span className="sr-only">{T.tones[a.tone]}: </span>
-            <span className="num">{alertText(a, T, lang)}</span>
-            <span className="text-xs text-muted"> · {fill(T.since, { d: fmtAsOf(a.firedAt, lang) })}</span>
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="mt-3 space-y-1">
+        {alerts.map((a) => {
+          const text = alertText(a, T, lang);
+          const seen = !!a.dismissedAt;
+          return (
+            <li key={`${a.key}-${a.firedAt}`} className={`flex items-start gap-2 text-sm ${seen ? "text-muted" : ""}`}>
+              <span className={`mt-[9px] h-2 w-2 shrink-0 rounded-full ${seen ? "bg-line-strong" : a.tone === "risk" ? "bg-down" : a.tone === "good" ? "bg-up" : "bg-warn"}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1 py-1">
+                <span className="sr-only">{T.tones[a.tone]}: </span>
+                <span className="num">{text}</span>
+                <span className="text-xs text-muted"> · {fill(T.since, { d: fmtAsOf(a.firedAt, lang) })}</span>
+                {seen && <span className="text-xs text-muted"> · {T.seen}</span>}
+              </span>
+              {!seen && (
+                <button
+                  type="button"
+                  disabled={busy === a.key}
+                  onClick={async () => {
+                    setBusy(a.key);
+                    setFailed(false);
+                    const r = await dismissAlert(symbol, a.key);
+                    setBusy(null);
+                    if (!r.ok) setFailed(true);
+                  }}
+                  className={buttonClass("ghost", true, "shrink-0 text-xs text-muted")}
+                  aria-label={fill(T.dismissLabel, { a: text })}
+                >
+                  <CheckIcon size={14} />
+                  <span className="hidden sm:inline">{T.dismiss}</span>
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {failed && <StatusMessage tone="warn" className="mt-2">{T.dismissFailed}</StatusMessage>}
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { fill, useI18n } from "@/lib/i18n";
 import { PAGES, commandsFor, hrefFor, parse, type Command } from "@/lib/commands";
 import { compareHref } from "@/lib/compare";
+import { markStep } from "@/lib/onboarding";
 import { SearchController, normalizeTerm, type SearchState } from "@/lib/search";
 import { useRecent, useWatchlist } from "@/lib/watchlist";
 import { ChartIcon, ChevronRightIcon, ColumnsIcon, GridIcon, MoonIcon, SearchIcon, StarIcon, SunIcon } from "./icons";
@@ -44,6 +45,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   useEffect(() => {
     if (!open) return;
     returnTo.current = document.activeElement as HTMLElement | null;
+    markStep("palette");
     setQ("");
     setActive(0);
     controller().setQuery("");

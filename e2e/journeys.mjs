@@ -28,19 +28,21 @@ const assert = (cond, msg) => {
 };
 
 const browser = await chromium.launch();
-async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false } = {}) {
+async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, onboarding = false } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: lang === "es" ? "es-US" : "en-US" });
   await ctx.addCookies([{ name: "lang", value: lang, url: base }]);
   await ctx.addInitScript(
-    ([theme, list]) => {
+    ([theme, list, onboarding]) => {
       if (!sessionStorage.getItem("seeded")) {
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
+        // The getting-started checklist is hidden except in its own journey.
+        if (!onboarding) localStorage.setItem("iep.onboarding", JSON.stringify({ hidden: true }));
         localStorage.setItem("iep.chartView", "simple");
         sessionStorage.setItem("seeded", "1");
       }
     },
-    [theme, watchlist],
+    [theme, watchlist, onboarding],
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
@@ -210,6 +212,41 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await open();
   await box().fill("zzzz qqqq xx");
   await p.getByText(/Try a ticker and a section/).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("getting started: four steps tick themselves off as you use the app, and the list can be hidden", async () => {
+  const p = await page({ lang: "en", onboarding: true });
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await p.goto(base + "/");
+  const box = p.locator("#getting-started");
+  await box.getByText("0 of 4 done").waitFor();
+  await axe(p);
+  // Trying the commands ticks that step.
+  await box.getByRole("button", { name: "Open commands" }).click();
+  await p.getByRole("dialog", { name: "Commands" }).waitFor();
+  await p.keyboard.press("Escape");
+  await box.getByText("1 of 4 done").waitFor();
+  await box.getByText("Try the commands (Done)").waitFor();
+  // Comparing two companies ticks another.
+  await box.getByRole("link", { name: "Compare" }).click();
+  await p.waitForURL(/\/compare\?s=AAPL,MSFT$/);
+  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
+  await p.waitForFunction(() => JSON.parse(localStorage.getItem("iep.onboarding") ?? "{}").compare === true);
+  await p.goto(base + "/");
+  await box.getByText("2 of 4 done").waitFor();
+  // Following a stock: the home page becomes the briefing, with the checklist still there.
+  await p.evaluate(() => localStorage.setItem("iep.watchlist", JSON.stringify(["KO"])));
+  await p.reload();
+  await box.getByText("3 of 4 done").waitFor();
+  await box.getByRole("link", { name: "Write my thesis" }).waitFor();
+  assert((await box.getByRole("link", { name: "Write my thesis" }).getAttribute("href")) === "/stock/KO?tab=research", "thesis step opens the followed stock");
+  await box.getByRole("button", { name: "Hide" }).click();
+  await box.waitFor({ state: "detached" });
+  await p.reload();
+  await p.getByRole("heading", { level: 1 }).first().waitFor();
+  assert((await p.locator("#getting-started").count()) === 0, "hidden checklist came back");
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
@@ -412,7 +449,7 @@ await test("watchlist dashboard: tags filter the list and columns can be hidden,
 await test("watchlist dashboard: phone keeps the page from scrolling sideways", async () => {
   const p = await page({ watchlist: ["AAPL", "MSFT", "KO"], width: 320, height: 640, touch: true });
   await p.goto(base + "/watchlist");
-  await p.locator("main tbody tr").first().waitFor();
+  await p.getByTestId("watch-card").first().waitFor(); // phones get cards, not the table
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(over <= 0, `page overflows by ${over}px`);
   await p.context().close();
@@ -1059,6 +1096,13 @@ await test("live thesis: a stop and a condition raise alerts in the tab, on the 
   const theses = p.locator("#theses");
   await theses.getByText("Hit your stop of $250.00 (price $240.00)").waitFor();
   await theses.getByRole("link", { name: /JPM/ }).first().waitFor();
+  // Marking an alert as seen takes it off the home page; it stays on the thesis.
+  await theses.getByRole("button", { name: /^Mark as seen: JPM: Hit your stop/ }).click();
+  await theses.getByText("Hit your stop of $250.00 (price $240.00)").waitFor({ state: "detached" });
+  await theses.getByText(/One alert you've seen stays in "My research"/).waitFor();
+  await p.goto(base + "/stock/JPM?tab=research");
+  await status.getByText(/Hit your stop of \$250\.00 \(price \$240\.00\).*· Seen/).waitFor();
+  await status.getByText("At risk").waitFor(); // seen, but still true
   await p.goto(base + "/research");
   await p.getByRole("link", { name: /JPM/ }).getByText("At risk").waitFor();
   // Close it with an outcome and a lesson, then reopen it.
@@ -1308,6 +1352,11 @@ await test("screener: on a phone the results scroll inside their box, never the 
   await p.goto(base + "/screener");
   await p.getByRole("link", { name: /SOFT/ }).waitFor();
   assert((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "horizontal overflow");
+  // The detailed filters wait behind one button, so the results are close to the top.
+  const more = p.getByRole("button", { name: /^Más filtros/ });
+  assert(!(await p.locator("#screener-more").isVisible()), "detailed filters open before asking");
+  await more.click();
+  await p.locator("#screener-more").getByText("Sector").first().waitFor();
   await axe(p);
   await p.context().close();
 });

@@ -151,7 +151,7 @@ export default function WatchlistView() {
             ) : rows.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted">{fill(W.noTagged, { t: activeFilter ?? "" })}</p>
             ) : (
-              <Table
+              <TableOrCards
                 rows={rows}
                 columns={columns}
                 sort={sort}
@@ -261,6 +261,116 @@ function ColumnsMenu({ columns, onToggle }: { columns: Column[]; onToggle: (c: C
 }
 
 // ---- Table ---------------------------------------------------------------------------------
+
+/** True from the `sm` breakpoint up (after mount; phones get cards, wider screens the table). */
+function useWide() {
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const update = () => setWide(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
+type TableProps = Parameters<typeof Table>[0];
+
+/** Phones: one card per stock with every column labelled; wider screens: the sortable table. */
+function TableOrCards(props: TableProps) {
+  return useWide() ? <Table {...props} /> : <Cards {...props} />;
+}
+
+function Cards({ rows, columns, sort, onSort, editing, onEdit, onToggleTag, allTags, onRemove, lang }: TableProps) {
+  const { t } = useI18n();
+  const W = t.watch;
+  const sortId = useId();
+  const keys: SortKey[] = ["saved", "symbol", "change", ...columns];
+  const label = (k: SortKey) => (k === "saved" ? W.sortSaved : k === "symbol" ? W.cols.stock : k === "change" ? W.cols.price : W.cols[k]);
+  return (
+    <div>
+      <div className="mb-3 flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={sortId} className="control-label mb-1.5 block">
+            {W.sortLabel}
+          </label>
+          <select id={sortId} value={sort.key} onChange={(e) => onSort(e.target.value as SortKey)} className="h-11 w-full rounded-lg border border-line bg-panel px-3 text-sm">
+            {keys.map((k) => (
+              <option key={k} value={k}>
+                {label(k)}
+              </option>
+            ))}
+          </select>
+        </div>
+        {sort.key !== "saved" && (
+          <button type="button" onClick={() => onSort(sort.key)} className={buttonClass("secondary", true, "h-11")} aria-label={fill(W.sortBy, { c: label(sort.key) })}>
+            {sort.dir === "asc" ? "↑" : "↓"}
+          </button>
+        )}
+      </div>
+      <ul className="space-y-3" aria-label={t.watchlist.title}>
+        {rows.map((r) => (
+          <li key={r.symbol} data-testid="watch-card" className="rounded-xl border border-line p-3">
+            <div className="flex items-start gap-3">
+              <Link href={`/stock/${encodeURIComponent(r.symbol)}`} prefetch={false} className="min-h-11 min-w-0 flex-1">
+                <span className="font-semibold">{r.symbol}</span>
+                <span className="block truncate text-xs text-muted">{r.view.quote?.name ?? (r.view.error ? t.data.issuesShort[r.view.error] : "")}</span>
+              </Link>
+              <span className="num shrink-0 text-right">
+                <span className="block font-semibold">{r.view.quote ? fmtPrice(r.view.quote.price, lang) : "—"}</span>
+                {r.view.quote ? <Change pct={r.view.quote.changePercent} className="text-xs" /> : <span className="text-xs text-muted">{t.ux.noPrice}</span>}
+                {r.view.stale && (
+                  <span className="block">
+                    <Badge tone="warn">{t.ux.stale}</Badge>
+                  </span>
+                )}
+              </span>
+            </div>
+            {r.tags.length > 0 && (
+              <span className="mt-1 flex flex-wrap gap-1" aria-label={fill(W.tagsFor, { s: r.symbol })}>
+                {r.tags.map((tag) => (
+                  <Badge key={tag}>{tag}</Badge>
+                ))}
+              </span>
+            )}
+            {columns.length > 0 && (
+              <dl className="num mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line pt-3 text-sm">
+                {columns.map((c) => (
+                  <div key={c} className="min-w-0">
+                    <dt className="text-xs text-muted">{W.cols[c]}</dt>
+                    <dd className="[&_*]:!text-left [&_*]:!justify-start [&_*]:!items-start">
+                      <Cell column={c} row={r} lang={lang} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <div className="-mb-1 mt-2 flex justify-end gap-1 border-t border-line pt-1">
+              <button
+                type="button"
+                onClick={() => onEdit(editing === r.symbol ? null : r.symbol)}
+                aria-expanded={editing === r.symbol}
+                className={`grid h-11 w-11 place-items-center rounded-lg hover:bg-panel-2 ${editing === r.symbol ? "text-fg" : "text-muted"}`}
+                aria-label={fill(W.editTags, { s: r.symbol })}
+              >
+                <TagIcon size={18} />
+              </button>
+              <button type="button" onClick={() => onRemove(r.symbol)} className="grid h-11 w-11 place-items-center rounded-lg text-muted hover:bg-down-bg hover:text-down" aria-label={fill(t.ux.removeX, { s: r.symbol })}>
+                <CloseIcon size={18} />
+              </button>
+            </div>
+            {editing === r.symbol && (
+              <div className="mt-2 border-t border-line pt-3">
+                <TagEditor symbol={r.symbol} mine={r.tags} all={allTags} onToggle={(tag) => onToggleTag(r.symbol, tag)} onDone={() => onEdit(null)} />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function Table({
   rows,

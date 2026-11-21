@@ -16,6 +16,7 @@ import { VERDICT_KEYS } from "@/lib/verdict";
 import type { VerdictPayload } from "@/lib/verdictData";
 import { useQuotes } from "@/lib/useQuotes";
 import { useWatchlist } from "@/lib/watchlist";
+import { markStep } from "@/lib/onboarding";
 import { Mark, fmtMetric, verdictEvidence } from "../AtAGlance";
 import { SLOTS, formatter, periodLabel, useSymbolData } from "../charts/chartShared";
 import TrendChart, { Swatch, useChartColors, type ChartSeries } from "../charts/TrendChart";
@@ -59,6 +60,10 @@ export default function CompareView() {
   const watch = useWatchlist();
   const set = (next: string[]) => window.history.pushState(null, "", next.length ? `${pathname}?s=${next.map(enc).join(",")}` : pathname);
   const suggestion = (watch.list.length >= 2 ? watch.list : ["AAPL", "MSFT", "GOOGL"]).slice(0, 3);
+  const comparing = symbols.length >= 2;
+  useEffect(() => {
+    if (comparing) markStep("compare");
+  }, [comparing]);
 
   return (
     <div className="space-y-5">
