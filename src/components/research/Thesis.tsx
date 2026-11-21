@@ -6,7 +6,7 @@ import type { CoreDict } from "@/lib/i18n/es";
 import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import type { ResearchNote } from "@/lib/research";
 import { saveNote, useThesis, type SaveIssue } from "@/lib/researchClient";
-import { CHECK_LIMIT, RESULTS_DAYS, isWatched, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type SignalData, type SignalKind, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
+import { CHECK_LIMIT, RESULTS_DAYS, isWatched, previewPlan, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type SignalData, type SignalKind, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
 import { VERDICT_KEYS, type VerdictKey } from "@/lib/verdict";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, PlusIcon } from "../icons";
 import { NumberField } from "../valuation/fields";
@@ -40,8 +40,9 @@ export function alertText(a: { kind: SignalKind; data: SignalData }, T: T, lang:
   switch (a.kind) {
     case "stop":
     case "target":
-    case "fairValue":
       return fill(T.alerts[a.kind], { v, p });
+    case "fairValue":
+      return fill(T.alerts.fairValue[d.op ?? "above"], { v, p });
     case "reviewBy":
       return fill(T.alerts.reviewBy, { d: d.date ? fmtDate(d.date, lang) : "—" });
     case "price":
@@ -222,33 +223,12 @@ export interface WatchValue {
 export function WatchEditor({ value, onChange }: { value: WatchValue; onChange: (v: WatchValue) => void }) {
   const { t, lang } = useI18n();
   const T = t.thesis;
-  const dateId = useId();
   const [adding, setAdding] = useState(false);
   const set = (patch: Partial<WatchValue>) => onChange({ ...value, ...patch });
   return (
-    <Panel title={T.watch} description={T.watchIntro}>
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <p className="control-label mb-1.5">{T.direction}</p>
-          <Segmented label={T.direction} value={value.direction} onChange={(direction) => set({ direction })} options={(["up", "down"] as const).map((d) => ({ value: d, label: T.directions[d] }))} />
-        </div>
-        <div>
-          <label htmlFor={dateId} className="control-label mb-1.5 block">
-            {T.reviewBy}
-          </label>
-          <input
-            id={dateId}
-            type="date"
-            value={value.reviewBy ?? ""}
-            onChange={(e) => set({ reviewBy: e.target.value || null })}
-            className="h-11 sm:h-9 rounded-lg border border-line bg-panel px-3 text-sm"
-          />
-        </div>
-      </div>
-      <p className="mt-3 text-xs text-muted">{T.always}</p>
-
+    <Panel title={T.more} description={T.watchIntro}>
       {value.checks.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">{T.none}</p>
+        <p className="text-sm text-muted">{T.none}</p>
       ) : (
         <ul className="mt-4 divide-y divide-line border-y border-line">
           {value.checks.map((c, i) => {
@@ -437,5 +417,66 @@ export function ThesisHistory({ symbol, note }: { symbol: string; note: Research
         ))}
       </ol>
     </Panel>
+  );
+}
+
+/** "What you expect" and the review date, at the top of the plan. */
+export function PlanControls({ direction, reviewBy, onChange }: { direction: Direction; reviewBy: string | null; onChange: (v: { direction?: Direction; reviewBy?: string | null }) => void }) {
+  const { t } = useI18n();
+  const T = t.thesis;
+  const dateId = useId();
+  return (
+    <div className="mb-4 flex flex-wrap items-end gap-4">
+      <div>
+        <p className="control-label mb-1.5">{T.direction}</p>
+        <Segmented label={T.direction} value={direction} onChange={(d) => onChange({ direction: d })} options={(["up", "down"] as const).map((d) => ({ value: d, label: T.directions[d] }))} />
+      </div>
+      <div>
+        <label htmlFor={dateId} className="control-label mb-1.5 block">
+          {T.reviewBy}
+        </label>
+        <input id={dateId} type="date" value={reviewBy ?? ""} onChange={(e) => onChange({ reviewBy: e.target.value || null })} className="h-11 sm:h-9 rounded-lg border border-line bg-panel px-3 text-sm" />
+      </div>
+    </div>
+  );
+}
+
+/** One sentence per level: how far it is from the price and what will raise its alert; a warning when it would fire at once. */
+export function PlanPreview({ plan, price }: { plan: { direction: Direction; fairValue: number | null; stop: number | null; target: number | null }; price: number | null }) {
+  const { t, lang } = useI18n();
+  const T = t.thesis;
+  const R = t.research;
+  const any = plan.fairValue !== null || plan.stop !== null || plan.target !== null;
+  if (!any) return null;
+  if (!price) return <p className="mt-4 text-sm text-muted">{T.preview.noPrice}</p>;
+  const items = previewPlan(plan, price);
+  const pct = (v: number) => fill(v < 0 ? T.preview.below : T.preview.above, { p: `${fmtNum(Math.abs(v) * 100, lang, 1)}%` });
+  return (
+    <ul className="mt-4 space-y-2 text-sm" aria-live="polite" data-testid="plan-preview">
+      {items.map((i) =>
+        i.trigger === "now" ? (
+          <li key={i.kind} className="flex items-start gap-2 rounded-lg bg-warn-bg px-3 py-2 text-warn">
+            <AlertIcon size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="font-medium num">
+                {R[i.kind]} {fmtPrice(i.level, lang)}
+              </span>
+              {" · "}
+              {(i.kind === "stop" ? T.preview.stopNow : T.preview.targetNow)[plan.direction]}
+            </span>
+          </li>
+        ) : (
+          <li key={i.kind} className="flex items-start gap-2">
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${i.kind === "stop" ? "bg-down" : i.kind === "target" ? "bg-up" : "bg-info"}`} aria-hidden="true" />
+            <span>
+              <span className="font-medium num">
+                {R[i.kind]} {fmtPrice(i.level, lang)}
+              </span>
+              <span className="text-muted num"> · {pct(i.pct)}</span>: {T.preview[i.trigger]}.
+            </span>
+          </li>
+        ),
+      )}
+    </ul>
   );
 }

@@ -20,7 +20,7 @@ async function test(name, fn) {
     console.log(`✓ ${name} (${Date.now() - t0} ms)`);
   } catch (e) {
     results.push({ name, ok: false });
-    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n").slice(0, process.env.ONLY ? 6 : 1).join("\n    ")}`);
+    console.log(`✗ ${name}\n    ${String(e?.message ?? e).split("\n").slice(0, process.env.ONLY || process.env.VERBOSE ? 6 : 1).join("\n    ")}`);
   }
 }
 const assert = (cond, msg) => {
@@ -145,7 +145,9 @@ await test("search: ignores the / shortcut inside editable content; Ctrl+K works
     d.contentEditable = "true";
     d.id = "ed";
     d.textContent = "x";
-    document.querySelector("main").prepend(d);
+    // On <body>, fixed: React re-rendering <main> as the page streams in can't remove it.
+    Object.assign(d.style, { position: "fixed", top: "120px", left: "20px", zIndex: "100", background: "white", padding: "8px" });
+    document.body.append(d);
   });
   await p.click("#ed");
   await p.keyboard.press("/");
@@ -159,9 +161,15 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   const p = await page({ lang: "en" });
   await p.goto(base + "/stock/AAPL");
   await p.getByRole("heading", { name: "Apple Inc." }).waitFor();
+  // A key pressed before the page's scripts are running does nothing: press again until it opens
+  // (Ctrl+K toggles, so only once the dialog has had time to appear).
   const open = async () => {
-    await p.keyboard.press("Control+k");
-    await p.getByRole("dialog", { name: "Commands" }).waitFor();
+    const dialog = p.getByRole("dialog", { name: "Commands" });
+    for (let i = 0; i < 5; i++) {
+      await p.keyboard.press("Control+k");
+      if (await dialog.waitFor({ timeout: 2000 }).then(() => true, () => false)) return;
+    }
+    await dialog.waitFor();
   };
   const box = () => p.getByRole("combobox", { name: "Type a command, an action or a company" });
   // A ticker and a section, in any order.
@@ -206,6 +214,27 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await p.context().close();
 });
 
+await test("navigation: Explore lists every tool with what it's for; on phones it's a sheet that also opens the commands", async () => {
+  const p = await page({ lang: "en" });
+  await p.goto(base + "/");
+  const nav = p.getByRole("navigation", { name: /main/i }).first();
+  await nav.getByRole("button", { name: "Explore" }).click();
+  await p.getByRole("link", { name: /Compare\s*Up to four companies side by side/ }).waitFor();
+  await axe(p);
+  await p.getByRole("link", { name: /Calendar\s*Results, deadlines/ }).click();
+  await p.waitForURL(/\/calendar$/);
+  await p.context().close();
+
+  const m = await page({ lang: "es", width: 390, height: 800, touch: true });
+  await m.goto(base + "/");
+  await m.getByRole("button", { name: "Explorar" }).click();
+  const sheet = m.getByRole("dialog", { name: "Explorar" });
+  await sheet.getByRole("link", { name: /Buscador/ }).waitFor();
+  await sheet.getByRole("button", { name: "Comandos y atajos" }).click();
+  await m.getByRole("dialog", { name: "Comandos" }).waitFor();
+  await m.context().close();
+});
+
 await test("search: touch selection on a phone (expandable header search)", async () => {
   const p = await page({ width: 375, height: 740, touch: true });
   await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "NVDA", name: "NVIDIA" }])));
@@ -241,6 +270,8 @@ await test("watchlist: 45 saved stocks are all priced, in pages of at most 30", 
 
 await test("watchlist: home mini-list asks only for the 8 it shows", async () => {
   const p = await page({ watchlist: many });
+  // No notebooks: fair values would add their own quotes (the demo store outlives a run).
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
   const asked = [];
   p.on("request", (r) => {
     const u = new URL(r.url());
@@ -494,6 +525,7 @@ await test("chart: TradingView keeps its full height after its script resizes th
 
 await test("home briefing: following stocks shows what changed, each row opening its place; empty lists say so", async () => {
   const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
   const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
   const snap = (symbol, o) => ({
     symbol, cik: 320193,
@@ -504,19 +536,25 @@ await test("home briefing: following stocks shows what changed, each row opening
   const data = {
     AAPL: snap("AAPL", { recent: [{ accn: "0000320193-26-000099", form: "10-K", filed: day(-2), reportDate: null, primaryDocument: "a.htm", items: [] }], next: day(5) }),
     MSFT: snap("MSFT", { bought: 2.5e6, sold: 1e6 }),
-    KO: snap("KO", {}),
+    KO: snap("KO", { recent: [0, 1, 2].map((i) => ({ accn: `ko-${i}`, form: "DEFA14A", filed: day(-i), reportDate: null, primaryDocument: "a.htm", items: [] })) }),
   };
   await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches)$/ }).waitFor();
   await p.getByText("Lo nuevo de las acciones que sigues (3).", { exact: false }).waitFor();
-  const filing = p.getByRole("link", { name: /AAPL\s*10-K/ });
+  const filing = p.getByRole("link", { name: /AAPL\s*Anuales \(10-K\)/ });
   await filing.waitFor();
   assert((await filing.getAttribute("href")) === "/stock/AAPL/report?accn=0000320193-26-000099", "10-K opens the reader");
   await p.getByRole("link", { name: /AAPL\s*hacia el/ }).waitFor();
+  // Three proxy supplements are one row, in plain words, opening the stock's filings.
+  const proxy = p.getByRole("link", { name: /KO\s*Junta de accionistas · DEFA14A\s*3 presentaciones/ });
+  assert((await proxy.getAttribute("href")) === "/stock/KO?tab=filings", "grouped filings open the filings tab");
   const ins = p.getByRole("link", { name: /MSFT\s*Compras \$2\.5M/ });
   assert((await ins.getAttribute("href")) === "/stock/MSFT?tab=filings&view=insiders", "insiders link");
-  await p.getByText("Pon un valor justo en «Mi análisis»", { exact: false }).waitFor(); // no fair values yet
+  // Empty lists fold into one line; with no fair values yet it says how to add one.
+  await p.getByTestId("brief-quiet").getByText(/Sin novedades en: frente a tu valor justo/).waitFor();
+  await p.getByText("Pon un valor razonable en «Mi análisis»", { exact: false }).waitFor();
+  assert((await p.getByRole("heading", { name: "Frente a tu valor justo" }).count()) === 0, "an empty list still has its own box");
   assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 1, "explore moved down");
   await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
@@ -527,7 +565,7 @@ await test("home briefing: SEC data that can't load is said once, the rest still
   const p = await page({ watchlist: ["AAPL", "MSFT"] }); // demo: the SEC summaries answer "not configured"
   await p.goto(base + "/");
   await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
-  await p.getByText("Ninguna presentación nueva a la SEC en los últimos 7 días.").waitFor();
+  await p.getByTestId("brief-quiet").getByText(/nuevas presentaciones/).waitFor();
   await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
   await p.context().close();
 });
@@ -982,8 +1020,15 @@ await test("live thesis: a stop and a condition raise alerts in the tab, on the 
   // The demo store outlives a run: start from an empty notebook.
   await p.evaluate(() => fetch("/api/research/JPM", { method: "DELETE" }));
   await p.reload();
-  await p.getByText("Set a stop, a target, a date or a condition and we'll watch it.").waitFor();
+  await p.getByRole("heading", { name: "Your plan and alerts" }).waitFor();
+  assert((await p.locator("#thesis-status").count()) === 0, "an empty status box is shown before there's anything to watch");
   await p.getByLabel("Stop").fill("250"); // the demo price is $240: the stop is already hit
+  // Before saving, the plan says what each level will do, and warns about a stop above the price.
+  const preview = p.getByTestId("plan-preview");
+  await preview.getByText(/Your stop is above the price: if you expect a rise, it counts as hit right away/).waitFor();
+  await p.getByLabel("Fair value", { exact: true }).fill("200");
+  await preview.getByText(/Fair value \$200\.00 · 16\.7% below the price: we'll tell you if the price falls to it/).waitFor();
+  await p.getByLabel("Fair value", { exact: true }).fill("");
   await p.getByRole("button", { name: "Add condition" }).click();
   await p.getByLabel("Tell me if…").selectOption("move");
   await p.getByLabel("A move of at least").fill("0.05");

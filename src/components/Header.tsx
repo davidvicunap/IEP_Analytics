@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import CommandPalette from "./CommandPalette";
+import { ExploreMenu } from "./ExploreMenu";
 import TickerSearch from "./TickerSearch";
 import { CloseIcon, LogoMark, SearchIcon } from "./icons";
 import { LangToggle, ThemeToggle } from "./Toggles";
@@ -55,7 +56,12 @@ export default function Header({ demo }: { demo: boolean }) {
       } else setOpen(true);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const fromMenu = () => setPalette(true);
+    window.addEventListener("iep-palette", fromMenu);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("iep-palette", fromMenu);
+    };
   }, []);
 
   const close = () => {
@@ -83,18 +89,13 @@ export default function Header({ demo }: { demo: boolean }) {
           <NavLink href="/" active={onHome}>
             {t.nav.home}
           </NavLink>
-          <NavLink href="/charts" active={path.startsWith("/charts")}>
-            {t.nav.charts}
-          </NavLink>
-          <NavLink href="/screener" active={path.startsWith("/screener")}>
-            {t.nav.screener}
-          </NavLink>
           <NavLink href="/watchlist" active={path.startsWith("/watchlist")}>
             {t.nav.watchlist}
           </NavLink>
           <NavLink href="/research" active={path.startsWith("/research")}>
             {t.nav.research}
           </NavLink>
+          <ExploreMenu />
         </nav>
         {!onHome && (
           <button

@@ -6,7 +6,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { buildBrief, partOfDay, type Brief } from "@/lib/brief";
 import { daysUntil } from "@/lib/earnings";
-import { filingDocUrl } from "@/lib/filingsShared";
+import { filingDocUrl, formGroup } from "@/lib/filingsShared";
 import { useNotes, useTheses } from "@/lib/researchClient";
 import { byUrgency, isWatched } from "@/lib/thesis";
 import { alertText } from "./research/Thesis";
@@ -59,10 +59,20 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
   }, [today, checked.join(","), fair, quotes.items, snaps.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const states = checked.map((s) => snaps.state[s]);
+  const formName = (form: string) => t.filings.groups[formGroup(form)];
   const done = states.filter((s) => s && s.status !== "loading").length;
   const loading = done < checked.length;
   const failed = states.filter((s): s is Extract<SnapState, { status: "error" }> => s?.status === "error");
   const quotesLoading = fair.size > 0 && quotes.loading;
+  // Lists with nothing in them fold into one line, so what's new comes first.
+  const quiet = brief
+    ? [
+        !loading && !brief.filings.length && B.filings.title,
+        !loading && !brief.results.length && B.results.title,
+        !quotesLoading && notes.state.status !== "loading" && !brief.fairValue.length && B.fairValue.title,
+        !loading && !brief.insiders.length && B.insiders.title,
+      ].filter((x): x is string => !!x)
+    : [];
 
   return (
     <section aria-labelledby="brief-title" className="space-y-4">
@@ -86,11 +96,19 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
       <Theses />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title={B.filings.title} empty={B.filings.empty} loading={loading && !brief?.filings.length} items={brief?.filings ?? []}>
+        <Section title={B.filings.title} empty={B.filings.empty} loading={loading && !brief?.filings.length} items={brief?.filings ?? []} hideEmpty>
           {(f) => (
-            <Row key={`${f.symbol}-${f.filing.accn}`} symbol={f.symbol} href={f.filing.form === "10-K" ? `/stock/${encodeURIComponent(f.symbol)}/report?accn=${encodeURIComponent(f.filing.accn)}` : filingDocUrl(f.cik, f.filing)} external={f.filing.form !== "10-K"}>
-              <span className="font-medium">{f.filing.form}</span>
-              <span className="text-muted"> · {fmtDate(f.filing.filed, lang)}</span>
+            <Row
+              key={`${f.symbol}-${f.filing.form}`}
+              symbol={f.symbol}
+              href={f.filing.form === "10-K" ? `/stock/${encodeURIComponent(f.symbol)}/report?accn=${encodeURIComponent(f.filing.accn)}` : f.count > 1 ? `/stock/${encodeURIComponent(f.symbol)}?tab=filings` : filingDocUrl(f.cik, f.filing)}
+              external={f.filing.form !== "10-K" && f.count === 1}
+            >
+              <span className="font-medium">{formName(f.filing.form)}</span>
+              {!formName(f.filing.form).includes(f.filing.form) && <span className="text-muted"> · {f.filing.form}</span>}
+              <span className="block text-xs text-muted">
+                {f.count > 1 ? fill(B.filings.many, { n: f.count, d: fmtDate(f.filing.filed, lang) }) : fmtDate(f.filing.filed, lang)}
+              </span>
               {f.filing.items.length > 0 && (
                 <span className="block truncate text-xs text-muted">{f.filing.items.filter((i) => i !== "9.01").map((i) => t.filings.items[i] ?? i).join(" · ")}</span>
               )}
@@ -108,6 +126,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           title={B.results.title}
           empty={B.results.empty}
           loading={loading && !brief?.results.length}
+          hideEmpty
           items={brief?.results ?? []}
           note={brief?.results.length ? B.results.note : undefined}
           more={
@@ -124,7 +143,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           )}
         </Section>
 
-        <Section title={B.fairValue.title} empty={B.fairValue.empty} loading={quotesLoading || notes.state.status === "loading"} items={brief?.fairValue ?? []}>
+        <Section title={B.fairValue.title} empty={B.fairValue.empty} loading={quotesLoading || notes.state.status === "loading"} items={brief?.fairValue ?? []} hideEmpty>
           {(f) => (
             <Row key={f.symbol} symbol={f.symbol} href={`/stock/${encodeURIComponent(f.symbol)}?tab=research`}>
               {fill(f.gap > 0 ? B.fairValue.below : B.fairValue.above, { p: pct(f.price / f.fairValue - 1, lang), v: fmtPrice(f.fairValue, lang) })}
@@ -133,7 +152,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
           )}
         </Section>
 
-        <Section title={B.insiders.title} empty={B.insiders.empty} loading={loading && !brief?.insiders.length} items={brief?.insiders ?? []}>
+        <Section title={B.insiders.title} empty={B.insiders.empty} loading={loading && !brief?.insiders.length} items={brief?.insiders ?? []} hideEmpty>
           {(i) => (
             <Row key={i.symbol} symbol={i.symbol} href={`/stock/${encodeURIComponent(i.symbol)}?tab=filings&view=insiders`}>
               <span className="num">{fill(B.insiders.row, { b: `$${fmtBig(i.bought)}`, s: `$${fmtBig(i.sold)}` })}</span>
@@ -143,6 +162,15 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
         </Section>
       </div>
 
+      {quiet.length > 0 && (
+        <p className="text-sm text-muted" data-testid="brief-quiet">
+          {fill(B.quiet, { list: quiet.map((q) => q.charAt(0).toLowerCase() + q.slice(1)).join(" · ") })}{" "}
+          <Link href="/calendar" prefetch={false} className="link">
+            {t.calendar.open}
+          </Link>
+          {fair.size === 0 && notes.state.status === "ok" && <span className="mt-1 block text-xs">{B.fairValueTip}</span>}
+        </p>
+      )}
       {failed.length > 0 && (
         <StatusMessage tone="warn">
           {fill(B.issues, { n: failed.length, t: checked.length, why: [...new Set(failed.map((f) => (t.data.issuesShort[f.issue as keyof typeof t.data.issuesShort] ?? f.issue).toLowerCase()))].join(", ") })}
@@ -208,7 +236,8 @@ function Theses() {
   );
 }
 
-function Section<T>({ title, empty, loading, items, note, more, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; more?: React.ReactNode; children: (item: T) => React.ReactNode }) {
+function Section<T>({ title, empty, loading, items, note, more, hideEmpty, children }: { title: string; empty: string; loading: boolean; items: T[]; note?: string; more?: React.ReactNode; hideEmpty?: boolean; children: (item: T) => React.ReactNode }) {
+  if (hideEmpty && !loading && items.length === 0) return null;
   return (
     <Panel title={title} className="min-w-0">
       {items.length > 0 ? (
