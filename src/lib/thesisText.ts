@@ -7,6 +7,11 @@ import type { SignalData, SignalKind } from "./thesis";
 
 type T = CoreDict["thesis"];
 
+/** "10-for-1" / "1-for-10" from a split ratio. */
+export function splitRatioText(ratio: number, T: T): string {
+  return ratio >= 1 ? fill(T.splitRatio.forward, { k: Math.round(ratio) }) : fill(T.splitRatio.reverse, { k: Math.round(1 / ratio) });
+}
+
 export const pctText = (v: number, lang: Lang) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${fmtNum(Math.abs(v), lang, 1)}%`;
 
 /** The alert in one sentence, with the figures that raised it. */
@@ -32,6 +37,10 @@ export function alertText(a: { kind: SignalKind; data: SignalData }, T: T, lang:
       return fill(T.alerts.report, { f: d.form ?? "", d: d.filed ? fmtDate(d.filed, lang) : "—" });
     case "results":
       return fill(T.alerts.results, { d: d.date ? fmtDate(d.date, lang) : "—" });
+    case "split":
+      return fill(d.adjusted ? T.alerts.split.adjusted : T.alerts.split.check, { r: splitRatioText(d.ratio ?? 1, T), d: d.date ? fmtDate(d.date, lang) : "—" });
+    case "listing":
+      return d.to ? fill(T.alerts.renamed, { to: d.to }) : T.alerts.delisted;
   }
 }
 

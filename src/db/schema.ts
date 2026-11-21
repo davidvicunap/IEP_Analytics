@@ -221,3 +221,15 @@ export const trades = pgTable(
   },
   (t) => [index("trades_owner_idx").on(t.owner, t.symbol, t.date)],
 );
+
+/** Stock splits detected from consecutive quotes (see lib/splits.ts): one row per split. */
+export const splits = pgTable(
+  "splits",
+  {
+    symbol: text("symbol").notNull(),
+    date: text("date").notNull(), // first market day at the new prices
+    ratio: doublePrecision("ratio").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.date] })],
+);

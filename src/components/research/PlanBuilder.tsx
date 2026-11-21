@@ -6,7 +6,9 @@
 import Link from "next/link";
 import { Suspense, use, useEffect, useId, useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtDate, fmtNum, fmtPrice } from "@/lib/format";
+import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
+import { capitalInUsd, useFx } from "@/lib/fxClient";
+import { fmtMoney } from "@/lib/money";
 import { keyLevels } from "@/lib/levels";
 import { RISK_PCTS, addLines, positionSize, reasonsFrom, removeLines, reviewOptions, stopOptions, targetOptions, type LevelOption } from "@/lib/planBuilder";
 import type { ResearchNote } from "@/lib/research";
@@ -22,6 +24,7 @@ import { Mark, verdictEvidence } from "../AtAGlance";
 import { CheckIcon } from "../icons";
 import { IssueNote, Panel, Segmented, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
+import MoneySettings from "../portfolio/MoneySettings";
 import { PlanPreview } from "./Thesis";
 
 type Lang = "es" | "en";
@@ -67,7 +70,8 @@ export default function PlanBuilder({
   const { t, lang } = useI18n();
   const P = t.plan;
   const R = t.research;
-  const [step, setStep] = useState(0);
+  // From "Set an exit" (?plan=1) the guide opens on the levels.
+  const [step, setStep] = useState(() => (new URLSearchParams(window.location.search).get("plan") === "1" ? 1 : 0));
   const [draft, setDraft] = useState<Draft>(() => ({
     thesis: note.thesis,
     bull: note.bull,
@@ -459,38 +463,46 @@ function SizeStep({ draft }: { draft: Draft }) {
   const { t, lang } = useI18n();
   const P = t.plan;
   const risk = useRisk();
-  const s = positionSize({ account: risk.account, pct: risk.pct, entry: draft.entry, stop: draft.stop, target: draft.target, direction: draft.direction });
+  const fx = useFx(risk.currency);
+  const capital = capitalInUsd(risk, fx.state);
+  const s = positionSize({ account: capital.usd, pct: risk.pct, entry: draft.entry, stop: draft.stop, target: draft.target, direction: draft.direction, fractions: risk.fractions });
   const pct = (v: number) => `${fmtNum(v * 100, lang, 1)}%`;
+  const usd = (v: number) => fmtMoney(v, "USD", lang);
   const word = (n: number) => (n === 1 ? P.shareWord.one : P.shareWord.many);
   let result: React.ReactNode;
   if (draft.stop === null) result = <p>{P.needStop}</p>;
   else if (risk.account === null) result = <p>{P.needAccount}</p>;
+  else if (capital.issue) result = <p className="text-warn">{fill(P.fxFailed, { c: risk.currency })}</p>;
+  else if (capital.loading) result = <Skeleton className="h-4 w-2/3" />;
   else if (!s) result = <p>{P.needStop}</p>;
   else
     result = (
       <>
-        <p>{fill(P.perShare, { v: fmtPrice(s.perShare, lang) })}</p>
         {s.shares === 0 ? (
           <p>{P.zero}</p>
         ) : s.capped ? (
-          <p className="font-medium">{fill(P.capped, { n: s.shares, w: word(s.shares), c: fmtPrice(s.cost, lang), r: fmtPrice(s.risk, lang) })}</p>
+          <p className="font-medium">{fill(P.capped, { n: fmtNum(s.shares, lang, 3), w: word(s.shares), c: usd(s.cost), s: usd(draft.stop), r: usd(s.risk) })}</p>
         ) : (
-          <p className="font-medium">{fill(P.shares, { b: fmtPrice(s.budget, lang), p: pct(risk.pct), a: fmtPrice(risk.account, lang), n: s.shares, w: word(s.shares), c: fmtPrice(s.cost, lang), x: pct(s.weight) })}</p>
+          <p className="font-medium">{fill(P.shares, { n: fmtNum(s.shares, lang, 3), w: word(s.shares), c: usd(s.cost), s: usd(draft.stop), r: usd(s.risk), p: pct(risk.pct) })}</p>
         )}
-        {s.shares > 0 && s.reward !== null && s.ratio !== null && <p>{fill(P.reward, { v: fmtPrice(s.reward, lang), r: fmtNum(s.ratio, lang, 1) })}</p>}
-        {s.shares > 0 && s.weight > 0.25 && <p className="text-warn">{P.concentrated}</p>}
+        {s.shares > 0 && s.reward !== null && s.ratio !== null && draft.target !== null && <p>{fill(P.reward, { t: usd(draft.target), v: usd(s.reward), r: fmtNum(s.ratio, lang, 1) })}</p>}
+        {s.shares > 0 && <p className={s.weight > 0.25 ? "text-warn" : "text-muted"}>{s.weight > 0.25 ? P.concentrated : fill(P.weight, { x: pct(s.weight) })}</p>}
       </>
     );
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted">{P.sizeIntro}</p>
       <div className="flex flex-wrap items-end gap-4">
-        <NumberField label={P.account} value={risk.account} onChange={(v) => riskStore.write({ ...risk, account: v !== null && v > 0 ? v : null })} suffix="$" className="w-48" />
+        <NumberField label={fill(P.accountIn, { c: risk.currency })} value={risk.account} onChange={(v) => riskStore.write({ ...risk, account: v !== null && v > 0 ? v : null })} className="w-52" />
+        <MoneySettings />
         <div>
           <p className="control-label mb-1.5">{P.riskPct}</p>
           <Segmented label={P.riskPct} value={String(risk.pct)} onChange={(v) => riskStore.write({ ...risk, pct: Number(v) })} options={RISK_PCTS.map((p) => ({ value: String(p), label: pct(p), title: fill(P.pctOf, { p: pct(p) }) }))} />
         </div>
       </div>
+      {capital.rate && capital.usd !== null && (
+        <p className="num -mt-3 text-xs text-muted">{fill(P.converted, { v: usd(capital.usd), r: fmtNum(capital.rate.perUsd, lang, 2), c: risk.currency, src: t.portfolio.fxSource[capital.rate.source], t: fmtAsOf(capital.rate.asOf, lang) })}</p>
+      )}
       <p className="-mt-3 text-xs text-muted">{P.accountHint}</p>
       <div data-testid="sizing" aria-live="polite" className="space-y-1.5 rounded-xl bg-panel-2 p-4 text-sm">
         {result}

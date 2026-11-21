@@ -5,6 +5,8 @@
 // closes the scorecard compares with. After a change every view reads the list again.
 import { useEffect } from "react";
 import type { BenchmarkPayload } from "@/app/api/benchmark/route";
+import type { ImportResult } from "@/app/api/trades/import/route";
+import type { CsvTrade } from "./brokerCsv";
 import type { Trade, TradeInput } from "./trades";
 import { sharedLoader, toViewResult, type ViewIssue } from "./resource";
 import { useResource } from "./useResource";
@@ -55,3 +57,20 @@ async function call<T>(url: string, method: "POST" | "DELETE", body?: unknown): 
 
 export const addTrade = (symbol: string, input: TradeInput) => call<Trade>(TRADES_URL, "POST", { symbol, ...input });
 export const removeTrade = (id: string) => call<{ id: string }>(`${TRADES_URL}/${encodeURIComponent(id)}`, "DELETE");
+
+/** Saves many trades at once (all or nothing). An oversold file says which sell, and when. */
+export async function importTrades(trades: CsvTrade[]): Promise<{ ok: true; data: ImportResult } | { ok: false; error: TradeIssue; first?: { symbol: string; date: string } }> {
+  let res: Response;
+  try {
+    res = await fetch(`${TRADES_URL}/import`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ trades: trades.map((t) => ({ ...t, stop: null, note: "" })) }) });
+  } catch {
+    return { ok: false, error: "upstream" };
+  }
+  const json = (await res.json().catch(() => null)) as { error?: string; first?: { symbol: string; date: string } } | null;
+  if (res.status === 409 && json?.error === "oversold") return { ok: false, error: "oversold", first: json.first };
+  if (res.status === 400) return { ok: false, error: "invalid" };
+  const r = toViewResult<ImportResult>(res.status, json);
+  if (!r.ok) return { ok: false, error: r.error };
+  changed();
+  return { ok: true, data: r.data };
+}

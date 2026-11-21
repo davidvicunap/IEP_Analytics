@@ -10,6 +10,8 @@ import { fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { positionSize } from "@/lib/planBuilder";
 import type { ResearchNote } from "@/lib/research";
 import { useRisk } from "@/lib/riskClient";
+import { capitalInUsd, useFx } from "@/lib/fxClient";
+import { useSymbolInfo } from "@/lib/symbolsClient";
 import { addTrade, removeTrade, useTrades, type TradeIssue } from "@/lib/tradesClient";
 import { book, positions, type Side } from "@/lib/trades";
 import { TrashIcon } from "../icons";
@@ -37,12 +39,15 @@ export default function TradesPanel({ symbol, price, note }: { symbol: string; p
 
   const all = state.status === "ok" ? state.data : state.status === "loading" ? state.previous?.data : undefined;
   const mine = useMemo(() => (all ?? []).filter((x) => x.symbol === symbol), [all, symbol]);
-  const position = useMemo(() => positions(book(mine).open)[0] ?? null, [mine]);
-  const sized = positionSize({ account: risk.account, pct: risk.pct, entry: note.entry ?? price, stop: note.stop, target: note.target, direction: note.direction });
+  const info = useSymbolInfo([symbol]);
+  const position = useMemo(() => positions(book(mine, info.splits).open)[0] ?? null, [mine, info.splits]);
+  const fx = useFx(risk.currency);
+  const sized = positionSize({ account: capitalInUsd(risk, fx.state).usd, pct: risk.pct, entry: note.entry ?? price, stop: note.stop, target: note.target, direction: note.direction, fractions: risk.fractions });
   const word = (n: number) => (n === 1 ? T.shareWord.one : T.shareWord.many);
 
   const submit = async () => {
-    if (!shares || !px || status.kind === "saving") {
+    // A sell may be at $0 (a delisting); a buy needs a price.
+    if (!shares || px === null || px < 0 || (side === "buy" && px === 0) || status.kind === "saving") {
       setStatus({ kind: "error", issue: "invalid" });
       return;
     }
@@ -117,7 +122,7 @@ export default function TradesPanel({ symbol, price, note }: { symbol: string; p
             <div className="flex flex-wrap gap-x-4 text-xs">
               {side === "buy" && sized && sized.shares > 0 && shares !== sized.shares && (
                 <button type="button" className="link inline-flex min-h-11 items-center sm:min-h-0" onClick={() => setShares(sized.shares)}>
-                  {fill(T.sized, { n: sized.shares })}
+                  {fill(T.sized, { n: fmtNum(sized.shares, lang, 3) })}
                 </button>
               )}
               {price !== null && px !== cents(price) && (

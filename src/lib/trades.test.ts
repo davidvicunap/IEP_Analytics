@@ -27,6 +27,9 @@ describe("validating a trade", () => {
       stop: 210,
       note: "first",
     });
+    // A sell at $0 records a total loss; a buy at $0 isn't a buy.
+    expect(parseTradeInput({ side: "sell", date: "2026-11-20", shares: 5, price: 0 }, "2026-11-21")?.price).toBe(0);
+    expect(parseTradeInput({ side: "buy", date: "2026-11-20", shares: 5, price: 0 }, "2026-11-21")).toBeNull();
     // A sell carries no stop.
     expect(parseTradeInput({ side: "sell", date: "2026-11-21", shares: 1, price: 2, stop: 1 }, "2026-11-21")?.stop).toBeNull();
     for (const bad of [{}, { side: "short", date: "2026-11-20", shares: 1, price: 1 }, { side: "buy", date: "2026-11-30", shares: 1, price: 1 }, { side: "buy", date: "1980-01-01", shares: 1, price: 1 }, { side: "buy", date: "2026-11-20", shares: 0, price: 1 }, { side: "buy", date: "2026-11-20", shares: 1, price: -1 }, { side: "buy", date: "2026-11-20", shares: 1, price: 1, fees: -2 }, { side: "buy", date: "2026-11-20", shares: 1, price: 1, note: "x".repeat(501) }]) {

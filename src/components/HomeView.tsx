@@ -7,6 +7,7 @@ import { useHydrated, useRecent, useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
 import Briefing from "./Briefing";
 import GettingStarted from "./GettingStarted";
+import Portfolio from "./portfolio/Portfolio";
 import TickerSearch from "./TickerSearch";
 import { ChartIcon, ChevronRightIcon, StarIcon } from "./icons";
 import { QuoteRows, QuoteRowsSkeleton, ServerQuotes, latestAsOf } from "./QuoteList";
@@ -44,6 +45,7 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
               <RecentlyViewed />
             </>
           }
+          portfolio={<Portfolio />}
         />
         <GettingStarted />
         {marketsSection}
@@ -70,6 +72,9 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
         </div>
         <RecentlyViewed />
       </section>
+
+      {/* Start from what you own: the first thing to do here. */}
+      {hydrated && <Portfolio />}
 
       <GettingStarted />
 

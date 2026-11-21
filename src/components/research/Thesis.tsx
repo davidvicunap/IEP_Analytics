@@ -6,7 +6,7 @@ import type { CoreDict } from "@/lib/i18n/es";
 import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import type { ResearchNote } from "@/lib/research";
 import { dismissAlert, saveNote, useThesis, type SaveIssue } from "@/lib/researchClient";
-import { alertText, pctText } from "@/lib/thesisText";
+import { alertText, pctText, splitRatioText } from "@/lib/thesisText";
 import { CHECK_LIMIT, RESULTS_DAYS, isWatched, previewPlan, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type SignalData, type SignalKind, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
 import { VERDICT_KEYS, type VerdictKey } from "@/lib/verdict";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, PlusIcon } from "../icons";
@@ -392,6 +392,7 @@ export function ThesisHistory({ symbol, note }: { symbol: string; note: Research
   type Row = { at: string; text: string; tone?: "risk" | "attention" | "good" | "muted" };
   const rows: Row[] = [];
   for (const e of note.log) {
+    if (e.kind === "split") rows.push({ at: e.at, text: fill(T.events.split, { r: splitRatioText(e.ratio, T) }), tone: "attention" });
     if (e.kind !== "status") continue;
     const at = e.price !== null ? ` · ${fill(T.atPrice, { p: fmtPrice(e.price, lang) })}` : "";
     const text = e.to === "closed" ? fill(T.events.closed, { o: e.outcome ? T.outcomes[e.outcome] : "" }) : T.events[e.to];

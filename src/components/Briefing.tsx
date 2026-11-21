@@ -30,7 +30,7 @@ function useToday() {
  * The home page for someone who follows stocks: what changed since yesterday, in four short
  * lists, each linking to the place with the detail. Every list says plainly when it's empty.
  */
-export default function Briefing({ list, search }: { list: string[]; search?: React.ReactNode }) {
+export default function Briefing({ list, search, portfolio }: { list: string[]; search?: React.ReactNode; portfolio?: React.ReactNode }) {
   const { t, lang } = useI18n();
   const B = t.home.brief;
   const now = useToday();
@@ -94,6 +94,7 @@ export default function Briefing({ list, search }: { list: string[]; search?: Re
         {search && <div className="mt-4 max-w-xl">{search}</div>}
       </div>
 
+      {portfolio}
       <Theses />
 
       <div className="grid gap-4 lg:grid-cols-2">

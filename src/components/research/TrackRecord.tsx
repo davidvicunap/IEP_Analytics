@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { useNotes, useTheses } from "@/lib/researchClient";
+import { useSymbolInfo } from "@/lib/symbolsClient";
 import { useBenchmark, useTrades } from "@/lib/tradesClient";
 import { book, lastWeek, positions, scorecard, type ClosedTrade, type Position, type Trade } from "@/lib/trades";
 import { useQuotes } from "@/lib/useQuotes";
@@ -28,7 +29,8 @@ export default function TrackRecord() {
   const { state, retry } = useTrades();
   const [today] = useState(localToday);
   const trades = state.status === "ok" ? state.data : state.status === "loading" ? (state.previous?.data ?? null) : null;
-  const b = useMemo(() => book(trades ?? []), [trades]);
+  const info = useSymbolInfo(useMemo(() => [...new Set((trades ?? []).map((x) => x.symbol))], [trades]));
+  const b = useMemo(() => book(trades ?? [], info.splits), [trades, info.splits]);
   const open = useMemo(() => positions(b.open), [b]);
 
   return (

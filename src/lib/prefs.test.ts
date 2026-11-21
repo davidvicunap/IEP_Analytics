@@ -66,10 +66,10 @@ describe("sync plan per device", () => {
 
 describe("risk settings (guided plan)", () => {
   it("are an object, empty until an account size is set, and the account's choice wins once it has one", () => {
-    expect(normalizePref("risk", { account: 5000, pct: 0.02 })).toEqual({ account: 5000, pct: 0.02 });
+    expect(normalizePref("risk", { account: 5000, pct: 0.02 })).toEqual({ account: 5000, pct: 0.02, currency: "USD", fractions: true });
     expect(normalizePref("risk", [1])).toBeNull();
     expect(isEmptyPref("risk", { account: null, pct: 0.01 })).toBe(true);
-    expect(mergePref("risk", { account: 8000, pct: 0.01 }, { account: 3000, pct: 0.02 })).toEqual({ account: 8000, pct: 0.01 });
-    expect(mergePref("risk", { account: null, pct: 0.01 }, { account: 3000, pct: 0.02 })).toEqual({ account: 3000, pct: 0.02 });
+    expect(mergePref("risk", { account: 8000, pct: 0.01, currency: "MXN" }, { account: 3000, pct: 0.02 })).toMatchObject({ account: 8000, pct: 0.01, currency: "MXN" });
+    expect(mergePref("risk", { account: null, pct: 0.01 }, { account: 3000, pct: 0.02 })).toMatchObject({ account: 3000, pct: 0.02 });
   });
 });

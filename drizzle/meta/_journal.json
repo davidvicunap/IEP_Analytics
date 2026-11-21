@@ -99,6 +99,13 @@
       "when": 1795290775459,
       "tag": "0013_trades",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795304038127,
+      "tag": "0014_splits",
+      "breakpoints": true
     }
   ]
 }

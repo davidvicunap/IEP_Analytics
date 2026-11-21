@@ -11,7 +11,9 @@ export type LogEntry =
   /** The fair value changed: the new value (null: cleared), the price at that moment and how it was set. */
   | { id: string; at: string; kind: "fairValue"; value: number | null; price: number | null; source: FairValueSource }
   /** The thesis started being watched, was closed (with its outcome) or was reopened. */
-  | { id: string; at: string; kind: "status"; to: "opened" | "closed" | "reopened"; price: number | null; outcome?: Outcome };
+  | { id: string; at: string; kind: "status"; to: "opened" | "closed" | "reopened"; price: number | null; outcome?: Outcome }
+  /** A stock split: levels and earlier prices were divided by `ratio` (effective `date`). */
+  | { id: string; at: string; kind: "split"; ratio: number; date: string };
 
 export interface ResearchNote {
   symbol: string;
@@ -53,6 +55,8 @@ export interface NoteInput {
   price?: number | null; // the price on screen when saving, recorded with fair-value changes
   /** The `updatedAt` the edit started from; a newer saved version means someone else saved in between. */
   baseUpdatedAt: string | null;
+  /** Server only (never read from the network): restate every price in the note after a split. */
+  splitAdjust?: { ratio: number; date: string };
 }
 
 export const LIMITS = { text: 4000, note: 2000, lesson: 2000, log: 200, value: 1e9 } as const;
@@ -148,8 +152,8 @@ export function isStale(saved: ResearchNote | null, input: NoteInput): boolean {
  * so are the thesis's milestones: watched for the first time, closed, reopened.
  */
 export function applyInput(prev: ResearchNote | null, symbol: string, input: NoteInput, now: Date, newId: () => string): ResearchNote {
-  const base = prev ?? emptyNote(symbol);
   const at = now.toISOString();
+  const base = input.splitAdjust ? splitAdjusted(prev ?? emptyNote(symbol), input.splitAdjust, at, newId) : (prev ?? emptyNote(symbol));
   const next: ResearchNote = {
     ...base,
     thesis: input.thesis ?? base.thesis,
@@ -201,6 +205,44 @@ export function rebaseForm<T extends object>(form: T, base: T, saved: T): T {
   const out = { ...form };
   for (const k of Object.keys(saved) as (keyof T)[]) if (eq(form[k], base[k])) out[k] = saved[k];
   return out;
+}
+
+/**
+ * The note in post-split prices: levels, price conditions, the price when it was opened and the
+ * history before the split date, all divided by the ratio, and a log entry saying so. A split
+ * already applied (same date in the log) changes nothing.
+ */
+export function splitAdjusted(n: ResearchNote, split: { ratio: number; date: string }, at: string, newId: () => string): ResearchNote {
+  if (!(split.ratio > 0) || n.log.some((e) => e.kind === "split" && e.date === split.date)) return n;
+  const adj = (v: number | null) => (v === null ? null : Math.round((v / split.ratio) * 10_000) / 10_000);
+  const before = (e: { at: string }) => e.at.slice(0, 10) < split.date;
+  return {
+    ...n,
+    fairValue: adj(n.fairValue),
+    entry: adj(n.entry),
+    stop: adj(n.stop),
+    target: adj(n.target),
+    checks: n.checks.map((c) => (c.type === "price" ? { ...c, value: adj(c.value)! } : c)),
+    opened: n.opened && before(n.opened) ? { ...n.opened, price: adj(n.opened.price) } : n.opened,
+    log: [
+      { id: newId(), at, kind: "split", ratio: split.ratio, date: split.date },
+      ...n.log.map((e) => (!before(e) ? e : e.kind === "fairValue" ? { ...e, value: adj(e.value), price: adj(e.price) } : e.kind === "status" ? { ...e, price: adj(e.price) } : e)),
+    ],
+  };
+}
+
+/**
+ * Whether the note's levels are still in pre-split prices: their typical distance from today's
+ * price is closer to the split ratio than to 1 (a stop of 950 with the price at 100 after a
+ * 10-for-1 split). Null when there are no levels or no price to tell.
+ */
+export function levelsBeforeSplit(n: Pick<ResearchNote, "stop" | "target" | "fairValue" | "entry">, price: number | null, ratio: number): boolean | null {
+  if (!price || price <= 0) return null;
+  const levels = [n.stop, n.target, n.fairValue, n.entry].filter((v): v is number => v !== null && v > 0);
+  if (!levels.length) return null;
+  const logs = levels.map((v) => Math.log(v / price)).sort((a, b) => a - b);
+  const median = logs[Math.floor(logs.length / 2)];
+  return Math.abs(median - Math.log(ratio)) < Math.abs(median);
 }
 
 /** How far the fair value is from the price: +0.2 means the fair value is 20 % above the price. */
