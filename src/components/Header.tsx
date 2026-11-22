@@ -70,10 +70,10 @@ export default function Header({ demo }: { demo: boolean }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-panel/85 backdrop-blur-md border-b border-line pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-30 bg-bg border-b border-line pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-2 sm:gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
         <Link href="/" className="flex items-center gap-2 shrink-0 min-h-11 text-[15px] font-semibold tracking-[-0.01em]" aria-label="IEP Analytics">
-          <LogoMark size={28} />
+          <LogoMark size={26} />
           <span className="hidden sm:inline">
             IEP <span className="text-muted font-medium">Analytics</span>
           </span>
@@ -124,7 +124,7 @@ export default function Header({ demo }: { demo: boolean }) {
         </div>
       </div>
       {open && !onHome && (
-        <div id="mobile-search" className="md:hidden border-t border-line px-3 py-2 bg-panel">
+        <div id="mobile-search" className="md:hidden border-t border-line px-3 py-2 bg-bg">
           <TickerSearch autoFocus onDone={() => setOpen(false)} onEscape={close} />
         </div>
       )}
@@ -146,7 +146,7 @@ function NavLink({ href, active, children }: { href: string; active: boolean; ch
       href={href}
       aria-current={active ? "page" : undefined}
       className={`inline-flex items-center h-9 px-3 rounded-md text-[14px] transition-colors ${
-        active ? "bg-accent-soft text-accent font-medium" : "text-muted hover:text-fg hover:bg-panel-2"
+        active ? "bg-panel-2 text-fg font-medium" : "text-muted hover:text-fg"
       }`}
     >
       {children}

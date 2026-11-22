@@ -28,7 +28,7 @@ export default function MoneySettings({ fractions = true }: { fractions?: boolea
       </div>
       {fractions && (
         <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
-          <input type="checkbox" checked={risk.fractions} onChange={(e) => riskStore.write({ ...risk, fractions: e.target.checked })} className="h-5 w-5 accent-[var(--accent)]" />
+          <input type="checkbox" checked={risk.fractions} onChange={(e) => riskStore.write({ ...risk, fractions: e.target.checked })} className="h-5 w-5 accent-[var(--text)]" />
           {P.fractions}
         </label>
       )}

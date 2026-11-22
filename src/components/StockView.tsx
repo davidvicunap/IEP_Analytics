@@ -185,7 +185,7 @@ export default function StockView({
             tabIndex={tab === k ? 0 : -1}
             onClick={() => setTab(k)}
             onKeyDown={(e) => onTabKey(e, i)}
-            className={`shrink-0 h-11 px-2.5 sm:px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === k ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg hover:border-line-strong"}`}
+            className={`shrink-0 h-11 px-2.5 sm:px-3 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === k ? "border-fg text-fg" : "border-transparent text-muted hover:text-fg hover:border-line-strong"}`}
           >
             {t.stock.tabs[k]}
           </button>
@@ -357,7 +357,7 @@ function StockHeader({
 
 function Initial({ symbol }: { symbol: string }) {
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-accent-soft text-base font-semibold tracking-tight text-accent" aria-hidden="true">
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-line bg-panel text-base font-semibold tracking-tight text-fg" aria-hidden="true">
       {symbol[0]}
     </span>
   );

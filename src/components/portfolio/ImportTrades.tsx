@@ -57,7 +57,7 @@ export default function ImportTrades({ onDone, onCancel }: { onDone: (n: number)
   const other = (o: DateOrder): DateOrder => (o === "dmy" ? "mdy" : "dmy");
 
   return (
-    <section className="space-y-3 rounded-xl border border-line p-4" aria-labelledby={`${id}-title`}>
+    <section className="space-y-3 rounded-lg border border-line p-4" aria-labelledby={`${id}-title`}>
       <h3 id={`${id}-title`} className="text-sm font-semibold">
         {P.importTitle}
       </h3>

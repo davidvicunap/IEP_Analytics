@@ -127,7 +127,7 @@ export default function PlanBuilder({
         {STEPS.map((k, i) => (
           <li key={k}>
             <button type="button" onClick={() => go(i)} aria-current={i === step ? "step" : undefined} className="group flex w-full min-h-11 flex-col items-start gap-1.5 text-left">
-              <span className={`block h-1 w-full rounded-full ${i <= step ? "bg-accent" : "bg-panel-2"}`} aria-hidden="true" />
+              <span className={`block h-1 w-full rounded-full ${i <= step ? "bg-fg" : "bg-line-strong"}`} aria-hidden="true" />
               <span className={`inline-flex items-center gap-1 text-xs leading-tight ${i === step ? "font-medium text-fg" : "text-muted group-hover:text-fg"}`}>
                 {/* Three steps, then the review (a check, not a fourth step). */}
                 {k === "review" ? <CheckIcon size={12} /> : `${i + 1}.`}
@@ -265,14 +265,14 @@ function Reasons({ symbol, draft, set }: { symbol: string; draft: Draft; set: Se
                       type="button"
                       aria-pressed={on}
                       onClick={() => set(k)(on ? removeLines(text, [l]) : addLines(text, [l]))}
-                      className={`flex w-full min-h-11 items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${on ? "border-accent bg-panel-2" : "border-line hover:bg-panel-2"}`}
+                      className={`flex w-full min-h-11 items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${on ? "border-fg bg-panel-2" : "border-line hover:bg-panel-2"}`}
                     >
                       <Mark level={p.level} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm leading-snug">{sentence(p)}</span>
                         <span className="num mt-0.5 block text-xs text-muted">{verdictEvidence(p, G, lang)}</span>
                       </span>
-                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${on ? "border-accent bg-accent text-accent-fg" : "border-line-strong"}`} aria-hidden="true">
+                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border ${on ? "border-fg bg-fg text-bg" : "border-line-strong"}`} aria-hidden="true">
                         {on && <CheckIcon size={12} />}
                       </span>
                     </button>
@@ -401,7 +401,7 @@ function LevelChoice({ title, label, value, options, describe, onChange }: { tit
                   type="button"
                   aria-pressed={on}
                   onClick={() => onChange(on ? null : o.level)}
-                  className={`flex h-full w-full min-h-11 flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors ${on ? "border-accent bg-panel-2" : "border-line hover:bg-panel-2"}`}
+                  className={`flex h-full w-full min-h-11 flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors ${on ? "border-fg bg-panel-2" : "border-line hover:bg-panel-2"}`}
                 >
                   <span className="num text-sm font-semibold">
                     {fmtPrice(o.level, lang)} <span className="font-normal text-muted">· {fill(P.fromEntry, { p: pctText(o.pct, lang) })}</span>
@@ -442,7 +442,7 @@ function ReviewPicker({ symbol, value, onChange }: { symbol: string; value: stri
                 type="button"
                 aria-pressed={on}
                 onClick={() => onChange(on ? null : o.date)}
-                className={`flex min-h-11 flex-col items-start rounded-lg border px-3 py-1.5 text-left transition-colors ${on ? "border-accent bg-panel-2" : "border-line hover:bg-panel-2"}`}
+                className={`flex min-h-11 flex-col items-start rounded-lg border px-3 py-1.5 text-left transition-colors ${on ? "border-fg bg-panel-2" : "border-line hover:bg-panel-2"}`}
               >
                 <span className="text-sm">{label}</span>
                 <span className="num text-xs text-muted">{fmtDate(o.date, lang)}</span>
@@ -507,7 +507,7 @@ function SizeStep({ draft }: { draft: Draft }) {
         <p className="num -mt-3 text-xs text-muted">{fill(P.converted, { v: usd(capital.usd), r: fmtNum(capital.rate.perUsd, lang, 2), c: risk.currency, src: t.portfolio.fxSource[capital.rate.source], t: fmtAsOf(capital.rate.asOf, lang) })}</p>
       )}
       <p className="-mt-3 text-xs text-muted">{P.accountHint}</p>
-      <div data-testid="sizing" aria-live="polite" className="space-y-1.5 rounded-xl bg-panel-2 p-4 text-sm">
+      <div data-testid="sizing" aria-live="polite" className="space-y-1.5 rounded-lg bg-panel-2 p-4 text-sm">
         {result}
       </div>
       <p className="text-xs text-muted">{P.sizeNote}</p>

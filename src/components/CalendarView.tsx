@@ -81,7 +81,7 @@ export default function CalendarView() {
         <p className="mt-1 text-[15px] text-muted">{C.intro}</p>
       </div>
 
-      <section aria-label={C.show} className="flex flex-wrap items-end gap-4 rounded-2xl border border-line bg-panel p-4 sm:p-5">
+      <section aria-label={C.show} className="flex flex-wrap items-end gap-4 rounded-lg border border-line bg-panel p-4 sm:p-5">
         <div>
           <p className="control-label mb-1.5">{C.range}</p>
           <Segmented label={C.range} value={String(days)} onChange={(v) => setDays(Number(v) as (typeof RANGES)[number])} options={RANGES.map((n) => ({ value: String(n), label: fill(C.rangeOpt, { n }) }))} />

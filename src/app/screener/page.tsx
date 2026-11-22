@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ScreenerPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
+    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}>
       <DeepI18n>
         <ScreenerView />
       </DeepI18n>

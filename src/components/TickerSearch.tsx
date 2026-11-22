@@ -168,7 +168,7 @@ export default function TickerSearch({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className={`w-full rounded-xl border border-line-strong/70 bg-panel pl-10 pr-11 shadow-card placeholder:text-muted transition-shadow focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)] outline-none focus-visible:outline-2 focus-visible:outline-accent ${
+          className={`w-full rounded-lg border border-line-strong bg-panel pl-10 pr-11 placeholder:text-muted focus:border-accent outline-none focus-visible:outline-2 focus-visible:outline-accent ${
             large ? "h-14 text-lg" : "h-11 text-base"
           }`}
         />
@@ -200,7 +200,7 @@ export default function TickerSearch({
         {open ? statusText : ""}
       </span>
       {showList && (
-        <div data-testid="search-popup" className="absolute z-40 mt-1.5 w-full overflow-hidden rounded-xl border border-line bg-panel shadow-pop">
+        <div data-testid="search-popup" className="absolute z-40 mt-1.5 w-full overflow-hidden rounded-lg border border-line bg-panel shadow-pop">
           <ul id={listId} ref={listRef} role="listbox" aria-label={t.search.results} className="max-h-80 overflow-auto">
             {results.map((r, i) => (
               <li
@@ -212,7 +212,7 @@ export default function TickerSearch({
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => go(r.symbol)}
                 onMouseMove={() => active !== i && setActive(i)}
-                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer min-h-12 ${i === active ? "bg-accent-soft" : ""}`}
+                className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer min-h-12 ${i === active ? "bg-panel-2" : ""}`}
               >
                 <span className="font-semibold text-fg w-16 shrink-0">{r.symbol}</span>
                 <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>

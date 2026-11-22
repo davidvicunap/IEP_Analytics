@@ -18,7 +18,7 @@ export default async function ReportPage({ params }: Props) {
   const symbol = normalizeSymbol((await params).ticker);
   if (!symbol) notFound();
   return (
-    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
+    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}>
       <DeepI18n>
         <ReportReader symbol={symbol} />
       </DeepI18n>

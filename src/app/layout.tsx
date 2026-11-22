@@ -3,6 +3,8 @@ import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+// Page titles: a self-hosted serif (no third-party font requests), paired with Geist for the interface.
+import "@fontsource-variable/newsreader/opsz.css";
 import { I18nProvider } from "@/lib/i18n";
 import es from "@/lib/i18n/es";
 import en from "@/lib/i18n/en";
@@ -24,8 +26,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#111827" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#151514" },
+    { media: "(prefers-color-scheme: light)", color: "#faf9f6" },
   ],
 };
 

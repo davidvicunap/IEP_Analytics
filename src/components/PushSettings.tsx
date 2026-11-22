@@ -121,7 +121,7 @@ export default function PushSettings({ variant = "panel" }: { variant?: "panel" 
             ) : status === "denied" ? (
               <StatusMessage tone="warn">{P.denied}</StatusMessage>
             ) : status === "off" ? (
-              <button type="button" onClick={enable} disabled={busy !== null} className={buttonClass("primary", true)}>
+              <button type="button" onClick={enable} disabled={busy !== null} className={buttonClass("secondary", true)}>
                 {busy === "enable" ? P.enabling : P.enable}
               </button>
             ) : (

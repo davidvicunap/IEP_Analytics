@@ -246,7 +246,7 @@ function RiskChanges({ data, lang, onlyChanged, onOnlyChanged }: { data: ReaderP
           <DiffList title={C.removedTitle} items={d.removed.map((x) => ({ now: x }))} />
           {(d.added.length > 0 || d.changed.length > 0) && (
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-              <input type="checkbox" className="h-5 w-5 accent-[var(--accent)]" checked={onlyChanged} onChange={(e) => onOnlyChanged(e.target.checked)} />
+              <input type="checkbox" className="h-5 w-5 accent-[var(--text)]" checked={onlyChanged} onChange={(e) => onOnlyChanged(e.target.checked)} />
               {C.onlyChanged}
             </label>
           )}

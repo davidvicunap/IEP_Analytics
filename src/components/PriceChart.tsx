@@ -46,10 +46,10 @@ function palette() {
   return {
     bg: cssVar("--panel"),
     text: cssVar("--muted"),
-    grid: cssVar("--border"),
+    grid: cssVar("--grid"), // opaque: the chart library ignores alpha in rgba()
     up: cssVar("--up"),
     down: cssVar("--down"),
-    accent: cssVar("--accent"),
+    line: cssVar("--text"), // the price itself, in ink
     info: cssVar("--info"),
     warn: cssVar("--warn"),
   };
@@ -173,7 +173,7 @@ export default function PriceChart({
     const main = mainRef.current;
     if (main) {
       if (style === "candles") main.applyOptions({ upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down });
-      else main.applyOptions({ color: c.accent });
+      else main.applyOptions({ color: c.line });
     }
     // Indicator colours are re-applied by rebuilding their (cheap) series: see below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,7 +189,7 @@ export default function PriceChart({
     const main: AnySeries =
       style === "candles"
         ? chart.addSeries(CandlestickSeries, { upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down, borderVisible: false }, 0)
-        : chart.addSeries(LineSeries, { color: c.accent, lineWidth: 2, priceLineVisible: false }, 0);
+        : chart.addSeries(LineSeries, { color: c.line, lineWidth: 2, priceLineVisible: false }, 0);
     if (style === "candles") main.setData(history.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
     else main.setData(history.map(({ time, close }) => ({ time, value: close })));
     mainRef.current = main;
@@ -267,7 +267,7 @@ export default function PriceChart({
     const series: AnySeries[] = [];
     let pane = 1;
     if (want.includes("rsi")) {
-      const r = chart.addSeries(LineSeries, { ...thin, color: c.accent, lastValueVisible: true }, pane);
+      const r = chart.addSeries(LineSeries, { ...thin, color: c.line, lastValueVisible: true }, pane);
       r.setData(line(computed.rsi));
       for (const p of [70, 30]) r.createPriceLine({ price: p, color: c.text, lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: true, title: "" });
       series.push(r);
@@ -364,11 +364,11 @@ export default function PriceChart({
         </button>
       </div>
       {showInds && (
-        <ul id={`${captionId}-inds`} aria-label={t.chart.indicators} className="mb-3 grid gap-1 rounded-xl border border-line p-2 sm:grid-cols-2">
+        <ul id={`${captionId}-inds`} aria-label={t.chart.indicators} className="mb-3 grid gap-1 rounded-lg border border-line p-2 sm:grid-cols-2">
           {INDICATORS.map((k) => (
             <li key={k}>
               <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-panel-2">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]" checked={inds.includes(k)} onChange={() => toggle(k)} />
+                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--text)]" checked={inds.includes(k)} onChange={() => toggle(k)} />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{t.chart[k].name}</span>
                   <span className="block text-xs leading-relaxed text-muted">{t.chart[k].text}</span>

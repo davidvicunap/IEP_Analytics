@@ -148,7 +148,7 @@ export default function ChartBuilder() {
       </div>
 
       {/* Controls: one row above the chart (wraps on small screens). */}
-      <section aria-label={C.controls} className="rounded-2xl border border-line bg-panel p-4 sm:p-5 space-y-4">
+      <section aria-label={C.controls} className="rounded-lg border border-line bg-panel p-4 sm:p-5 space-y-4">
         <div>
           <p className="control-label mb-1.5" id="companies-label">
             {fill(C.companies, { n: symbols.length, max: MAX_SYMBOLS })}
@@ -380,7 +380,7 @@ function SaveToPack({ config }: { config: Config }) {
         <span className="sr-only sm:hidden">{P.save}</span>
       </summary>
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-2 shadow-pop">
+        <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-lg border border-line bg-panel p-2 shadow-pop">
           {packs.mine.map((p) => (
             <button
               key={p.id}
@@ -516,7 +516,7 @@ function MetricPicker({ config, onChange }: { config: Config; onChange: (m: Char
         <ChevronDownIcon size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div id="metric-list" className="absolute left-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] max-h-[60vh] overflow-auto rounded-2xl border border-line bg-panel p-2 shadow-pop">
+        <div id="metric-list" className="absolute left-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] max-h-[60vh] overflow-auto rounded-lg border border-line bg-panel p-2 shadow-pop">
           {GROUPS.map((g) => {
             const items = METRICS.filter((m) => m.group === g);
             return (
@@ -532,7 +532,7 @@ function MetricPicker({ config, onChange }: { config: Config; onChange: (m: Char
                       className={`flex items-center gap-2.5 min-h-10 px-2 rounded-lg text-sm ${disabled ? "text-muted cursor-not-allowed" : "cursor-pointer hover:bg-panel-2"}`}
                       title={why ?? undefined}
                     >
-                      <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={on} disabled={disabled || (on && metrics.length === 1)} onChange={() => toggle(m.key)} />
+                      <input type="checkbox" className="h-4 w-4 accent-[var(--text)]" checked={on} disabled={disabled || (on && metrics.length === 1)} onChange={() => toggle(m.key)} />
                       <span className="flex-1">{C.metrics[m.key]}</span>
                       {disabled && why && <span className="text-[11px] text-muted text-right max-w-[9rem] leading-tight">{why}</span>}
                     </label>

@@ -17,13 +17,13 @@ import type { Direction } from "@/lib/thesis";
 import type { Candle, Result } from "@/lib/types";
 
 // The guided plan loads with its text (deep dictionary) only when it's shown.
-const PlanBuilder = dynamic(() => import("./PlanBuilder"), { loading: () => <Skeleton className="h-96 w-full rounded-2xl" /> });
-const TradesPanel = dynamic(() => import("./TradesPanel"), { loading: () => <Skeleton className="h-40 w-full rounded-2xl" /> });
+const PlanBuilder = dynamic(() => import("./PlanBuilder"), { loading: () => <Skeleton className="h-96 w-full rounded-lg" /> });
+const TradesPanel = dynamic(() => import("./TradesPanel"), { loading: () => <Skeleton className="h-40 w-full rounded-lg" /> });
 
 /** The trades logged for this stock, with its text from the deep dictionary. */
 function Trades(props: { symbol: string; price: number | null; note: ResearchNote }) {
   return (
-    <Suspense fallback={<Skeleton className="h-40 w-full rounded-2xl" />}>
+    <Suspense fallback={<Skeleton className="h-40 w-full rounded-lg" />}>
       <DeepI18n>
         <TradesPanel {...props} />
       </DeepI18n>
@@ -161,7 +161,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
     return (
       <div className="space-y-4">
         <ListingNotice symbol={symbol} />
-        <Suspense fallback={<Skeleton className="h-96 w-full rounded-2xl" />}>
+        <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
           <DeepI18n>
             <PlanBuilder
               symbol={symbol}
@@ -243,7 +243,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
 
         <WatchEditor value={{ direction: form.direction, reviewBy: form.reviewBy, checks: form.checks }} onChange={(w: WatchValue) => setForm((f) => ({ ...f, ...w }))} />
 
-        <div className="sticky bottom-16 md:bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel/95 px-4 py-3 backdrop-blur">
+        <div className="sticky bottom-16 md:bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3 shadow-pop">
           <button type="submit" disabled={!dirty || status.kind === "saving"} className={buttonClass("primary", true)} aria-keyshortcuts="Control+S Meta+S">
             {status.kind === "saving" ? R.saving : R.save}
           </button>

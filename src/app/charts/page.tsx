@@ -24,8 +24,8 @@ function ChartsSkeleton() {
   return (
     <div className="space-y-5" aria-hidden="true">
       <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-36 w-full rounded-xl" />
-      <Skeleton className="h-[460px] w-full rounded-xl" />
+      <Skeleton className="h-36 w-full rounded-lg" />
+      <Skeleton className="h-[460px] w-full rounded-lg" />
     </div>
   );
 }

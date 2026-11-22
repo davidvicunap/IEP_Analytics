@@ -179,7 +179,7 @@ function CloseForm({ symbol, note, price, onDone }: { symbol: string; note: Rese
   const id = useId();
   return (
     <form
-      className="mt-4 space-y-3 rounded-xl border border-line p-4"
+      className="mt-4 space-y-3 rounded-lg border border-line p-4"
       onSubmit={async (e) => {
         e.preventDefault();
         if (!outcome) return;
@@ -303,7 +303,7 @@ function AddCheck({ onAdd, onCancel }: { onAdd: (c: DraftCheck) => void; onCance
             : { type: "report" };
 
   return (
-    <div className="mt-4 space-y-3 rounded-xl border border-line p-4">
+    <div className="mt-4 space-y-3 rounded-lg border border-line p-4">
       <div>
         <label htmlFor={ids.type} className="control-label mb-1.5 block">
           {T.type}

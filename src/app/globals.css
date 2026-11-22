@@ -3,31 +3,31 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * Design tokens. Calm, cool-neutral surfaces; one indigo accent for actions and selection only;
- * green/red reserved for price direction and gains/losses; amber for warnings. The accent never
- * shares a hue with a status colour, so an action can't be mistaken for an alert. Every text token
- * meets WCAG AA (4.5:1) on bg, panel and panel-2 in its theme.
+ * Design tokens (see the design standards in CLAUDE.md). Warm paper and charcoal ink; hairline
+ * borders define structure, shadows only lift true overlays (menus, popovers, dialogs). One ink-blue
+ * accent, kept for the single most important action on a screen and the focus ring. Semantic
+ * colours only for status: green/red for price direction and gains/losses, amber for warnings,
+ * blue for neutral data markers. Every text token meets WCAG AA on bg, panel and panel-2.
  */
 :root {
-  --bg: #f4f6fa;
+  --bg: #faf9f6;
   --panel: #ffffff;
-  --panel-2: #eef2f7;
-  --border: #e2e7ef;
-  --border-strong: #c9d1dd;
-  --text: #0f1729;
-  --muted: #566176;
-  --accent: #4338ca;
-  --accent-hover: #3730a3;
-  --accent-soft: #eceefe;
+  --panel-2: #f2f1ec;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #1a1a1a;
+  --muted: #66635c;
+  --accent: #22489a;
+  --accent-hover: #1b3b80;
   --accent-contrast: #ffffff;
-  --up: #0f7a3d;
-  --down: #c42b2b;
-  --warn: #8a5a00;
+  --up: #13703b;
+  --down: #b42828;
+  --warn: #845700;
   --info: #0b6597;
-  --up-bg: #e5f5eb;
-  --down-bg: #fcebeb;
-  --warn-bg: #fdf2d8;
-  --info-bg: #e4f2fb;
+  --up-bg: #e7f3ea;
+  --down-bg: #faebe9;
+  --warn-bg: #fbf1da;
+  --info-bg: #e5f0f7;
   /* Chart series: fixed order, validated for colour-vision deficiency (see TrendChart). */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -35,83 +35,74 @@
   --series-4: #eda100;
   --series-5: #e87ba4;
   --series-6: #008300;
-  --grid: #edf0f5;
-  --axis: #cdd4de;
-  /* Elevation: a soft lift for cards, a deeper one for menus and sheets. */
-  --elev-1: 0 1px 2px rgb(15 23 41 / 0.04), 0 1px 3px rgb(15 23 41 / 0.04);
-  --elev-2: 0 10px 30px -12px rgb(15 23 41 / 0.18), 0 2px 6px rgb(15 23 41 / 0.06);
-  /* Page atmosphere: a faint wash of the accent behind the top of every page. */
-  --wash: color-mix(in srgb, var(--accent) 9%, transparent);
+  --grid: #eeece6;
+  --axis: #d3d0c8;
+  /* Only for layers that float above the page: menus, popovers, dialogs. */
+  --elev-pop: 0 12px 32px -12px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0a0f1a;
-    --panel: #111827;
-    --panel-2: #182132;
-    --border: #222c3d;
-    --border-strong: #334055;
-    --text: #e7ebf3;
-    --muted: #9aa4b6;
-    --accent: #8f96ff;
-    --accent-hover: #a8adff;
-    --accent-soft: #1d2148;
-    --accent-contrast: #0a0f1a;
-    --up: #3fd08a;
-    --down: #ff7a7a;
-    --warn: #f3c54b;
-    --info: #6cc2f2;
-    --up-bg: #0f2a1d;
-    --down-bg: #2e1519;
-    --warn-bg: #2a2312;
-    --info-bg: #0f2536;
+    --bg: #151514;
+    --panel: #1c1c1b;
+    --panel-2: #242422;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #edebe6;
+    --muted: #a3a098;
+    --accent: #9db7ee;
+    --accent-hover: #b6c9f3;
+    --accent-contrast: #151514;
+    --up: #4cc98a;
+    --down: #ff8078;
+    --warn: #e9be55;
+    --info: #74bde8;
+    --up-bg: #15291d;
+    --down-bg: #2e1a19;
+    --warn-bg: #2a2414;
+    --info-bg: #15232e;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
     --series-4: #c98500;
     --series-5: #d55181;
     --series-6: #008300;
-    --grid: #1c2433;
-    --axis: #364156;
-    --elev-1: 0 1px 2px rgb(0 0 0 / 0.3);
-    --elev-2: 0 16px 40px -12px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.3);
-    --wash: color-mix(in srgb, var(--accent) 10%, transparent);
+    --grid: #262624;
+    --axis: #3a3a37;
+    --elev-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0a0f1a;
-  --panel: #111827;
-  --panel-2: #182132;
-  --border: #222c3d;
-  --border-strong: #334055;
-  --text: #e7ebf3;
-  --muted: #9aa4b6;
-  --accent: #8f96ff;
-  --accent-hover: #a8adff;
-  --accent-soft: #1d2148;
-  --accent-contrast: #0a0f1a;
-  --up: #3fd08a;
-  --down: #ff7a7a;
-  --warn: #f3c54b;
-  --info: #6cc2f2;
-  --up-bg: #0f2a1d;
-  --down-bg: #2e1519;
-  --warn-bg: #2a2312;
-  --info-bg: #0f2536;
+  --bg: #151514;
+  --panel: #1c1c1b;
+  --panel-2: #242422;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #edebe6;
+  --muted: #a3a098;
+  --accent: #9db7ee;
+  --accent-hover: #b6c9f3;
+  --accent-contrast: #151514;
+  --up: #4cc98a;
+  --down: #ff8078;
+  --warn: #e9be55;
+  --info: #74bde8;
+  --up-bg: #15291d;
+  --down-bg: #2e1a19;
+  --warn-bg: #2a2414;
+  --info-bg: #15232e;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
   --series-6: #008300;
-  --grid: #1c2433;
-  --axis: #364156;
-  --elev-1: 0 1px 2px rgb(0 0 0 / 0.3);
-  --elev-2: 0 16px 40px -12px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.3);
-  --wash: color-mix(in srgb, var(--accent) 10%, transparent);
+  --grid: #262624;
+  --axis: #3a3a37;
+  --elev-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
@@ -125,7 +116,6 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
-  --color-accent-soft: var(--accent-soft);
   --color-accent-fg: var(--accent-contrast);
   --color-up: var(--up);
   --color-down: var(--down);
@@ -137,8 +127,15 @@
   --color-info-bg: var(--info-bg);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
-  --shadow-card: var(--elev-1);
-  --shadow-pop: var(--elev-2);
+  --shadow-pop: var(--elev-pop);
+  /* Fast, physical motion: 150 ms with a natural ease-out. */
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  /* Body copy breathes: 1.5–1.6 line height. */
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.55;
+  --text-base--line-height: 1.6;
+  --font-display: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -152,12 +149,19 @@ html {
 }
 
 body {
-  background: radial-gradient(1100px 420px at 15% -140px, var(--wash), transparent 70%) no-repeat, var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page titles in the serif, set tight; everything else stays in the sans. */
+h1 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
 /* Numbers that line up in columns: same sans, fixed-width digits. */

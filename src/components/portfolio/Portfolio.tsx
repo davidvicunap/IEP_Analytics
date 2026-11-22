@@ -19,7 +19,6 @@ import { book, positions } from "@/lib/trades";
 import { useQuotes } from "@/lib/useQuotes";
 import AddPosition from "./AddPosition";
 import ImportTrades from "./ImportTrades";
-import { ChevronRightIcon } from "../icons";
 import { Badge, IssueNote, Panel, Provenance, Skeleton, StatusMessage, buttonClass } from "../ui";
 
 type Lang = "es" | "en";
@@ -170,10 +169,10 @@ function Holdings({ open, info }: { open: ReturnType<typeof positions>; info: Re
 
   return (
     <>
-      <dl className="num grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-panel-2 p-4 sm:grid-cols-3 sm:p-5" data-testid="portfolio-totals">
-        <div className="col-span-2 sm:col-span-1">
+      <dl className="num flex flex-wrap items-start gap-x-10 gap-y-4 border-b border-line pb-5 sm:items-end" data-testid="portfolio-totals">
+        <div className="w-full sm:w-auto">
           <dt className="text-xs font-medium text-muted">{P.value}</dt>
-          <dd className="mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] sm:text-[30px]">{q.loading ? "…" : fmtMoney(sum.value, "USD", lang)}</dd>
+          <dd className="mt-1.5 text-[32px] font-semibold leading-none tracking-[-0.03em]">{q.loading ? "…" : fmtMoney(sum.value, "USD", lang)}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-muted">{P.gain}</dt>
@@ -263,9 +262,8 @@ function ReasonAction({ symbol, reason }: { symbol: string; reason: Reason | und
   const s = encodeURIComponent(symbol);
   if (!reason) return null;
   const link = (href: string, text: string) => (
-    <Link href={href} prefetch={false} className="mt-0.5 inline-flex min-h-11 items-center gap-0.5 text-sm font-medium text-accent hover:underline sm:min-h-0">
+    <Link href={href} prefetch={false} className="link mt-0.5 inline-flex min-h-11 items-center text-sm font-medium sm:min-h-0">
       {text}
-      <ChevronRightIcon size={14} />
     </Link>
   );
   if (reason.kind === "noExit") return link(`/stock/${s}?tab=research&plan=1`, P.setExit);

@@ -115,7 +115,7 @@ export default function TradesPanel({ symbol, price, note }: { symbol: string; p
               <NumberField label={T.shares} value={shares} onChange={setShares} digits={6} className="w-28" />
               <NumberField label={T.price} value={px} onChange={setPx} suffix="$" className="w-32" />
               <NumberField label={T.fees} value={fees} onChange={setFees} suffix="$" className="w-24" />
-              <button type="submit" disabled={status.kind === "saving"} className={buttonClass("primary", true)}>
+              <button type="submit" disabled={status.kind === "saving"} className={buttonClass("secondary", true)}>
                 {status.kind === "saving" ? T.adding : T.add}
               </button>
             </div>

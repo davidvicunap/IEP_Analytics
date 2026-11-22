@@ -47,7 +47,7 @@ export default function ListingNotice({ symbol }: { symbol: string }) {
     router.push(`/stock/${encodeURIComponent(to)}?tab=research`);
   };
   return (
-    <div id="listing" className="space-y-2 rounded-2xl border border-line bg-panel p-4">
+    <div id="listing" className="space-y-2 rounded-lg border border-line bg-panel p-4">
       <StatusMessage tone="warn">{fill(L.renamed, { s: symbol, to })}</StatusMessage>
       <button type="button" onClick={move} disabled={status.kind === "moving"} className={buttonClass("primary", true)}>
         {status.kind === "moving" ? L.moving : fill(L.move, { to })}

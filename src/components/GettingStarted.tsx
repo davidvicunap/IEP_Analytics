@@ -39,8 +39,8 @@ export default function GettingStarted() {
 
   if (count === STEPS.length) {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel px-5 py-3 text-sm" id="getting-started">
-        <CheckIcon size={16} className="text-accent" />
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-panel px-5 py-3 text-sm" id="getting-started">
+        <CheckIcon size={16} className="text-muted" />
         <span className="flex-1">{S.done}</span>
         <button type="button" onClick={onboarding.hide} className={buttonClass("ghost", true, "text-muted")}>
           {S.hide}
@@ -61,15 +61,15 @@ export default function GettingStarted() {
       }
     >
       <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-panel-2" aria-hidden="true">
-        <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${(count / STEPS.length) * 100}%` }} />
+        <div className="h-full rounded-full bg-fg transition-[width]" style={{ width: `${(count / STEPS.length) * 100}%` }} />
       </div>
       <ol className="grid gap-3 sm:grid-cols-2 sm:items-start">
         {STEPS.map((k, i) => {
           const step = S.steps[k];
           const ok = done[k];
           return (
-            <li key={k} className={`flex gap-3 rounded-xl border p-3 ${ok ? "border-line bg-panel-2/60" : k === next ? "border-accent/40 bg-accent-soft" : "border-line"}`}>
-              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${ok ? "bg-accent text-accent-fg" : "border border-line-strong text-muted"}`} aria-hidden="true">
+            <li key={k} className={`flex gap-3 rounded-lg border p-3 ${ok ? "border-line bg-panel-2/60" : k === next ? "border-line-strong" : "border-line"}`}>
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${ok ? "bg-panel-2 text-muted" : k === next ? "bg-fg text-bg" : "border border-line-strong text-muted"}`} aria-hidden="true">
                 {ok ? <CheckIcon size={14} /> : i + 1}
               </span>
               <span className="min-w-0 flex-1">
@@ -79,7 +79,7 @@ export default function GettingStarted() {
                 </span>
                 {!ok && <span className="mt-0.5 block text-xs text-muted">{step.desc}</span>}
                 {!ok && (
-                  <Link href={href[k]} prefetch={false} className={buttonClass(k === next ? "primary" : "secondary", true, "mt-2")}>
+                  <Link href={href[k]} prefetch={false} className={buttonClass(k === next && k !== "position" ? "primary" : "secondary", true, "mt-2")}>
                     {step.action}
                   </Link>
                 )}
