@@ -134,6 +134,11 @@ function targetProbe() {
     if (r.width <= 1 && r.height <= 1) continue;
     // Inline links inside running text are exempt (WCAG 2.5.8 inline exception).
     if (el.tagName === "A" && cs.display === "inline") continue;
+    // A checkbox inside its label: the label is what's tapped, so measure that instead.
+    const label = el.tagName === "INPUT" ? el.closest("label") : null;
+    if (label && label.getBoundingClientRect().height >= 43.5) continue;
+    // The chart library's attribution logo is required by its licence and isn't ours to resize.
+    if (el.id === "tv-attr-logo") continue;
     // Disclosure summaries ("What is this?") are secondary: 24×24 minimum (WCAG 2.5.8).
     const min = el.tagName === "SUMMARY" ? 24 : 43.5;
     if (r.height < min || r.width < 24) small.push(`${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 24)}" ${Math.round(r.width)}×${Math.round(r.height)}`);

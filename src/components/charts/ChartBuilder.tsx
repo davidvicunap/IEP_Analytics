@@ -532,7 +532,7 @@ function MetricPicker({ config, onChange }: { config: Config; onChange: (m: Char
                       className={`flex items-center gap-2.5 min-h-10 px-2 rounded-lg text-sm ${disabled ? "text-muted cursor-not-allowed" : "cursor-pointer hover:bg-panel-2"}`}
                       title={why ?? undefined}
                     >
-                      <input type="checkbox" className="h-4 w-4 accent-[var(--text)]" checked={on} disabled={disabled || (on && metrics.length === 1)} onChange={() => toggle(m.key)} />
+                      <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={on} disabled={disabled || (on && metrics.length === 1)} onChange={() => toggle(m.key)} />
                       <span className="flex-1">{C.metrics[m.key]}</span>
                       {disabled && why && <span className="text-[11px] text-muted text-right max-w-[9rem] leading-tight">{why}</span>}
                     </label>

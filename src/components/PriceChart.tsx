@@ -368,7 +368,7 @@ export default function PriceChart({
           {INDICATORS.map((k) => (
             <li key={k}>
               <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-panel-2">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--text)]" checked={inds.includes(k)} onChange={() => toggle(k)} />
+                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]" checked={inds.includes(k)} onChange={() => toggle(k)} />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{t.chart[k].name}</span>
                   <span className="block text-xs leading-relaxed text-muted">{t.chart[k].text}</span>

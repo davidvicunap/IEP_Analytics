@@ -129,7 +129,7 @@ export default function ChartTab({
           <div className="space-y-6 pb-2 pt-2">
             {levels && view === "simple" && (
               <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                <input type="checkbox" className="h-4 w-4 accent-[var(--text)]" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
+                <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={showLevels} onChange={(e) => setShowLevels(e.target.checked)} />
                 {t.chart.levels.showOnChart}
               </label>
             )}
