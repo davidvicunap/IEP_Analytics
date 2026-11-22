@@ -19,6 +19,7 @@ export function Panel({
   className = "",
   action,
   id,
+  bare = false,
 }: {
   title?: string;
   description?: React.ReactNode;
@@ -26,18 +27,20 @@ export function Panel({
   className?: string;
   action?: React.ReactNode;
   id?: string;
+  /** No box: for sections that whitespace and alignment already separate. */
+  bare?: boolean;
 }) {
   return (
-    <section id={id} className={`rounded-2xl border border-line bg-panel p-5 sm:p-6 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
+    <section id={id} className={`${bare ? "" : "rounded-lg border border-line bg-panel p-5 sm:p-6"} ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
       {title && (
-        <div className="mb-5">
+        <div className={bare ? "mb-3" : "mb-5"}>
           <div className="flex items-center justify-between gap-3 min-h-6">
             <h2 id={id ? `${id}-title` : undefined} className="section-title">
               {title}
             </h2>
             {action}
           </div>
-          {description && <p className="mt-0.5 text-[13px] text-muted leading-relaxed">{description}</p>}
+          {description && <p className="mt-0.5 max-w-[68ch] text-[13px] leading-relaxed text-muted">{description}</p>}
         </div>
       )}
       {children}
@@ -49,8 +52,8 @@ export function Panel({
 
 type Variant = "primary" | "secondary" | "ghost";
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg border-accent hover:brightness-110",
-  secondary: "bg-panel text-fg border-line hover:border-line-strong hover:bg-panel-2",
+  primary: "bg-accent text-accent-fg border-accent hover:bg-accent-hover hover:border-accent-hover",
+  secondary: "bg-panel text-fg border-line-strong hover:bg-panel-2",
   ghost: "bg-transparent text-fg border-transparent hover:bg-panel-2",
 };
 
@@ -364,7 +367,7 @@ export function WatchButton({ symbol, className = "" }: { symbol: string; classN
       aria-pressed={on}
       className={`${buttonClass("secondary")} ${on ? "bg-panel-2" : ""} ${className}`}
     >
-      <StarIcon filled={on} size={18} className={on ? "text-accent" : "text-muted"} />
+      <StarIcon filled={on} size={18} className={on ? "text-fg" : "text-muted"} />
       {on ? t.stock.removeWatch : t.stock.addWatch}
     </button>
   );
@@ -425,7 +428,7 @@ function ToastView({ item, closeLabel }: { item: ToastItem; closeLabel: string }
   }, [item, paused]);
   return (
     <div
-      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-2 shadow-lg"
+      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-lg border border-line bg-panel px-4 py-2 shadow-pop"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

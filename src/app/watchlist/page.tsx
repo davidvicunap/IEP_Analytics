@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Watchlist" };
 
 export default function WatchlistPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[480px] w-full rounded-xl" />}>
+    <Suspense fallback={<Skeleton className="h-[480px] w-full rounded-lg" />}>
       <DeepI18n>
         <WatchlistView />
       </DeepI18n>

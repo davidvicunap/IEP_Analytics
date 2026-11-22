@@ -33,7 +33,7 @@ function Items({ onPick }: { onPick: () => void }) {
         return (
           <li key={key}>
             <Link href={href} onClick={onPick} aria-current={active ? "page" : undefined} className={`flex min-h-12 items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-panel-2 ${active ? "bg-panel-2" : ""}`}>
-              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md border border-line text-muted" aria-hidden="true">
+              <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center text-muted" aria-hidden="true">
                 <Icon size={16} />
               </span>
               <span className="min-w-0">
@@ -81,7 +81,7 @@ export function ExploreMenu() {
         <ChevronDownIcon size={14} className={open ? "rotate-180" : ""} />
       </button>
       {open && (
-        <div id={id} className="absolute right-0 top-full z-40 mt-2 w-[34rem] rounded-2xl border border-line bg-panel p-2 shadow-xl">
+        <div id={id} className="absolute right-0 top-full z-40 mt-2 w-[34rem] rounded-lg border border-line bg-panel p-2 shadow-pop">
           <Items onPick={() => setOpen(false)} />
         </div>
       )}

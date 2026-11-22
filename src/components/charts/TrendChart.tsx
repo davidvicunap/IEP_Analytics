@@ -316,7 +316,7 @@ const TrendChart = forwardRef<TrendChartHandle, Props>(function TrendChart(
         <div
           id={tipId}
           role="status"
-          className="pointer-events-none absolute top-2 z-10 min-w-40 max-w-64 rounded-lg border border-line bg-panel px-3 py-2 text-[13px] shadow-lg"
+          className="pointer-events-none absolute top-2 z-10 min-w-40 max-w-64 rounded-lg border border-line bg-panel px-3 py-2 text-[13px] shadow-pop"
           style={flip ? { right: Math.max(4, width - tipLeft + 12) } : { left: Math.min(tipLeft + 12, Math.max(4, width - 200)) }}
         >
           <p className="mb-1 text-xs text-muted">{(categoryTitle ?? categoryLabel)(categories[shown])}</p>

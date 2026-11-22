@@ -217,7 +217,7 @@ function TagFilter({ counts, total, value, onChange }: { counts: { tag: string; 
       aria-pressed={on}
       onClick={click}
       className={`inline-flex h-11 sm:h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors ${
-        on ? "border-accent bg-accent/10 text-fg" : "border-line bg-panel text-muted hover:text-fg"
+        on ? "border-fg bg-panel-2 text-fg" : "border-line bg-panel text-muted hover:text-fg"
       }`}
     >
       {label}
@@ -244,10 +244,10 @@ function ColumnsMenu({ columns, onToggle }: { columns: Column[]; onToggle: (c: C
         {W.columns}
       </summary>
       {open && (
-        <div className="mt-1 rounded-2xl border border-line bg-panel p-2 shadow-lg sm:absolute sm:right-0 sm:z-20 sm:w-80">
+        <div className="mt-1 rounded-lg border border-line bg-panel p-2 shadow-pop sm:absolute sm:right-0 sm:z-20 sm:w-80">
           {COLUMNS.map((c) => (
             <label key={c} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-panel-2">
-              <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]" checked={columns.includes(c)} onChange={() => onToggle(c)} />
+              <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--text)]" checked={columns.includes(c)} onChange={() => onToggle(c)} />
               <span>
                 <span className="block text-sm font-medium">{W.cols[c]}</span>
                 <span className="block text-xs text-muted">{W.colHelp[c]}</span>
@@ -312,7 +312,7 @@ function Cards({ rows, columns, sort, onSort, editing, onEdit, onToggleTag, allT
       </div>
       <ul className="space-y-3" aria-label={t.watchlist.title}>
         {rows.map((r) => (
-          <li key={r.symbol} data-testid="watch-card" className="rounded-xl border border-line p-3">
+          <li key={r.symbol} data-testid="watch-card" className="rounded-lg border border-line p-3">
             <div className="flex items-start gap-3">
               <Link href={`/stock/${encodeURIComponent(r.symbol)}`} prefetch={false} className="min-h-11 min-w-0 flex-1">
                 <span className="font-semibold">{r.symbol}</span>
@@ -526,7 +526,7 @@ function TagEditor({ symbol, mine, all, onToggle, onDone }: { symbol: string; mi
                 onClick={() => onToggle(tag)}
                 disabled={!on && mine.length >= TAGS_PER_STOCK}
                 className={`inline-flex h-11 sm:h-8 items-center rounded-full border px-3 text-[13px] font-medium disabled:opacity-50 ${
-                  on ? "border-accent bg-accent/10 text-fg" : "border-line bg-panel text-muted hover:text-fg"
+                  on ? "border-fg bg-panel-2 text-fg" : "border-line bg-panel text-muted hover:text-fg"
                 }`}
               >
                 {tag}

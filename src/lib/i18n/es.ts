@@ -8,6 +8,7 @@ const es = {
     methodology: "Cómo calculamos cada número",
     disclaimer: "Solo con fines educativos. No es asesoría financiera.",
     demo: "Modo demo: datos simulados. Añade FMP_API_KEY para datos reales.",
+    demoShort: "Modo demo: datos simulados.",
     lang: "Idioma",
     switchLang: "cambiar idioma a inglés",
     theme: "Tema",

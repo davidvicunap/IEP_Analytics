@@ -3,28 +3,31 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * Design tokens. Neutral surfaces, one warm accent for actions and selection, and
- * green/red reserved for price direction. Every text token meets WCAG AA on bg, panel
- * and panel-2 in its theme.
+ * Design tokens (see the design standards in CLAUDE.md). Warm paper and charcoal ink; hairline
+ * borders define structure, shadows only lift true overlays (menus, popovers, dialogs). One ink-blue
+ * accent, kept for the single most important action on a screen and the focus ring. Semantic
+ * colours only for status: green/red for price direction and gains/losses, amber for warnings,
+ * blue for neutral data markers. Every text token meets WCAG AA on bg, panel and panel-2.
  */
 :root {
-  --bg: #f7f7f5;
+  --bg: #faf9f6;
   --panel: #ffffff;
-  --panel-2: #f3f3f0;
-  --border: #e6e6e1;
-  --border-strong: #d1d1cb;
-  --text: #15161a;
-  --muted: #5e6168;
-  --accent: #b45309;
+  --panel-2: #f2f1ec;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #1a1a1a;
+  --muted: #66635c;
+  --accent: #22489a;
+  --accent-hover: #1b3b80;
   --accent-contrast: #ffffff;
-  --up: #11793c;
-  --down: #c62828;
-  --warn: #8a5c00;
-  --info: #2f55c8;
-  --up-bg: #e6f4eb;
-  --down-bg: #fcebeb;
-  --warn-bg: #fdf3dc;
-  --info-bg: #e9eefc;
+  --up: #13703b;
+  --down: #b42828;
+  --warn: #845700;
+  --info: #0b6597;
+  --up-bg: #e7f3ea;
+  --down-bg: #faebe9;
+  --warn-bg: #fbf1da;
+  --info-bg: #e5f0f7;
   /* Chart series: fixed order, validated for colour-vision deficiency (see TrendChart). */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -32,68 +35,74 @@
   --series-4: #eda100;
   --series-5: #e87ba4;
   --series-6: #008300;
-  --grid: #efefeb;
-  --axis: #cfcfc9;
+  --grid: #eeece6;
+  --axis: #d3d0c8;
+  /* Only for layers that float above the page: menus, popovers, dialogs. */
+  --elev-pop: 0 12px 32px -12px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.06);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0c0d0f;
-    --panel: #141518;
-    --panel-2: #1c1e22;
-    --border: #26282d;
-    --border-strong: #363941;
-    --text: #ececee;
-    --muted: #9b9fa7;
-    --accent: #f5a524;
-    --accent-contrast: #111111;
-    --up: #3ccf7f;
-    --down: #ff6b6b;
-    --warn: #f5c542;
-    --info: #8fa8ff;
-    --up-bg: #11291c;
-    --down-bg: #2d1416;
-    --warn-bg: #2b2412;
-    --info-bg: #182036;
+    --bg: #151514;
+    --panel: #1c1c1b;
+    --panel-2: #242422;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #edebe6;
+    --muted: #a3a098;
+    --accent: #9db7ee;
+    --accent-hover: #b6c9f3;
+    --accent-contrast: #151514;
+    --up: #4cc98a;
+    --down: #ff8078;
+    --warn: #e9be55;
+    --info: #74bde8;
+    --up-bg: #15291d;
+    --down-bg: #2e1a19;
+    --warn-bg: #2a2414;
+    --info-bg: #15232e;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
     --series-4: #c98500;
     --series-5: #d55181;
     --series-6: #008300;
-    --grid: #22242a;
-    --axis: #3a3d45;
+    --grid: #262624;
+    --axis: #3a3a37;
+    --elev-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0c0d0f;
-  --panel: #141518;
-  --panel-2: #1c1e22;
-  --border: #26282d;
-  --border-strong: #363941;
-  --text: #ececee;
-  --muted: #9b9fa7;
-  --accent: #f5a524;
-  --accent-contrast: #111111;
-  --up: #3ccf7f;
-  --down: #ff6b6b;
-  --warn: #f5c542;
-  --info: #8fa8ff;
-  --up-bg: #11291c;
-  --down-bg: #2d1416;
-  --warn-bg: #2b2412;
-  --info-bg: #182036;
+  --bg: #151514;
+  --panel: #1c1c1b;
+  --panel-2: #242422;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #edebe6;
+  --muted: #a3a098;
+  --accent: #9db7ee;
+  --accent-hover: #b6c9f3;
+  --accent-contrast: #151514;
+  --up: #4cc98a;
+  --down: #ff8078;
+  --warn: #e9be55;
+  --info: #74bde8;
+  --up-bg: #15291d;
+  --down-bg: #2e1a19;
+  --warn-bg: #2a2414;
+  --info-bg: #15232e;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
   --series-6: #008300;
-  --grid: #22242a;
-  --axis: #3a3d45;
+  --grid: #262624;
+  --axis: #3a3a37;
+  --elev-pop: 0 16px 40px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
@@ -106,6 +115,7 @@
   --color-fg: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-contrast);
   --color-up: var(--up);
   --color-down: var(--down);
@@ -117,6 +127,15 @@
   --color-info-bg: var(--info-bg);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
+  --shadow-pop: var(--elev-pop);
+  /* Fast, physical motion: 150 ms with a natural ease-out. */
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  /* Body copy breathes: 1.5–1.6 line height. */
+  --text-xs--line-height: 1.5;
+  --text-sm--line-height: 1.55;
+  --text-base--line-height: 1.6;
+  --font-display: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -136,6 +155,13 @@ body {
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page titles in the serif, set tight; everything else stays in the sans. */
+h1 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
 }
 
 /* Numbers that line up in columns: same sans, fixed-width digits. */

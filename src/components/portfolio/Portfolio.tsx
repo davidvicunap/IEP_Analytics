@@ -169,18 +169,26 @@ function Holdings({ open, info }: { open: ReturnType<typeof positions>; info: Re
 
   return (
     <>
-      <dl className="num grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3" data-testid="portfolio-totals">
-        <div>
-          <dt className="text-xs text-muted">{P.value}</dt>
-          <dd className="text-lg font-semibold">{q.loading ? "…" : fmtMoney(sum.value, "USD", lang)}</dd>
+      <dl className="num flex flex-wrap items-start gap-x-10 gap-y-4 border-b border-line pb-5 sm:items-end" data-testid="portfolio-totals">
+        <div className="w-full sm:w-auto">
+          <dt className="text-xs font-medium text-muted">{P.value}</dt>
+          <dd className="mt-1.5 text-[32px] font-semibold leading-none tracking-[-0.03em]">{q.loading ? "…" : fmtMoney(sum.value, "USD", lang)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">{P.gain}</dt>
-          <dd className="text-lg font-semibold">{q.loading ? "…" : `${signedUsd(sum.gain, lang)} (${pricedCost > 0 ? signedPct(sum.gain / pricedCost, lang) : "—"})`}</dd>
+          <dt className="text-xs font-medium text-muted">{P.gain}</dt>
+          <dd className={`mt-1 text-lg font-semibold leading-snug ${q.loading ? "" : sum.gain > 0 ? "text-up" : sum.gain < 0 ? "text-down" : ""}`}>
+            {q.loading ? (
+              "…"
+            ) : (
+              <>
+                {signedUsd(sum.gain, lang)} <span className="block whitespace-nowrap text-sm font-medium sm:inline">({pricedCost > 0 ? signedPct(sum.gain / pricedCost, lang) : "—"})</span>
+              </>
+            )}
+          </dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">{P.cost}</dt>
-          <dd className="text-lg font-semibold">{fmtMoney(sum.cost, "USD", lang)}</dd>
+          <dt className="text-xs font-medium text-muted">{P.cost}</dt>
+          <dd className="mt-1 text-lg font-semibold leading-snug">{fmtMoney(sum.cost, "USD", lang)}</dd>
         </div>
       </dl>
       {risk.currency !== "USD" &&
@@ -192,11 +200,11 @@ function Holdings({ open, info }: { open: ReturnType<typeof positions>; info: Re
           <p className="-mt-2 text-xs text-warn">{fill(P.fxFailed, { c: risk.currency })}</p>
         ) : null)}
       {sum.unpriced > 0 && <p className="-mt-2 text-xs text-muted">{fill(P.unpriced, { n: sum.unpriced })}</p>}
-      <ul className="divide-y divide-line border-y border-line" data-testid="holdings">
+      <ul className="divide-y divide-line border-b border-line" data-testid="holdings">
         {rows.map(({ p, price, reasons, light }) => {
           const gain = price === null ? null : p.shares * price - p.cost;
           return (
-            <li key={p.symbol} className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-start sm:gap-4" data-testid={`holding-${p.symbol}`}>
+            <li key={p.symbol} className="flex flex-col gap-1.5 py-3.5 sm:flex-row sm:items-start sm:gap-4" data-testid={`holding-${p.symbol}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link href={`/stock/${encodeURIComponent(p.symbol)}`} prefetch={false} className="inline-flex min-h-11 min-w-11 items-center font-semibold hover:underline sm:min-h-0 sm:min-w-0">
@@ -209,8 +217,8 @@ function Holdings({ open, info }: { open: ReturnType<typeof positions>; info: Re
                 <ReasonAction symbol={p.symbol} reason={reasons[0]} />
               </div>
               <div className="num text-sm sm:w-44 sm:text-right">
-                <span className="block">{price === null ? "—" : fmtMoney(p.shares * price, "USD", lang)}</span>
-                <span className="block text-xs text-muted">{gain === null ? "" : `${signedUsd(gain, lang)} (${signedPct(gain / p.cost, lang)})`}</span>
+                <span className="block font-medium">{price === null ? "—" : fmtMoney(p.shares * price, "USD", lang)}</span>
+                <span className={`block text-xs font-medium ${gain === null || gain === 0 ? "text-muted" : gain > 0 ? "text-up" : "text-down"}`}>{gain === null ? "" : `${signedUsd(gain, lang)} (${signedPct(gain / p.cost, lang)})`}</span>
               </div>
             </li>
           );
@@ -254,7 +262,7 @@ function ReasonAction({ symbol, reason }: { symbol: string; reason: Reason | und
   const s = encodeURIComponent(symbol);
   if (!reason) return null;
   const link = (href: string, text: string) => (
-    <Link href={href} prefetch={false} className="link mt-0.5 inline-flex min-h-11 items-center text-sm sm:min-h-0">
+    <Link href={href} prefetch={false} className="link mt-0.5 inline-flex min-h-11 items-center text-sm font-medium sm:min-h-0">
       {text}
     </Link>
   );

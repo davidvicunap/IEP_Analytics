@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function PacksPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
+    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}>
       <DeepI18n>
         <PackView />
       </DeepI18n>

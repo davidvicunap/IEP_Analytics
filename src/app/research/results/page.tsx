@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<Skeleton className="mx-auto h-96 max-w-4xl rounded-2xl" />}>
+    <Suspense fallback={<Skeleton className="mx-auto h-96 max-w-4xl rounded-lg" />}>
       <DeepI18n>
         <TrackRecord />
       </DeepI18n>

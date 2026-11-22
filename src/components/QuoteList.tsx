@@ -81,13 +81,13 @@ export function QuoteRows({
 export function MarketCards({ rows, indexNames, etfLabel }: { rows: Row[]; indexNames: Record<string, string>; etfLabel: string }) {
   const { t, lang } = useI18n();
   return (
-    <ul className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+    <ul className="grid grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-5">
       {rows.map((r) => (
         <li key={r.symbol} className="min-w-0">
           <Link
             href={`/stock/${encodeURIComponent(r.symbol)}`}
             prefetch={false}
-            className="block h-full rounded-lg border border-line px-3 py-2.5 hover:border-line-strong hover:bg-panel-2 transition-colors"
+            className="block h-full border-l border-line-strong py-1 pl-3.5 pr-2 hover:border-fg transition-colors"
           >
             <span className="flex items-baseline justify-between gap-2">
               <span className="truncate text-[13px] font-medium">{indexNames[r.symbol] ?? r.symbol}</span>
@@ -113,9 +113,9 @@ export function MarketCards({ rows, indexNames, etfLabel }: { rows: Row[]; index
 export function MarketCardsSkeleton({ n }: { n: number }) {
   return (
     <div aria-hidden="true">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-5">
         {Array.from({ length: n }, (_, i) => (
-          <Skeleton key={i} className="h-[66px] rounded-lg" />
+          <Skeleton key={i} className="h-[56px] rounded-md" />
         ))}
       </div>
       <Skeleton className="mt-3 h-4 w-11/12" />

@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
+    <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-lg" />}>
       <DeepI18n>
         <CompareView />
       </DeepI18n>

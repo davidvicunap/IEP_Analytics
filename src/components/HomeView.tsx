@@ -24,14 +24,9 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
   const { list } = useWatchlist();
   const hydrated = useHydrated();
   const marketsSection = (
-    <section aria-labelledby="markets-title">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="markets-title" className="section-title">
-          {t.home.markets}
-        </h2>
-      </div>
+    <Panel title={t.home.markets} id="markets" className="min-w-0" bare>
       {markets}
-    </section>
+    </Panel>
   );
 
   if (hydrated && list.length > 0) {
@@ -48,10 +43,12 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
           portfolio={<Portfolio />}
         />
         <GettingStarted />
-        {marketsSection}
         {/* Tools (screener, charts, compare…) live under "Tools"; home stays about what you own and follow. */}
-        <div className="lg:max-w-xl">
-          <MiniWatchlist />
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
+          <div className="min-w-0 lg:col-span-2">{marketsSection}</div>
+          <div className="min-w-0">
+            <MiniWatchlist />
+          </div>
         </div>
       </div>
     );
@@ -79,7 +76,7 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
 
       {/* Phones: my list, then ideas. Wide screens: ideas beside my list. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
-        <Panel title={t.home.popular} id="popular" className="order-2 lg:order-none lg:col-span-2 min-w-0">
+        <Panel bare title={t.home.popular} id="popular" className="order-2 lg:order-none lg:col-span-2 min-w-0">
           {popular}
         </Panel>
         <div className="order-1 lg:order-none min-w-0">
@@ -123,7 +120,7 @@ function RecentlyViewed() {
           key={s}
           href={`/stock/${encodeURIComponent(s)}`}
           prefetch={false}
-          className="inline-flex items-center h-8 px-2.5 rounded-md bg-panel-2 text-[13px] font-medium hover:bg-line transition-colors"
+          className="inline-flex items-center h-8 px-2.5 rounded-md border border-line text-[13px] font-medium hover:bg-panel-2 transition-colors"
         >
           {s}
         </Link>
@@ -143,6 +140,7 @@ function MiniWatchlist() {
   const hydrated = useHydrated();
   return (
     <Panel
+      bare
       title={t.watchlist.title}
       id="mini-watchlist"
       action={

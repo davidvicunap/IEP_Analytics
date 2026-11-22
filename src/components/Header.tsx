@@ -70,10 +70,10 @@ export default function Header({ demo }: { demo: boolean }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md border-b border-line pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-30 bg-bg border-b border-line pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-2 sm:gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
         <Link href="/" className="flex items-center gap-2 shrink-0 min-h-11 text-[15px] font-semibold tracking-[-0.01em]" aria-label="IEP Analytics">
-          <LogoMark size={24} />
+          <LogoMark size={26} />
           <span className="hidden sm:inline">
             IEP <span className="text-muted font-medium">Analytics</span>
           </span>
@@ -130,9 +130,10 @@ export default function Header({ demo }: { demo: boolean }) {
       )}
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
       {demo && (
-        <p role="note" className="flex items-center justify-center gap-2 text-xs py-1.5 border-t border-line px-4 text-muted">
-          <span className="h-1.5 w-1.5 rounded-full bg-warn" aria-hidden="true" />
-          {t.app.demo}
+        <p role="note" className="flex items-center justify-center gap-2 border-t border-line bg-warn-bg px-4 py-1.5 text-xs text-fg">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warn" aria-hidden="true" />
+          <span className="sm:hidden">{t.app.demoShort}</span>
+          <span className="hidden sm:inline">{t.app.demo}</span>
         </p>
       )}
     </header>

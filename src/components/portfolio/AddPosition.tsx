@@ -45,7 +45,7 @@ export default function AddPosition({ onDone, onCancel }: { onDone: (symbol: str
 
   return (
     <form
-      className="space-y-3 rounded-xl border border-line p-4"
+      className="space-y-3 rounded-lg border border-line p-4"
       aria-labelledby={`${dateId}-title`}
       onSubmit={(e) => {
         e.preventDefault();

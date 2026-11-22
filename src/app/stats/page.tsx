@@ -26,7 +26,7 @@ export default async function StatsPage() {
   let data: Funnel | null = null;
   if (store) data = funnel(await store.since(new Date(Date.now() - 90 * 86_400_000)), new Date());
   return (
-    <Suspense fallback={<Skeleton className="mx-auto h-96 max-w-3xl rounded-2xl" />}>
+    <Suspense fallback={<Skeleton className="mx-auto h-96 max-w-3xl rounded-lg" />}>
       <DeepI18n>
         <StatsView data={data} />
       </DeepI18n>

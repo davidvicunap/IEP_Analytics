@@ -34,7 +34,7 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
   const Q = t.quarter;
   const { state, retry } = useResource<QuarterPayload>(`/api/sec/quarter/${encodeURIComponent(symbol)}`, { shared: true });
   const { state: filings } = useFilings(symbol);
-  if (state.status === "loading") return <Skeleton className="h-64 w-full rounded-xl" />;
+  if (state.status === "loading") return <Skeleton className="h-64 w-full rounded-lg" />;
   if (state.status === "error") {
     // No SEC filings (an ETF, a foreign filer): nothing to review, so no card.
     if (state.issue === "not_found") return null;

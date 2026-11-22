@@ -71,7 +71,7 @@ export default function CompareView() {
         <p className="mt-1 max-w-2xl text-[15px] text-muted">{C.intro}</p>
       </div>
 
-      <section aria-label={C.add} className="space-y-3 rounded-2xl border border-line bg-panel p-4 sm:p-5">
+      <section aria-label={C.add} className="space-y-3 rounded-lg border border-line bg-panel p-4 sm:p-5">
         {symbols.length > 0 && (
           <ul className="flex flex-wrap gap-2">
             {symbols.map((s, i) => (
@@ -95,7 +95,7 @@ export default function CompareView() {
       </section>
 
       {symbols.length < 2 ? (
-        <div className="rounded-2xl border border-line bg-panel px-6 py-12 text-center text-sm text-muted">
+        <div className="rounded-lg border border-line bg-panel px-6 py-12 text-center text-sm text-muted">
           <p>{symbols.length === 0 ? C.empty : C.one}</p>
           {symbols.length === 0 && (
             <p className="mt-3">
@@ -211,7 +211,7 @@ function Tables({ symbols }: { symbols: string[] }) {
                         {fmtRatio(k, row.value, lang)}
                         {best === i && (
                           <>
-                            <span className="ml-1 text-accent" aria-hidden="true">●</span>
+                            <span className="ml-1 text-fg" aria-hidden="true">●</span>
                             <span className="sr-only"> ({C.best})</span>
                           </>
                         )}

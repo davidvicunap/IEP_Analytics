@@ -168,7 +168,7 @@ export default function TickerSearch({
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className={`w-full rounded-lg border border-line bg-panel pl-10 pr-11 placeholder:text-muted focus:border-accent outline-none focus-visible:outline-2 focus-visible:outline-accent ${
+          className={`w-full rounded-lg border border-line-strong bg-panel pl-10 pr-11 placeholder:text-muted focus:border-accent outline-none focus-visible:outline-2 focus-visible:outline-accent ${
             large ? "h-14 text-lg" : "h-11 text-base"
           }`}
         />
@@ -200,7 +200,7 @@ export default function TickerSearch({
         {open ? statusText : ""}
       </span>
       {showList && (
-        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-line bg-panel shadow-xl">
+        <div data-testid="search-popup" className="absolute z-40 mt-1.5 w-full overflow-hidden rounded-lg border border-line bg-panel shadow-pop">
           <ul id={listId} ref={listRef} role="listbox" aria-label={t.search.results} className="max-h-80 overflow-auto">
             {results.map((r, i) => (
               <li
