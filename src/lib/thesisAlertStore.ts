@@ -17,6 +17,8 @@ export interface AlertStore {
   remove(owner: string, symbol: string): Promise<void>;
   /** The newest alerts for a stock, active or cleared. */
   history(owner: string, symbol: string, limit: number): Promise<StoredAlert[]>;
+  /** Moves a stock's alerts to its new ticker. */
+  rename(owner: string, from: string, to: string): Promise<void>;
 }
 
 type Row = typeof thesisAlerts.$inferSelect;
@@ -75,6 +77,9 @@ export function postgresAlerts(db: Db): AlertStore {
       const rows = await db.select().from(thesisAlerts).where(mine(owner, symbol)).orderBy(desc(thesisAlerts.firedAt)).limit(limit);
       return rows.map(fromRow);
     },
+    async rename(owner, from, to) {
+      await db.update(thesisAlerts).set({ symbol: to }).where(mine(owner, from));
+    },
   };
 }
 
@@ -107,6 +112,12 @@ export function memoryAlerts(): AlertStore {
     },
     async history(owner, symbol, limit) {
       return [...at(owner, symbol)].sort((a, b) => b.firedAt.localeCompare(a.firedAt)).slice(0, limit);
+    },
+    async rename(owner, from, to) {
+      const k = `${owner}\u0000${from}`;
+      const moved = rows.get(k) ?? [];
+      rows.delete(k);
+      rows.set(`${owner}\u0000${to}`, [...at(owner, to), ...moved]);
     },
   };
 }

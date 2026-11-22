@@ -6,6 +6,9 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { disablePush, enablePush, readPushStatus, resyncPush, sendTestPush, type PushIssue, type PushStatus } from "@/lib/pushClient";
+import { markStep } from "@/lib/onboarding";
+import { track } from "@/lib/track";
+import TelegramSettings from "./TelegramSettings";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "./ui";
 
 type Busy = null | "enable" | "disable" | "test";
@@ -40,6 +43,8 @@ export default function PushSettings({ variant = "panel" }: { variant?: "panel" 
     if (r.ok) {
       setStatus("on");
       setEnabledHere(true);
+      track("alerts_push_on");
+      markStep("alerts");
     } else if (r.issue === "denied") setStatus("denied");
     else if (r.issue !== "dismissed") setNote({ kind: "issue", issue: r.issue, retry: enable });
   };
@@ -94,38 +99,51 @@ export default function PushSettings({ variant = "panel" }: { variant?: "panel" 
   }
 
   return (
-    <Panel title={P.title} description={P.intro} id="push">
-      <div className="space-y-3" data-testid="push-settings">
-        {status === "checking" ? (
-          <Skeleton className="h-11 w-64" />
-        ) : status === "unsupported" ? (
-          <StatusMessage>{P.unsupported}</StatusMessage>
-        ) : status === "ios" ? (
-          <StatusMessage>{P.ios}</StatusMessage>
-        ) : status === "denied" ? (
-          <StatusMessage tone="warn">{P.denied}</StatusMessage>
-        ) : status === "off" ? (
-          <button type="button" onClick={enable} disabled={busy !== null} className={buttonClass("primary", true)}>
-            {busy === "enable" ? P.enabling : P.enable}
-          </button>
-        ) : (
-          <>
-            <p className="text-sm font-medium" role="status">
-              {P.on}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={test} disabled={busy !== null} className={buttonClass("secondary", true)}>
-                {busy === "test" ? P.testing : P.test}
+    <Panel title={P.channelsTitle} description={P.intro} id="push">
+      <div className="space-y-6">
+        <section aria-labelledby="alerts-telegram">
+          <h3 id="alerts-telegram" className="mb-2 text-sm font-semibold">
+            {t.telegram.title}
+          </h3>
+          <TelegramSettings />
+        </section>
+        <section aria-labelledby="alerts-device">
+          <h3 id="alerts-device" className="mb-2 text-sm font-semibold">
+            {P.deviceTitle}
+          </h3>
+          <div className="space-y-3" data-testid="push-settings">
+            {status === "checking" ? (
+              <Skeleton className="h-11 w-64" />
+            ) : status === "unsupported" ? (
+              <StatusMessage>{P.unsupported}</StatusMessage>
+            ) : status === "ios" ? (
+              <StatusMessage>{P.ios}</StatusMessage>
+            ) : status === "denied" ? (
+              <StatusMessage tone="warn">{P.denied}</StatusMessage>
+            ) : status === "off" ? (
+              <button type="button" onClick={enable} disabled={busy !== null} className={buttonClass("primary", true)}>
+                {busy === "enable" ? P.enabling : P.enable}
               </button>
-              <button type="button" onClick={disable} disabled={busy !== null} className={buttonClass("secondary", true)}>
-                {P.off}
-              </button>
-            </div>
-          </>
-        )}
-        {note?.kind === "sent" && <StatusMessage tone={note.sent > 0 ? "info" : "warn"}>{note.devices === 0 ? P.testNone : note.sent === 0 ? P.testFailed : P.testSent}</StatusMessage>}
-        {note?.kind === "issue" && issueView(note)}
-        <p className="text-xs text-muted">{P.when}</p>
+            ) : (
+              <>
+                <p className="text-sm font-medium" role="status">
+                  {P.on}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={test} disabled={busy !== null} className={buttonClass("secondary", true)}>
+                    {busy === "test" ? P.testing : P.test}
+                  </button>
+                  <button type="button" onClick={disable} disabled={busy !== null} className={buttonClass("secondary", true)}>
+                    {P.off}
+                  </button>
+                </div>
+              </>
+            )}
+            {note?.kind === "sent" && <StatusMessage tone={note.sent > 0 ? "info" : "warn"}>{note.devices === 0 ? P.testNone : note.sent === 0 ? P.testFailed : P.testSent}</StatusMessage>}
+            {note?.kind === "issue" && issueView(note)}
+            <p className="text-xs text-muted">{P.when}</p>
+          </div>
+        </section>
       </div>
     </Panel>
   );

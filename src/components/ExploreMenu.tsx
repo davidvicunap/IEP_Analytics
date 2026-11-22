@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { CalendarIcon, ChartIcon, ChevronDownIcon, CloseIcon, ColumnsIcon, FileTextIcon, GridIcon, SearchIcon, SlidersIcon } from "./icons";
+import { CalendarIcon, ChartIcon, ChevronDownIcon, CloseIcon, ColumnsIcon, FileTextIcon, GridIcon, SearchIcon, SlidersIcon, StarIcon } from "./icons";
 
 /** The tools beyond your own lists: one place to find them, each with what it's for. */
 export const EXPLORE = [
+  { key: "watchlist", href: "/watchlist", Icon: StarIcon },
   { key: "screener", href: "/screener", Icon: SlidersIcon },
   { key: "compare", href: "/compare", Icon: ColumnsIcon },
   { key: "calendar", href: "/calendar", Icon: CalendarIcon },

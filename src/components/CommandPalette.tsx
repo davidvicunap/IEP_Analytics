@@ -45,7 +45,6 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   useEffect(() => {
     if (!open) return;
     returnTo.current = document.activeElement as HTMLElement | null;
-    markStep("palette");
     setQ("");
     setActive(0);
     controller().setQuery("");

@@ -7,8 +7,9 @@ import { useHydrated, useRecent, useWatchlist } from "@/lib/watchlist";
 import { useQuotes } from "@/lib/useQuotes";
 import Briefing from "./Briefing";
 import GettingStarted from "./GettingStarted";
+import Portfolio from "./portfolio/Portfolio";
 import TickerSearch from "./TickerSearch";
-import { ChartIcon, ChevronRightIcon, StarIcon } from "./icons";
+import { ChevronRightIcon, StarIcon } from "./icons";
 import { QuoteRows, QuoteRowsSkeleton, ServerQuotes, latestAsOf } from "./QuoteList";
 import { EmptyState, Panel, Provenance, StatusMessage } from "./ui";
 
@@ -44,15 +45,13 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
               <RecentlyViewed />
             </>
           }
+          portfolio={<Portfolio />}
         />
         <GettingStarted />
         {marketsSection}
-        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
+        {/* Tools (screener, charts, compare…) live under "Tools"; home stays about what you own and follow. */}
+        <div className="lg:max-w-xl">
           <MiniWatchlist />
-          <Panel title={t.home.brief.explore} id="popular" className="min-w-0">
-            {popular}
-          </Panel>
-          <ChartsPromo />
         </div>
       </div>
     );
@@ -71,20 +70,20 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
         <RecentlyViewed />
       </section>
 
+      {/* Start from what you own: the first thing to do here. */}
+      {hydrated && <Portfolio />}
+
       <GettingStarted />
 
       {marketsSection}
 
-      {/* Phones: my list → explore → charts. Wide screens: explore beside my list and charts. */}
+      {/* Phones: my list, then ideas. Wide screens: ideas beside my list. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-3 lg:items-start">
         <Panel title={t.home.popular} id="popular" className="order-2 lg:order-none lg:col-span-2 min-w-0">
           {popular}
         </Panel>
-        <div className="max-lg:contents lg:flex lg:flex-col lg:gap-6 min-w-0">
-          <div className="order-1 lg:order-none">
-            <MiniWatchlist />
-          </div>
-          <ChartsPromo />
+        <div className="order-1 lg:order-none min-w-0">
+          <MiniWatchlist />
         </div>
       </div>
     </div>
@@ -133,43 +132,6 @@ function RecentlyViewed() {
   );
 }
 
-/** Entry point to the chart generator, with a few ready-made comparisons. */
-function ChartsPromo() {
-  const { t } = useI18n();
-  const presets: { label: string; href: string }[] = [
-    { label: t.home.chartsPresets.revenue, href: "/charts?s=AAPL,MSFT,GOOGL&m=revenue&f=annual&t=values&k=bar" },
-    { label: t.home.chartsPresets.margins, href: "/charts?s=AAPL,MSFT&m=netMargin&f=annual&k=line" },
-    { label: t.home.chartsPresets.pe, href: "/charts?s=NVDA,MSFT,AAPL&m=pe&f=monthly&k=line" },
-  ];
-  return (
-    <section aria-labelledby="charts-promo-title" className="order-3 lg:order-none rounded-2xl border border-line bg-panel p-4 sm:p-5">
-      <div className="flex items-start gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-panel-2 text-muted" aria-hidden="true">
-          <ChartIcon size={18} />
-        </span>
-        <div className="min-w-0">
-          <h2 id="charts-promo-title" className="section-title">
-            {t.home.chartsTitle}
-          </h2>
-          <p className="mt-0.5 text-[13px] text-muted leading-relaxed">{t.home.chartsText}</p>
-        </div>
-      </div>
-      <ul className="mt-3 -mx-2">
-        {presets.map((p) => (
-          <li key={p.href}>
-            <Link href={p.href} className="flex items-center justify-between gap-2 min-h-11 px-2 rounded-lg text-sm hover:bg-panel-2">
-              {p.label}
-              <ChevronRightIcon size={16} className="text-muted" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      <Link href="/charts" className="mt-2 inline-flex items-center gap-1 min-h-11 text-sm font-medium text-fg underline underline-offset-4 decoration-line-strong hover:decoration-fg">
-        {t.home.chartsOpen}
-      </Link>
-    </section>
-  );
-}
 
 /** First stocks of the watchlist; only the visible ones are requested. */
 function MiniWatchlist() {

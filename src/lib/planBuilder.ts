@@ -6,6 +6,7 @@
 import type { KeyLevels } from "./levels";
 import type { Direction } from "./thesis";
 import type { VerdictPoint } from "./verdict";
+import { isCurrency, type Currency } from "./money";
 
 /** Why a level was suggested, in data the page turns into words. */
 export type LevelBasis =
@@ -117,20 +118,26 @@ export function reviewOptions(today: string, nextResults: string | null): Review
 // ---- How much to risk --------------------------------------------------------------------------
 
 export interface RiskPrefs {
-  /** The money the user plans with (null: not set yet). */
+  /** The money the user plans with, in `currency` (null: not set yet). */
   account: number | null;
   /** Share of it they accept to lose on one idea if the stop is reached. */
   pct: number;
+  /** The currency the user thinks in (US stocks are always priced in USD). */
+  currency: Currency;
+  /** Their broker sells fractions of a share. */
+  fractions: boolean;
 }
 export const RISK_PCTS = [0.005, 0.01, 0.02] as const;
-export const DEFAULT_RISK: RiskPrefs = { account: null, pct: 0.01 };
+export const DEFAULT_RISK: RiskPrefs = { account: null, pct: 0.01, currency: "USD", fractions: true };
 
 export function parseRisk(raw: unknown): RiskPrefs {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return DEFAULT_RISK;
   const r = raw as Record<string, unknown>;
-  const account = typeof r.account === "number" && Number.isFinite(r.account) && r.account > 0 && r.account <= 1e10 ? Math.round(r.account * 100) / 100 : null;
+  const account = typeof r.account === "number" && Number.isFinite(r.account) && r.account > 0 && r.account <= 1e12 ? Math.round(r.account * 100) / 100 : null;
   const pct = typeof r.pct === "number" && Number.isFinite(r.pct) && r.pct > 0 && r.pct <= 0.1 ? r.pct : DEFAULT_RISK.pct;
-  return { account, pct };
+  const currency = isCurrency(r.currency) ? r.currency : DEFAULT_RISK.currency;
+  const fractions = typeof r.fractions === "boolean" ? r.fractions : DEFAULT_RISK.fractions;
+  return { account, pct, currency, fractions };
 }
 
 export interface Sizing {
@@ -155,15 +162,20 @@ export interface Sizing {
  * Shares = budget ÷ loss per share, rounded down; never more than the account can pay for.
  * Null when there's nothing to size: no account, no stop, or a stop on the winning side.
  */
-export function positionSize(p: { account: number | null; pct: number; entry: number | null; stop: number | null; target: number | null; direction: Direction }): Sizing | null {
+/** Shares are rounded down to whole shares, or to thousandths when the broker sells fractions. */
+const STEP = { whole: 1, fraction: 0.001 } as const;
+
+export function positionSize(p: { account: number | null; pct: number; entry: number | null; stop: number | null; target: number | null; direction: Direction; fractions?: boolean }): Sizing | null {
   const { account, pct, entry, stop, target, direction } = p;
+  const step = p.fractions ? STEP.fraction : STEP.whole;
+  const down = (x: number) => Math.round(Math.floor(x / step + 1e-9) * step * 1000) / 1000;
   if (!account || account <= 0 || !(pct > 0) || !entry || entry <= 0 || !stop || stop <= 0) return null;
   const up = direction === "up";
   const perShare = up ? entry - stop : stop - entry;
   if (!(perShare > 0)) return null;
   const budget = account * pct;
-  const byRisk = Math.floor(budget / perShare + 1e-9);
-  const byAccount = Math.floor(account / entry + 1e-9);
+  const byRisk = down(budget / perShare);
+  const byAccount = down(account / entry);
   const shares = Math.min(byRisk, byAccount);
   const gainPerShare = target !== null && target > 0 ? (up ? target - entry : entry - target) : null;
   const reward = gainPerShare !== null && gainPerShare > 0 ? cents(shares * gainPerShare) : null;

@@ -5,14 +5,15 @@ import { fill, useI18n } from "@/lib/i18n";
 import { STEPS, stepsDone, useOnboarding, type StepKey } from "@/lib/onboarding";
 import { useNotes } from "@/lib/researchClient";
 import { isWatched } from "@/lib/thesis";
+import { useTrades } from "@/lib/tradesClient";
+import { book, positions } from "@/lib/trades";
 import { useHydrated, useWatchlist } from "@/lib/watchlist";
-import { openPalette } from "./ExploreMenu";
 import { CheckIcon } from "./icons";
 import { Panel, buttonClass } from "./ui";
 
 /**
- * Four steps that show what the app is for, each with the button that does it. Steps tick
- * themselves off from what you do; the list can be hidden at any time and goes quiet once done.
+ * The four steps of the path the app is built on (own → exit → alerts → follow), each with the
+ * button that does it. Steps tick themselves off from what you do; the list can be hidden.
  */
 export default function GettingStarted() {
   const { t } = useI18n();
@@ -21,15 +22,18 @@ export default function GettingStarted() {
   const onboarding = useOnboarding();
   const watch = useWatchlist();
   const notes = useNotes();
+  const trades = useTrades();
   if (!hydrated || onboarding.hidden) return null;
   const theses = notes.state.status === "ok" ? notes.state.data.filter((n) => isWatched(n) || n.closed).length : 0;
-  const done = stepsDone(onboarding, watch.list.length, theses);
+  const held = trades.state.status === "ok" ? positions(book(trades.state.data).open).map((p) => p.symbol) : [];
+  const done = stepsDone(onboarding, { positions: held.length, theses, following: watch.list.length });
   const count = STEPS.filter((s) => done[s]).length;
-  const first = watch.list[0];
-  const href: Record<Exclude<StepKey, "palette">, string> = {
+  const first = held[0] ?? watch.list[0];
+  const href: Record<StepKey, string> = {
+    position: "#portfolio",
+    exit: first ? `/stock/${encodeURIComponent(first)}?tab=research&plan=1` : "/research",
+    alerts: "/research#push",
     follow: "/screener",
-    thesis: first ? `/stock/${encodeURIComponent(first)}?tab=research` : "/research",
-    compare: `/compare?s=${(watch.list.length >= 2 ? watch.list.slice(0, 2) : ["AAPL", "MSFT"]).map(encodeURIComponent).join(",")}`,
   };
 
   if (count === STEPS.length) {
@@ -73,16 +77,11 @@ export default function GettingStarted() {
                   {ok && <span className="sr-only"> ({S.stepDone})</span>}
                 </span>
                 {!ok && <span className="mt-0.5 block text-xs text-muted">{step.desc}</span>}
-                {!ok &&
-                  (k === "palette" ? (
-                    <button type="button" onClick={openPalette} className={buttonClass("secondary", true, "mt-2")}>
-                      {step.action}
-                    </button>
-                  ) : (
-                    <Link href={href[k]} prefetch={false} className={buttonClass("secondary", true, "mt-2")}>
-                      {step.action}
-                    </Link>
-                  ))}
+                {!ok && (
+                  <Link href={href[k]} prefetch={false} className={buttonClass("secondary", true, "mt-2")}>
+                    {step.action}
+                  </Link>
+                )}
               </span>
             </li>
           );

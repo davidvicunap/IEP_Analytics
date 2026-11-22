@@ -124,7 +124,8 @@ export interface ThesisFacts {
   nextResults?: { date: string } | null;
 }
 
-export type SignalKind = "stop" | "target" | "fairValue" | "reviewBy" | CheckType;
+/** `split` and `listing` aren't conditions the user sets: the data changed under the thesis. */
+export type SignalKind = "stop" | "target" | "fairValue" | "reviewBy" | CheckType | "split" | "listing";
 export type Tone = "risk" | "attention" | "good";
 
 /** The figures behind an alert, shown in its sentence. */
@@ -141,6 +142,11 @@ export interface SignalData {
   filed?: string;
   accn?: string;
   date?: string;
+  /** split: new shares per old share; whether the note was restated. */
+  ratio?: number;
+  adjusted?: boolean;
+  /** listing: the new ticker (absent: no longer listed). */
+  to?: string;
 }
 
 export interface Signal {
@@ -161,6 +167,8 @@ export const TONE: Record<SignalKind, Tone> = {
   move: "attention",
   report: "attention",
   results: "attention",
+  split: "attention",
+  listing: "risk",
 };
 
 /** Which facts a note needs, so nothing is loaded (or spent) for nothing. */

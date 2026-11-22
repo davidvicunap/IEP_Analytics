@@ -67,6 +67,8 @@ async function axe(p) {
   const v = await p.evaluate(async () => (await window.axe.run()).violations.filter((x) => x.impact === "serious" || x.impact === "critical").map((x) => x.id));
   assert(v.length === 0, `axe serious/critical: ${v.join(", ")}`);
 }
+// The stock search (other selects on the page are comboboxes too).
+const searchBox = (p) => p.getByRole("combobox", { name: /Buscar una acción|Search a stock/ });
 const json = (body, status = 200, headers = {}) => ({ status, contentType: "application/json", headers, body: JSON.stringify(body) });
 
 // ---- Search ---------------------------------------------------------------------------------
@@ -79,7 +81,7 @@ await test("search: a slow answer for an older query never replaces the newer on
   });
   await p.route(/\/api\/search\?q=ab$/, (r) => r.fulfill(json([{ symbol: "ABBV", name: "AbbVie" }])));
   await p.goto(base + "/");
-  const box = p.getByRole("combobox");
+  const box = searchBox(p);
   await box.pressSequentially("a");
   await p.waitForTimeout(350); // first request is out
   await box.pressSequentially("b");
@@ -98,7 +100,7 @@ await test("search: Enter during loading waits for the answer instead of guessin
     r.fulfill(json([{ symbol: "AAPL", name: "Apple Inc." }]));
   });
   await p.goto(base + "/");
-  const box = p.getByRole("combobox");
+  const box = searchBox(p);
   await box.fill("apple");
   await box.press("Enter");
   await p.waitForURL(/\/stock\/AAPL/, { timeout: 5000 });
@@ -110,7 +112,7 @@ await test("search: failure is distinct from no results, and Enter retries", asy
   let fail = true;
   await p.route(/\/api\/search/, (r) => (fail ? r.fulfill(json({ error: "upstream" }, 503)) : r.fulfill(json([{ symbol: "KO", name: "Coca-Cola" }]))));
   await p.goto(base + "/");
-  const box = p.getByRole("combobox");
+  const box = searchBox(p);
   await box.fill("coca cola"); // not ticker-shaped, so Enter can't fall back to opening a ticker
   await p.locator(".shadow-xl").getByText("La búsqueda no está disponible en este momento.").waitFor();
   fail = false;
@@ -128,7 +130,7 @@ await test("search: keyboard selection, Escape and focus", async () => {
   await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "MSFT", name: "Microsoft" }, { symbol: "MSTR", name: "MicroStrategy" }])));
   await p.goto(base + "/stock/AAPL");
   await p.keyboard.press("/"); // shortcut focuses the header search
-  const box = p.getByRole("combobox");
+  const box = searchBox(p);
   assert(await box.evaluate((el) => el === document.activeElement), "/ didn't focus search");
   await box.pressSequentially("ms");
   await p.getByRole("option", { name: /MicroStrategy/ }).waitFor();
@@ -226,32 +228,30 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await p.context().close();
 });
 
-await test("getting started: four steps tick themselves off as you use the app, and the list can be hidden", async () => {
+await test("getting started: own → exit → alerts → follow tick themselves off from what you do, and the list can be hidden", async () => {
   const p = await page({ lang: "en", onboarding: true });
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  let trades = [];
+  await p.route(/\/api\/trades$/, (r) => (r.request().method() === "GET" ? r.fulfill(json({ ok: true, fetchedAt: "x", data: trades })) : r.continue()));
   await p.goto(base + "/");
   const box = p.locator("#getting-started");
   await box.getByText("0 of 4 done").waitFor();
+  assert((await box.getByRole("link", { name: "Add a position" }).getAttribute("href")) === "#portfolio", "the first step points at the portfolio");
   await axe(p);
-  // Trying the commands ticks that step.
-  await box.getByRole("button", { name: "Open commands" }).click();
-  await p.getByRole("dialog", { name: "Commands" }).waitFor();
-  await p.keyboard.press("Escape");
-  await box.getByText("1 of 4 done").waitFor();
-  await box.getByText("Try the commands (Done)").waitFor();
-  // Comparing two companies ticks another.
-  await box.getByRole("link", { name: "Compare" }).click();
-  await p.waitForURL(/\/compare\?s=AAPL,MSFT$/);
-  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
-  await p.waitForFunction(() => JSON.parse(localStorage.getItem("iep.onboarding") ?? "{}").compare === true);
-  await p.goto(base + "/");
-  await box.getByText("2 of 4 done").waitFor();
   // Following a stock: the home page becomes the briefing, with the checklist still there.
   await p.evaluate(() => localStorage.setItem("iep.watchlist", JSON.stringify(["KO"])));
   await p.reload();
+  await box.getByText("1 of 4 done").waitFor();
+  // Owning something ticks the first step, and "Set an exit" opens its guided plan.
+  trades = [{ id: "t1", symbol: "KO", side: "buy", date: "2026-11-02", shares: 10, price: 68, fees: 0, stop: null, note: "", createdAt: "2026-11-02T15:00:00.000Z" }];
+  await p.reload();
+  await box.getByText("2 of 4 done").waitFor();
+  assert((await box.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit step opens the held stock's plan");
+  assert((await box.getByRole("link", { name: "Choose" }).getAttribute("href")) === "/research#push", "alerts step opens the channels");
+  // An alert channel turned on (remembered in this browser).
+  await p.evaluate(() => localStorage.setItem("iep.onboarding", JSON.stringify({ alerts: true })));
+  await p.reload();
   await box.getByText("3 of 4 done").waitFor();
-  await box.getByRole("link", { name: "Write my thesis" }).waitFor();
-  assert((await box.getByRole("link", { name: "Write my thesis" }).getAttribute("href")) === "/stock/KO?tab=research", "thesis step opens the followed stock");
   await box.getByRole("button", { name: "Hide" }).click();
   await box.waitFor({ state: "detached" });
   await p.reload();
@@ -261,11 +261,14 @@ await test("getting started: four steps tick themselves off as you use the app, 
   await p.context().close();
 });
 
-await test("navigation: Explore lists every tool with what it's for; on phones it's a sheet that also opens the commands", async () => {
+await test("navigation: three places (portfolio, research, tools); Tools lists every tool with what it's for, a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/");
   const nav = p.getByRole("navigation", { name: /main/i }).first();
-  await nav.getByRole("button", { name: "Explore" }).click();
+  assert((await nav.getByRole("link", { name: "My portfolio" }).count()) === 1, "home is My portfolio");
+  assert((await nav.getByRole("link", { name: "Watchlist" }).count()) === 0, "the watchlist moved into Tools");
+  await nav.getByRole("button", { name: "Tools" }).click();
+  await p.getByRole("link", { name: /Watchlist\s*The companies you follow/ }).waitFor();
   await p.getByRole("link", { name: /Compare\s*Up to four companies side by side/ }).waitFor();
   await axe(p);
   await p.getByRole("link", { name: /Calendar\s*Results, deadlines/ }).click();
@@ -274,8 +277,9 @@ await test("navigation: Explore lists every tool with what it's for; on phones i
 
   const m = await page({ lang: "es", width: 390, height: 800, touch: true });
   await m.goto(base + "/");
-  await m.getByRole("button", { name: "Explorar" }).click();
-  const sheet = m.getByRole("dialog", { name: "Explorar" });
+  await m.getByRole("button", { name: "Herramientas" }).click();
+  const sheet = m.getByRole("dialog", { name: "Herramientas" });
+  await sheet.getByRole("link", { name: /Mi lista/ }).waitFor();
   await sheet.getByRole("link", { name: /Buscador/ }).waitFor();
   await sheet.getByRole("button", { name: "Comandos y atajos" }).click();
   await m.getByRole("dialog", { name: "Comandos" }).waitFor();
@@ -287,7 +291,7 @@ await test("search: touch selection on a phone (expandable header search)", asyn
   await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "NVDA", name: "NVIDIA" }])));
   await p.goto(base + "/stock/AAPL");
   await p.getByRole("button", { name: "Buscar" }).tap();
-  const box = p.getByRole("combobox");
+  const box = searchBox(p);
   await box.fill("nvi");
   await p.getByRole("option", { name: /NVIDIA/ }).tap();
   await p.waitForURL(/\/stock\/NVDA/);
@@ -319,6 +323,7 @@ await test("watchlist: home mini-list asks only for the 8 it shows", async () =>
   const p = await page({ watchlist: many });
   // No notebooks: fair values would add their own quotes (the demo store outlives a run).
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // nor holdings
   const asked = [];
   p.on("request", (r) => {
     const u = new URL(r.url());
@@ -579,6 +584,7 @@ await test("chart: TradingView keeps its full height after its script resizes th
 await test("home briefing: following stocks shows what changed, each row opening its place; empty lists say so", async () => {
   const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // nor holdings
   const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
   const snap = (symbol, o) => ({
     symbol, cik: 320193,
@@ -608,7 +614,9 @@ await test("home briefing: following stocks shows what changed, each row opening
   await p.getByTestId("brief-quiet").getByText(/Sin novedades en: frente a tu valor razonable/).waitFor();
   await p.getByText("Pon un valor razonable en «Mi análisis»", { exact: false }).waitFor();
   assert((await p.getByRole("heading", { name: "Frente a tu valor razonable" }).count()) === 0, "an empty list still has its own box");
-  assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 1, "explore moved down");
+  // Home is about what you own and follow: tools live under "Herramientas".
+  assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 0, "generic ideas left on a returning user's home");
+  await p.locator("#portfolio").getByText("Empieza por lo que ya tienes", { exact: false }).waitFor();
   await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
@@ -1105,7 +1113,7 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   await lists.first().getByRole("button").first().waitFor();
   const stop = lists.nth(0).getByRole("button").first();
   const stopText = await stop.innerText();
-  assert(/from the entry/.test(stopText) && /(support|ATR|52-week)/.test(stopText), `stop suggestion: ${stopText}`);
+  assert(/from the entry/.test(stopText) && /(bounced|stalled|bad days|lowest price|highest price)/.test(stopText), `stop suggestion: ${stopText}`);
   await stop.click();
   const stopField = guide.getByLabel("Stop", { exact: true });
   await until(async () => (await stopField.inputValue()) !== "", "the stop suggestion didn't fill the field");
@@ -1121,9 +1129,9 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   await guide.getByText(/Type the money you invest with/).waitFor();
   await guide.getByLabel("Money you invest with").fill("10000");
   const sizing = guide.getByTestId("sizing");
-  await sizing.getByText(/To lose no more than \$100\.00 \(1% of \$10,000\.00\): \d+ shares/).waitFor();
+  await sizing.getByText(/^Size for your rule: [\d,.]+ shares? \(US\$ [\d,.]+\)\. If the price reaches your exit \(US\$ [\d,.]+\), you'd lose US\$ (99\.9\d|100\.00): 1% of your money\.$/).waitFor();
   await guide.getByRole("button", { name: "2%" }).click();
-  await sizing.getByText(/\$200\.00 \(2% of \$10,000\.00\)|Your money covers/).waitFor();
+  await sizing.getByText(/you'd lose US\$ (199\.9\d|200\.00): 2% of your money|Your money covers/).waitFor();
   const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.risk")));
   assert(saved.account === 10000 && saved.pct === 0.02, `risk settings ${JSON.stringify(saved)}`);
   await axe(p);
@@ -1251,13 +1259,116 @@ await test("track record: log a buy and a sell (an oversell is refused), see the
   const score = p.getByTestId("scorecard");
   await score.getByText("Closed trades").waitFor();
   const text = await score.innerText();
-  assert(/Closed trades\s+1/.test(text) && /Hit rate\s+100%/.test(text) && /\+10(\.0)?%/.test(text) && /\+1 R/.test(text), `scorecard: ${text}`);
+  assert(/Closed trades\s+1/.test(text) && /Hit rate\s+100%/.test(text) && /\+10(\.0)?%/.test(text) && /\+US\$ 1 on average/.test(text), `scorecard: ${text}`);
   await score.getByText(/SPY fund, same buy and sell dates \(1 trade\)\. Source: simulated data \(demo\)/).waitFor();
   await p.getByTestId("week").getByText("You logged 1 buy and 1 sell.").waitFor();
   await p.getByTestId("closed-trades").getByText("MU").waitFor();
   await p.getByText("No open positions.").waitFor();
   await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("my portfolio: add from the search list, import a broker CSV (a split restated, a renamed and a delisted ticker flagged), totals in pesos, one tap to an exit", async () => {
+  const p = await page({ lang: "en", watchlist: [] });
+  await p.goto(base + "/");
+  await p.evaluate(async () => {
+    const all = await (await fetch("/api/trades")).json();
+    for (const t of [...all.data].reverse()) await fetch(`/api/trades/${t.id}`, { method: "DELETE" });
+    for (const s of ["KO", "NEWCO", "OLDCO"]) await fetch(`/api/research/${s}`, { method: "DELETE" });
+  });
+  await p.reload();
+  const box = p.locator("#portfolio");
+  await box.getByText("Start with what you already own", { exact: false }).waitFor();
+  await axe(p);
+  // One position: the company comes from the search list, the price is one tap away.
+  await box.getByRole("button", { name: "Add a position" }).click();
+  await box.getByRole("combobox", { name: "Company" }).fill("KO");
+  await p.getByRole("option", { name: /KO/ }).first().click();
+  await box.getByText("Picked: KO").waitFor();
+  await box.getByLabel("Shares").fill("10");
+  await box.getByRole("button", { name: /Use the current price/ }).click();
+  await box.getByRole("button", { name: "Add to my portfolio" }).click();
+  await box.getByText("KO is in your portfolio. We're following it for you.").waitFor();
+  assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("KO"), "owning it should follow it");
+  // A broker file in Spanish, with a dividend row that isn't a trade.
+  await box.getByRole("button", { name: "Import from my broker" }).click();
+  const csv = ["Fecha;Emisora;Tipo;Títulos;Precio;Comisión", "05/01/2026;SPLT *;Compra;2;1.000,00;0", "06/02/2026;OLDCO;Compra;3;50;0", "07/02/2026;GONE;Compra;10;5;0", "08/02/2026;MSFT;Dividendo;;;"].join("\n");
+  await box.getByLabel("Or paste the contents").fill(csv);
+  await box.getByRole("button", { name: "Read" }).click();
+  const summary = box.getByTestId("import-summary");
+  await summary.getByText("3 trades (3 buys, 0 sells) in 3 companies.").waitFor();
+  await summary.getByText("1 row isn't a buy or a sell", { exact: false }).waitFor();
+  await summary.getByText("Dates read as day/month/year.", { exact: false }).waitFor();
+  await axe(p);
+  await box.getByRole("button", { name: "Import 3 trades" }).click();
+  await box.getByText("Imported 3 trades.").waitFor();
+  // Each holding: one light and its reason, the most urgent first.
+  const holdings = box.getByTestId("holdings");
+  await holdings.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
+  await holdings.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
+  await holdings.getByTestId("holding-GONE").getByText("Look now").waitFor();
+  await holdings.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
+  const ko = holdings.getByTestId("holding-KO");
+  await ko.getByText(/No exit set/).waitFor();
+  assert((await ko.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit link");
+  assert((await holdings.locator("li").first().getAttribute("data-testid")) === "holding-GONE", "red first");
+  // In pesos: the total converted, with the rate's source and time.
+  await box.getByLabel("Your currency").selectOption("MXN");
+  await box.getByTestId("portfolio-local").getByText(/≈ MX\$ [\d,]+\.\d{2} · US\$1 = 18\.5 MXN \(demo exchange rate/).waitFor();
+  await axe(p);
+  // The renamed ticker: one tap moves the notebook, alerts and trades.
+  await holdings.getByTestId("holding-OLDCO").getByRole("link", { name: "Move to NEWCO" }).click();
+  await p.waitForURL(/\/stock\/OLDCO\?tab=research/);
+  await p.locator("#listing").getByRole("button", { name: "Move everything to NEWCO" }).click();
+  await p.waitForURL(/\/stock\/NEWCO\?tab=research/);
+  const symbols = await p.evaluate(async () => (await (await fetch("/api/trades")).json()).data.map((t) => t.symbol));
+  assert(symbols.includes("NEWCO") && !symbols.includes("OLDCO"), `trades moved: ${symbols}`);
+  // "Set an exit" opens the guided plan on its levels.
+  await p.goto(base + "/stock/KO?tab=research&plan=1");
+  await p.locator("#plan-builder").getByRole("heading", { name: "What would change your mind?" }).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("telegram: a one-time link connects the chat, then a test and disconnect; the webhook only listens to Telegram", async () => {
+  const p = await page({ lang: "en" });
+  await p.goto(base + "/research");
+  const tg = p.getByTestId("telegram-settings");
+  await tg.getByRole("button", { name: "Connect Telegram" }).click();
+  const open = tg.getByRole("link", { name: "Open Telegram" });
+  await open.waitFor();
+  const href = await open.getAttribute("href");
+  const code = new URL(href).searchParams.get("start");
+  assert(href.startsWith("https://t.me/iep_demo_bot?start=") && code, `link ${href}`);
+  await tg.getByText(/tap “Start” in the bot's chat/).waitFor();
+  // Without Telegram's secret the webhook refuses; with it, /start links this chat.
+  const hook = (secret) => fetch(base + "/api/telegram/webhook", { method: "POST", headers: { "content-type": "application/json", ...(secret ? { "x-telegram-bot-api-secret-token": secret } : {}) }, body: JSON.stringify({ message: { chat: { id: 777, type: "private" }, text: `/start ${code}`, from: { language_code: "en" } } }) });
+  assert((await hook(null)).status === 401, "webhook without secret");
+  assert((await hook("demo-webhook-secret")).ok, "webhook with secret");
+  await tg.getByRole("button", { name: "I've connected it" }).click();
+  await tg.getByText("Connected: alerts reach you on Telegram.").waitFor();
+  await tg.getByRole("button", { name: "Send a test alert" }).click();
+  await tg.getByText("Sent to Telegram.").waitFor();
+  await axe(p);
+  await tg.getByRole("button", { name: "Disconnect Telegram" }).click();
+  await tg.getByRole("button", { name: "Connect Telegram" }).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+await test("stats: the admin funnel counts first-party events (here, the demo's local user)", async () => {
+  const p = await page({ lang: "en" });
+  // A visit is recorded on arrival (once per device and day).
+  const recorded = p.waitForResponse((r) => r.url().endsWith("/api/events") && r.request().method() === "POST");
+  await p.goto(base + "/");
+  await recorded;
+  await p.goto(base + "/stats");
+  await p.getByRole("heading", { name: "How IEP is used" }).waitFor();
+  const funnelBox = p.getByTestId("stats-funnel");
+  await funnelBox.getByText("Came in").waitFor();
+  await funnelBox.getByText("Added what they own").waitFor();
+  await axe(p);
   await p.context().close();
 });
 
@@ -1367,6 +1478,7 @@ await test("live thesis: when the check fails, the home page says so and offers 
 
 await test("calendar: results, SEC deadlines and review dates by week; range, filters and .ics download", async () => {
   const p = await page({ lang: "en", watchlist: ["AAPL", "MSFT"] });
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
   const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
   const filing = (form, reportDate) => ({ accn: `${form}-${reportDate}`, form, filed: reportDate, reportDate, primaryDocument: "a.htm", items: [] });
   const snap = (symbol, f) => ({ symbol, cik: 1, quality: { ok: false, error: "not_found" }, insiders: { ok: false, error: "not_found" }, filings: { ok: true, data: { report: null, annual: null, latest: null, recent: [], nextResults: null, ...f } } });
@@ -1712,7 +1824,7 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     const p = await page({ lang, theme, width: 390, height: 844, touch: true });
     await p.goto(base + "/");
     await axe(p);
-    const box = p.getByRole("combobox");
+    const box = searchBox(p);
     await box.fill("apple");
     await p.getByRole("option").first().waitFor();
     await box.press("Enter");
@@ -1722,7 +1834,10 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
-    await p.getByRole("link", { name: lang === "es" ? "Mi lista" : "Watchlist" }).last().tap();
+    // The list lives under Tools (the bottom bar keeps three places).
+    const tools = lang === "es" ? "Herramientas" : "Tools";
+    await p.getByRole("button", { name: tools }).tap();
+    await p.getByRole("dialog", { name: tools }).getByRole("link", { name: lang === "es" ? /Mi lista/ : /Watchlist/ }).tap();
     await p.waitForURL(/\/watchlist/);
     await p.locator(`a[href="/stock/${symbol}"]`).waitFor();
     await axe(p);
@@ -1751,7 +1866,7 @@ await test("slow network: home shows search and skeletons before quotes arrive",
   await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 400, downloadThroughput: 50_000, uploadThroughput: 20_000 });
   await p.goto(base + "/", { waitUntil: "commit" });
   await p.getByRole("heading", { level: 1 }).waitFor();
-  await p.getByRole("combobox").waitFor();
+  await searchBox(p).waitFor();
   await p.getByText("$").first().waitFor({ timeout: 30_000 });
   await p.context().close();
 });

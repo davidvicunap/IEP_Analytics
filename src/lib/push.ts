@@ -4,7 +4,7 @@
 import type { Lang } from "./format";
 import type { CoreDict } from "./i18n/es";
 import { fill } from "./i18n/fill";
-import type { Signal } from "./thesis";
+import type { Signal, SignalKind } from "./thesis";
 import { alertText } from "./thesisText";
 
 export interface PushSub {
@@ -66,6 +66,17 @@ export function alertMessages(fired: { symbol: string; alerts: Signal[] }[], t: 
       tag: `thesis-${symbol}`,
     };
   });
+}
+
+/** After the close: the holdings and theses we couldn't check today, and with what data. */
+export function uncheckedMessage(list: { symbol: string; kinds: SignalKind[] }[], t: CoreDict): PushMessage[] {
+  if (!list.length) return [];
+  const names = t.thesis.uncheckedNames;
+  const body = list
+    .slice(0, 6)
+    .map((x) => `${x.symbol}: ${[...new Set(x.kinds.map((k) => names[k]))].join(", ")}`)
+    .join(" · ");
+  return [{ title: t.push.msgUncheckedTitle, body: `${body}${list.length > 6 ? " …" : ""}\n${t.push.msgUncheckedNext}`, url: "/research", tag: "unchecked" }];
 }
 
 export function testMessage(t: CoreDict): PushMessage {

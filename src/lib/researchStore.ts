@@ -14,6 +14,8 @@ export interface ResearchStore {
   /** Applies an edit. `conflict`: someone saved a newer version since `baseUpdatedAt`. */
   save(owner: string, symbol: string, input: NoteInput, now?: Date): Promise<{ ok: true; note: ResearchNote } | { ok: false; error: "conflict" }>;
   remove(owner: string, symbol: string): Promise<void>;
+  /** Moves a notebook to a new ticker (a rename): `missing` without one, `conflict` when the new ticker already has one. */
+  rename(owner: string, from: string, to: string): Promise<"ok" | "missing" | "conflict">;
 }
 
 const newId = () => crypto.randomUUID().slice(0, 12);
@@ -94,6 +96,12 @@ export function postgresStore(db: Db): ResearchStore {
     async remove(owner, symbol) {
       await db.delete(researchNotes).where(where(owner, symbol));
     },
+    async rename(owner, from, to) {
+      if (!(await get(owner, from))) return "missing";
+      if (await get(owner, to)) return "conflict";
+      await db.update(researchNotes).set({ symbol: to }).where(where(owner, from));
+      return "ok";
+    },
   };
 }
 
@@ -123,6 +131,14 @@ export function memoryStore(): ResearchStore {
     },
     async remove(owner, symbol) {
       notes.delete(key(owner, symbol));
+    },
+    async rename(owner, from, to) {
+      const n = notes.get(key(owner, from));
+      if (!n) return "missing";
+      if (notes.has(key(owner, to))) return "conflict";
+      notes.delete(key(owner, from));
+      notes.set(key(owner, to), { ...n, symbol: to });
+      return "ok";
     },
   };
 }

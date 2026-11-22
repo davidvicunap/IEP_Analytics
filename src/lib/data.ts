@@ -2,6 +2,7 @@
 import { getDb } from "@/db/client";
 import * as fmp from "./fmp";
 import { quoteFromCloses, saveQuote, storedQuotes } from "./priceStore";
+import { recordSplitIfAny } from "./splitStore";
 import { getSecurity, searchSecurities } from "./securities";
 import * as mock from "./mock";
 import type { Candle, DataIssue, DataSource, Profile, Quote, QuoteEntry, Result, SearchResult } from "./types";
@@ -70,6 +71,9 @@ async function keepQuote(quote: Quote, fetchedAt: string): Promise<void> {
   if (!db || kept.get(quote.symbol) === fetchedAt) return;
   kept.set(quote.symbol, fetchedAt);
   try {
+    // Before the new quote replaces the stored one: a clean fraction of it on an ordinary day is a split.
+    const prev = (await storedQuotes(db, [quote.symbol])).get(quote.symbol);
+    await recordSplitIfAny(db, prev, quote, fetchedAt).catch((e) => console.error(JSON.stringify({ event: "split_check_error", message: e instanceof Error ? e.message : String(e) })));
     await saveQuote(db, quote, fetchedAt);
   } catch (e) {
     kept.delete(quote.symbol);

@@ -86,6 +86,12 @@ describe("position size", () => {
     expect(s.weight).toBeCloseTo(0.276);
   });
 
+  it("in fractions when the broker sells them: a small account still gets a position", () => {
+    // $500 at 1 % risk, a $230 share with an $8 stop: $5 ÷ $8 = 0.625 shares (whole shares: none).
+    expect(positionSize({ account: 500, pct: 0.01, entry: 230, stop: 222, target: null, direction: "up" })!.shares).toBe(0);
+    expect(positionSize({ account: 500, pct: 0.01, entry: 230, stop: 222, target: null, direction: "up", fractions: true })).toMatchObject({ shares: 0.625, risk: 5, cost: 143.75 });
+  });
+
   it("never more than the account can pay for", () => {
     const s = positionSize({ account: 1000, pct: 0.02, entry: 230, stop: 229, target: null, direction: "up" })!;
     expect(s).toMatchObject({ shares: 4, capped: true, risk: 4, reward: null, ratio: null });
@@ -99,9 +105,9 @@ describe("position size", () => {
   });
 
   it("keeps only sensible saved settings", () => {
-    expect(parseRisk({ account: 25_000, pct: 0.02 })).toEqual({ account: 25_000, pct: 0.02 });
-    expect(parseRisk({ account: -5, pct: 0.5 })).toEqual({ account: null, pct: 0.01 });
-    expect(parseRisk("x")).toEqual({ account: null, pct: 0.01 });
+    expect(parseRisk({ account: 25_000, pct: 0.02, currency: "MXN", fractions: false })).toEqual({ account: 25_000, pct: 0.02, currency: "MXN", fractions: false });
+    expect(parseRisk({ account: -5, pct: 0.5, currency: "XYZ" })).toEqual({ account: null, pct: 0.01, currency: "USD", fractions: true });
+    expect(parseRisk("x")).toEqual({ account: null, pct: 0.01, currency: "USD", fractions: true });
   });
 });
 

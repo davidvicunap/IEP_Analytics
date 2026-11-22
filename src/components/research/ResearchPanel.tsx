@@ -8,6 +8,7 @@ import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/r
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { TrashIcon } from "../icons";
 import PushSettings from "../PushSettings";
+import ListingNotice from "./ListingNotice";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
@@ -91,6 +92,8 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
   const R = t.research;
   // A notebook with nothing in it opens on the guided plan, unless this device chose the form.
   const [mode, setMode] = useState<"guided" | "form">(() => {
+    // "Set an exit" from the portfolio opens the guide even on a notebook with text in it.
+    if (!note.closed && new URLSearchParams(window.location.search).get("plan") === "1") return "guided";
     if (isWatched(note) || note.closed || note.thesis || note.bull || note.bear) return "form";
     try {
       return localStorage.getItem(MODE_KEY) === "form" ? "form" : "guided";
@@ -157,6 +160,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
   if (mode === "guided") {
     return (
       <div className="space-y-4">
+        <ListingNotice symbol={symbol} />
         <Suspense fallback={<Skeleton className="h-96 w-full rounded-2xl" />}>
           <DeepI18n>
             <PlanBuilder
@@ -182,6 +186,7 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
 
   return (
     <div className="space-y-4">
+      <ListingNotice symbol={symbol} />
       {planned && (
         <div ref={plannedRef} className="space-y-2">
           <StatusMessage tone="info">{R.planSaved}</StatusMessage>

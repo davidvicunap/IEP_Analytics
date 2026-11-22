@@ -40,6 +40,7 @@ const PAGES = [
   { name: "compare", path: "/compare?s=AAPL,MSFT" },
   { name: "compare-empty", path: "/compare" },
   { name: "calendar", path: "/calendar" },
+  { name: "stats", path: "/stats" }, // the demo's local user is the admin
   { name: "home-new", path: "/", empty: true },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },

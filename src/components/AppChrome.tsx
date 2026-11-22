@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { startSync } from "@/lib/prefsSync";
+import { trackArrival } from "@/lib/track";
 import { useI18n } from "@/lib/i18n";
 import Header from "./Header";
 import Footer from "./Footer";
@@ -16,7 +17,10 @@ export default function AppChrome({ demo, children }: { demo: boolean; children:
   const gate = pathname === "/beta" || pathname.startsWith("/beta/");
   // Lists and settings follow the account once signed in (not on the sign-in page itself).
   useEffect(() => {
-    if (!gate) startSync();
+    if (!gate) {
+      startSync();
+      trackArrival();
+    }
   }, [gate]);
   if (pathname === "/beta" || pathname.startsWith("/beta/")) return <>{children}</>;
   return (

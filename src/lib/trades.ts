@@ -2,6 +2,7 @@
 // first-out into open positions and closed trades, and the scorecard that answers "is my
 // method working?". Pure and tested; storage is tradeStore.ts, the API /api/trades. Long
 // positions only (a sell closes shares bought before; there's no short selling here).
+import { adjustPrice, type Split } from "./splits";
 
 export type Side = "buy" | "sell";
 
@@ -33,7 +34,9 @@ export function parseTradeInput(raw: unknown, today: string): TradeInput | null 
   const tomorrow = new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   if (r.date < "1990-01-01" || r.date > tomorrow) return null;
   const positive = (v: unknown, max: number) => typeof v === "number" && Number.isFinite(v) && v > 0 && v <= max;
-  if (!positive(r.shares, TRADE_LIMITS.shares) || !positive(r.price, TRADE_LIMITS.price)) return null;
+  // A sell at $0 records a total loss (a delisting or a bankruptcy); a buy always has a price.
+  const priceOk = positive(r.price, TRADE_LIMITS.price) || (r.side === "sell" && r.price === 0);
+  if (!positive(r.shares, TRADE_LIMITS.shares) || !priceOk) return null;
   const fees = r.fees === undefined || r.fees === null ? 0 : r.fees;
   if (typeof fees !== "number" || !Number.isFinite(fees) || fees < 0 || fees > TRADE_LIMITS.price) return null;
   const stop = r.stop === undefined || r.stop === null ? null : r.stop;
@@ -89,12 +92,29 @@ const EPS = 1e-9;
 const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 const byTime = (a: Trade, b: Trade) => a.date.localeCompare(b.date) || (a.side === b.side ? a.createdAt.localeCompare(b.createdAt) : a.side === "buy" ? -1 : 1);
 
-/** Matches sells to earlier buys of the same stock, oldest first. Buys on the same day count before sells. */
-export function book(trades: Trade[]): Book {
+/**
+ * Matches sells to earlier buys of the same stock, oldest first. Buys on the same day count before
+ * sells. A split turns the shares held before it into `ratio` times as many at `1/ratio` the price
+ * (stops too), on its date, before that day's trades (which are already at the new prices).
+ */
+export function book(trades: Trade[], splits: Split[] = []): Book {
   const open = new Map<string, Lot[]>();
   const closed: ClosedTrade[] = [];
   const oversold: Book["oversold"] = [];
+  const held = new Set(trades.map((t) => t.symbol));
+  const pending = splits.filter((x) => held.has(x.symbol)).sort((a, b) => a.date.localeCompare(b.date));
+  const split = (until: string, inclusive: boolean) => {
+    while (pending.length && (inclusive ? pending[0].date <= until : pending[0].date < until)) {
+      const x = pending.shift()!;
+      for (const lot of open.get(x.symbol) ?? []) {
+        lot.shares = Math.round(lot.shares * x.ratio * 1e6) / 1e6;
+        lot.price = adjustPrice(lot.price, x.ratio);
+        if (lot.stop !== null) lot.stop = adjustPrice(lot.stop, x.ratio);
+      }
+    }
+  };
   for (const t of [...trades].sort(byTime)) {
+    split(t.date, true);
     const lots = open.get(t.symbol) ?? [];
     open.set(t.symbol, lots);
     if (t.side === "buy") {
@@ -129,6 +149,7 @@ export function book(trades: Trade[]): Book {
     }
     if (left > EPS) oversold.push({ symbol: t.symbol, date: t.date, shares: left });
   }
+  split("9999-12-31", true);
   return { open: [...open.values()].flat(), closed, oversold };
 }
 

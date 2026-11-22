@@ -4,6 +4,7 @@ import { notebookOwner, researchStore } from "@/lib/researchServer";
 import { alertStore } from "@/lib/thesisAlertStore";
 import { checkTheses, factsCache, marketDate } from "@/lib/thesesData";
 import { notifyFired, recordingFires } from "@/lib/thesisNotify";
+import { symbolInfoMap } from "@/lib/symbolsData";
 
 export const maxDuration = 30;
 
@@ -19,7 +20,9 @@ export async function GET() {
     const now = new Date();
     // Alerts that fire now also go to the owner's phones, after the response.
     const { alerts, fired } = recordingFires(store);
-    const data = await checkTheses(owner, await notes.list(owner), alerts, factsCache(marketDate(now)), now);
+    const list = await notes.list(owner);
+    const info = await symbolInfoMap(list.map((n) => n.symbol));
+    const data = await checkTheses(owner, list, alerts, factsCache(marketDate(now)), now, undefined, { info, notes });
     if (fired.size) after(() => notifyFired(fired, { now }));
     return NextResponse.json({ ok: true, data, fetchedAt: now.toISOString() }, { headers });
   } catch (e) {

@@ -221,3 +221,48 @@ export const trades = pgTable(
   },
   (t) => [index("trades_owner_idx").on(t.owner, t.symbol, t.date)],
 );
+
+/** Stock splits detected from consecutive quotes (see lib/splits.ts): one row per split. */
+export const splits = pgTable(
+  "splits",
+  {
+    symbol: text("symbol").notNull(),
+    date: text("date").notNull(), // first market day at the new prices
+    ratio: doublePrecision("ratio").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.symbol, t.date] })],
+);
+
+/** Telegram chats that receive a beta label's alerts (linked with a one-time code, see lib/telegram.ts). */
+export const telegramChats = pgTable(
+  "telegram_chats",
+  {
+    chatId: text("chat_id").primaryKey(),
+    owner: text("owner").notNull(),
+    lang: text("lang").notNull().default("es"),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("telegram_chats_owner_idx").on(t.owner)],
+);
+
+/** One-time codes behind the "Connect Telegram" link: valid for a few minutes, used once. */
+export const telegramCodes = pgTable("telegram_codes", {
+  code: text("code").primaryKey(),
+  owner: text("owner").notNull(),
+  lang: text("lang").notNull().default("es"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+/** First-party product events (what people do, never what they hold), for the admin funnel. */
+export const events = pgTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    props: jsonb("props").notNull().default({}),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("events_at_idx").on(t.at), index("events_owner_idx").on(t.owner, t.name)],
+);

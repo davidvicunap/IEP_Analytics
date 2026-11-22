@@ -6,6 +6,7 @@ import { notebookOwner, researchStore, sameOrigin } from "@/lib/researchServer";
 import { alertStore } from "@/lib/thesisAlertStore";
 import { checkThesis, factsCache, marketDate } from "@/lib/thesesData";
 import { notifyFired, recordingFires } from "@/lib/thesisNotify";
+import { symbolInfoMap } from "@/lib/symbolsData";
 
 export const maxDuration = 30;
 const HISTORY = 50;
@@ -26,7 +27,8 @@ export async function GET(_request: Request, ctx: Ctx) {
     const now = new Date();
     const note = (await notes.get(owner, symbol)) ?? emptyNote(symbol);
     const { alerts, fired } = recordingFires(store);
-    const view = await checkThesis(owner, note, alerts, factsCache(marketDate(now)), now);
+    const info = (await symbolInfoMap([symbol])).get(symbol);
+    const view = await checkThesis(owner, note, alerts, factsCache(marketDate(now)), now, { splits: info?.splits, listing: info?.listing, notes });
     if (fired.size) after(() => notifyFired(fired, { now }));
     const history = await alerts.history(owner, symbol, HISTORY);
     return NextResponse.json({ ok: true, data: { ...view, history }, fetchedAt: now.toISOString() }, { headers });

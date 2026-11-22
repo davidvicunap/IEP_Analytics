@@ -316,6 +316,16 @@ export function fmpTreasury10y(): Promise<Result<Rate>> {
   });
 }
 
+/** Units of `currency` per US dollar (FMP forex quote, e.g. USDMXN), cached like other rates. */
+export function fmpFxRate(currency: string): Promise<Result<{ perUsd: number }>> {
+  return attempt("quote-fx", async () => {
+    const { rows, fetchedAt } = await get("quote", { symbol: `USD${currency}` }, TTL.rates);
+    const price = num(rows[0]?.price);
+    if (!price || price <= 0) throw new ProviderError("not_found");
+    return { data: { perUsd: price }, fetchedAt };
+  });
+}
+
 /** Total equity risk premium for the United States (mature-market premium + country risk). */
 export function fmpEquityRiskPremium(): Promise<Result<Rate>> {
   return attempt("market-risk-premium", async () => {
