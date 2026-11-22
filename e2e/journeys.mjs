@@ -114,14 +114,14 @@ await test("search: failure is distinct from no results, and Enter retries", asy
   await p.goto(base + "/");
   const box = searchBox(p);
   await box.fill("coca cola"); // not ticker-shaped, so Enter can't fall back to opening a ticker
-  await p.locator(".shadow-xl").getByText("La búsqueda no está disponible en este momento.").waitFor();
+  await p.getByTestId("search-popup").getByText("La búsqueda no está disponible en este momento.").waitFor();
   fail = false;
   await box.press("Enter");
   await p.getByRole("option", { name: /Coca-Cola/ }).waitFor();
   await p.unroute(/\/api\/search/);
   await p.route(/\/api\/search/, (r) => r.fulfill(json([])));
   await box.fill("qqqzzz");
-  await p.locator(".shadow-xl").getByText("No encontramos «qqqzzz».").waitFor();
+  await p.getByTestId("search-popup").getByText("No encontramos «qqqzzz».").waitFor();
   await p.context().close();
 });
 

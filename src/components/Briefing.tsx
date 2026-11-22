@@ -164,6 +164,7 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
         </Section>
       </div>
 
+      <div className="space-y-2.5 rounded-2xl border border-line bg-panel-2/70 px-4 py-3.5 sm:px-5">
       {quiet.length > 0 && (
         <p className="text-sm text-muted" data-testid="brief-quiet">
           {fill(B.quiet, { list: quiet.map((q) => q.charAt(0).toLowerCase() + q.slice(1)).join(" · ") })}{" "}
@@ -182,6 +183,7 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
         </StatusMessage>
       )}
       <p className="text-xs text-muted">{B.source}</p>
+      </div>
     </section>
   );
 }

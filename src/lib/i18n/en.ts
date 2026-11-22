@@ -8,6 +8,7 @@ const en: CoreDict = {
     methodology: "How we calculate every number",
     disclaimer: "For educational purposes only. Not financial advice.",
     demo: "Demo mode: simulated data. Add FMP_API_KEY for real data.",
+    demoShort: "Demo mode: simulated data.",
     lang: "Language",
     switchLang: "switch language to Spanish",
     theme: "Theme",

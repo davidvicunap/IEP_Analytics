@@ -168,10 +168,12 @@ export function DirectionGlyph({ up, className = "" }: { up: boolean; className?
 
 /** The app mark, shared by the header and the beta gate. */
 export function LogoMark({ size = 26 }: { size?: number }) {
+  // Fixed brand colours (not theme tokens): the mark looks the same on light and dark.
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="shrink-0">
-      <rect width="64" height="64" rx="14" className="fill-panel-2" />
-      <path d="M12 44 L26 30 L35 38 L52 18" stroke="var(--accent)" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="64" height="64" rx="16" fill="#4338ca" />
+      <path d="M14 43 L26 31 L35 38 L49 22" stroke="#ffffff" strokeWidth="5.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="49" cy="22" r="5" fill="#a5b4fc" />
     </svg>
   );
 }

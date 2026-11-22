@@ -52,9 +52,10 @@ export default function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`relative flex flex-col items-center justify-center h-14 text-[11px] gap-1 ${active ? "text-fg font-medium" : "text-muted"}`}
+                className={`relative flex flex-col items-center justify-center h-14 text-[11px] gap-1 ${active ? "text-accent font-semibold" : "text-muted"}`}
               >
-                <Icon size={22} className={active ? "text-accent" : ""} />
+                {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent" aria-hidden="true" />}
+                <Icon size={22} />
                 {label}
               </Link>
             </li>
@@ -64,12 +65,10 @@ export default function BottomNav() {
               type="button"
               aria-expanded={exploring}
               onClick={() => setExploring((v) => !v)}
-              className={`relative flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] ${exploreActive ? "text-fg font-medium" : "text-muted"}`}
+              className={`relative flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] ${exploreActive ? "text-accent font-semibold" : "text-muted"}`}
             >
-              <GridIcon
-                size={22}
-                className={exploreActive ? "text-accent" : ""}
-              />
+              {exploreActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-accent" aria-hidden="true" />}
+              <GridIcon size={22} />
               {t.nav.explore}
             </button>
           </li>

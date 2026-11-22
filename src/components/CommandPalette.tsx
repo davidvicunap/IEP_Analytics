@@ -130,7 +130,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-[12vh] sm:pt-[15vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-panel shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-panel shadow-pop">
         <h2 id={`${id}-title`} className="sr-only">
           {P.title}
         </h2>

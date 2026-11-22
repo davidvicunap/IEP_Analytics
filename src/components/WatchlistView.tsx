@@ -244,7 +244,7 @@ function ColumnsMenu({ columns, onToggle }: { columns: Column[]; onToggle: (c: C
         {W.columns}
       </summary>
       {open && (
-        <div className="mt-1 rounded-2xl border border-line bg-panel p-2 shadow-lg sm:absolute sm:right-0 sm:z-20 sm:w-80">
+        <div className="mt-1 rounded-2xl border border-line bg-panel p-2 shadow-pop sm:absolute sm:right-0 sm:z-20 sm:w-80">
           {COLUMNS.map((c) => (
             <label key={c} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-panel-2">
               <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]" checked={columns.includes(c)} onChange={() => onToggle(c)} />

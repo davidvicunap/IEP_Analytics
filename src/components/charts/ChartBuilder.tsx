@@ -380,7 +380,7 @@ function SaveToPack({ config }: { config: Config }) {
         <span className="sr-only sm:hidden">{P.save}</span>
       </summary>
       {open && (
-        <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-2 shadow-xl">
+        <div className="absolute right-0 z-30 mt-1 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-line bg-panel p-2 shadow-pop">
           {packs.mine.map((p) => (
             <button
               key={p.id}
@@ -516,7 +516,7 @@ function MetricPicker({ config, onChange }: { config: Config; onChange: (m: Char
         <ChevronDownIcon size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div id="metric-list" className="absolute left-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] max-h-[60vh] overflow-auto rounded-2xl border border-line bg-panel p-2 shadow-xl">
+        <div id="metric-list" className="absolute left-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] max-h-[60vh] overflow-auto rounded-2xl border border-line bg-panel p-2 shadow-pop">
           {GROUPS.map((g) => {
             const items = METRICS.filter((m) => m.group === g);
             return (

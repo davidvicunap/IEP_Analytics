@@ -28,7 +28,7 @@ export function Panel({
   id?: string;
 }) {
   return (
-    <section id={id} className={`rounded-2xl border border-line bg-panel p-5 sm:p-6 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
+    <section id={id} className={`rounded-2xl border border-line bg-panel p-5 shadow-card sm:p-6 ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
       {title && (
         <div className="mb-5">
           <div className="flex items-center justify-between gap-3 min-h-6">
@@ -49,8 +49,8 @@ export function Panel({
 
 type Variant = "primary" | "secondary" | "ghost";
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-accent text-accent-fg border-accent hover:brightness-110",
-  secondary: "bg-panel text-fg border-line hover:border-line-strong hover:bg-panel-2",
+  primary: "bg-accent text-accent-fg border-accent shadow-card hover:bg-accent-hover hover:border-accent-hover",
+  secondary: "bg-panel text-fg border-line-strong/70 shadow-card hover:border-line-strong hover:bg-panel-2",
   ghost: "bg-transparent text-fg border-transparent hover:bg-panel-2",
 };
 
@@ -425,7 +425,7 @@ function ToastView({ item, closeLabel }: { item: ToastItem; closeLabel: string }
   }, [item, paused]);
   return (
     <div
-      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-2 shadow-lg"
+      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-2 shadow-pop"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

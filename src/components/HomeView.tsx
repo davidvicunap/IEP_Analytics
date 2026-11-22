@@ -24,14 +24,9 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
   const { list } = useWatchlist();
   const hydrated = useHydrated();
   const marketsSection = (
-    <section aria-labelledby="markets-title">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="markets-title" className="section-title">
-          {t.home.markets}
-        </h2>
-      </div>
+    <Panel title={t.home.markets} id="markets" className="min-w-0">
       {markets}
-    </section>
+    </Panel>
   );
 
   if (hydrated && list.length > 0) {
@@ -48,10 +43,12 @@ export default function HomeView({ markets, popular }: { markets: React.ReactNod
           portfolio={<Portfolio />}
         />
         <GettingStarted />
-        {marketsSection}
         {/* Tools (screener, charts, compare…) live under "Tools"; home stays about what you own and follow. */}
-        <div className="lg:max-w-xl">
-          <MiniWatchlist />
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
+          <div className="min-w-0 lg:col-span-2">{marketsSection}</div>
+          <div className="min-w-0">
+            <MiniWatchlist />
+          </div>
         </div>
       </div>
     );
