@@ -28,7 +28,10 @@ self.addEventListener("notificationclick", (event) => {
   let url = new URL("/", self.location.origin).href;
   try {
     const u = new URL(event.notification.data && event.notification.data.url ? event.notification.data.url : "/", self.location.origin);
-    if (u.origin === self.location.origin) url = u.href;
+    if (u.origin === self.location.origin) {
+      u.searchParams.set("src", "alert"); // counted as "opened from an alert", then removed from the address
+      url = u.href;
+    }
   } catch {
     /* keep the home page */
   }

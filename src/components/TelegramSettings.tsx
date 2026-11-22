@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import type { TelegramStatus } from "@/app/api/telegram/route";
 import { useI18n } from "@/lib/i18n";
+import { markStep } from "@/lib/onboarding";
 import { toViewResult, type ViewIssue } from "@/lib/resource";
 import { useResource } from "@/lib/useResource";
 import { IssueNote, Skeleton, StatusMessage, buttonClass } from "./ui";
@@ -39,6 +40,7 @@ export default function TelegramSettings() {
     return () => clearInterval(id);
   }, [waiting, retry]);
   useEffect(() => {
+    if (status?.linked) markStep("alerts");
     if (status?.linked && step.kind === "open") setStep({ kind: "idle" });
   }, [status?.linked, step.kind]);
 

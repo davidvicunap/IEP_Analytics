@@ -14,10 +14,11 @@ const en: CoreDict = {
     themeDark: "Dark",
     themeLight: "Light",
   },
-  nav: { home: "Home", watchlist: "Watchlist", search: "Search", charts: "Charts", research: "Research", screener: "Screener", explore: "Explore" },
+  nav: { home: "My portfolio", watchlist: "Watchlist", search: "Search", charts: "Charts", research: "Research", screener: "Screener", explore: "Tools" },
   explore: {
-    title: "Explore",
+    title: "Tools",
     items: {
+      watchlist: { name: "Watchlist", desc: "The companies you follow, with your columns and tags." },
       screener: { name: "Screener", desc: "Filter thousands of companies by quality, growth or debt." },
       compare: { name: "Compare", desc: "Up to four companies side by side." },
       calendar: { name: "Calendar", desc: "Results, deadlines and your review dates." },
@@ -518,10 +519,10 @@ const en: CoreDict = {
     done: "All set! You know the essentials.",
     stepDone: "Done",
     steps: {
-      follow: { title: "Follow a stock", desc: "Tap \"Follow\" on any stock: its news shows up here and in your Watchlist.", action: "Find ideas" },
-      thesis: { title: "Write your thesis and plan", desc: "In a stock's \"My research\": why it interests you and at what prices you want an alert.", action: "Write my thesis" },
-      compare: { title: "Compare two companies", desc: "Quality, growth, margins and valuation, side by side.", action: "Compare" },
-      palette: { title: "Try the commands", desc: "Ctrl+K (⌘K on a Mac) takes you anywhere: \"AAPL valuation\", \"follow KO\"… On a phone: Explore → Commands.", action: "Open commands" },
+      position: { title: "Add what you own", desc: "A position by hand or your broker's file: each one gets a light and its reason.", action: "Add a position" },
+      exit: { title: "Set an exit", desc: "The price at which your idea stops holding, and how much that would cost you. Three short steps.", action: "Set an exit" },
+      alerts: { title: "Choose where we alert you", desc: "Telegram or this device's notifications: alerts arrive even with the app closed.", action: "Choose" },
+      follow: { title: "Follow a company you like", desc: "Tap \"Follow\" on any stock: its news shows up on your home page.", action: "Find ideas" },
     },
   },
   calendar: {

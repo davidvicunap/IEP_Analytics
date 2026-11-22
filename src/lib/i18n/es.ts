@@ -14,10 +14,11 @@ const es = {
     themeDark: "Oscuro",
     themeLight: "Claro",
   },
-  nav: { home: "Inicio", watchlist: "Mi lista", search: "Buscar", charts: "Gráficos", research: "Mi análisis", screener: "Buscador", explore: "Explorar" },
+  nav: { home: "Mi cartera", watchlist: "Mi lista", search: "Buscar", charts: "Gráficos", research: "Mi análisis", screener: "Buscador", explore: "Herramientas" },
   explore: {
-    title: "Explorar",
+    title: "Herramientas",
     items: {
+      watchlist: { name: "Mi lista", desc: "Las empresas que sigues, con tus columnas y etiquetas." },
       screener: { name: "Buscador", desc: "Filtra miles de empresas por calidad, crecimiento o deuda." },
       compare: { name: "Comparar", desc: "Hasta cuatro empresas lado a lado." },
       calendar: { name: "Calendario", desc: "Resultados, plazos y tus fechas de revisión." },
@@ -518,10 +519,10 @@ const es = {
     done: "¡Listo! Ya conoces lo esencial.",
     stepDone: "Hecho",
     steps: {
-      follow: { title: "Sigue una acción", desc: "Toca «Seguir» en cualquier acción: verás sus novedades aquí y en Mi lista.", action: "Buscar ideas" },
-      thesis: { title: "Escribe tu tesis y tu plan", desc: "En «Mi análisis» de una acción: por qué te interesa y a qué precios quieres que te avisemos.", action: "Escribir mi tesis" },
-      compare: { title: "Compara dos empresas", desc: "Calidad, crecimiento, márgenes y valoración, lado a lado.", action: "Comparar" },
-      palette: { title: "Prueba los comandos", desc: "Ctrl+K (⌘K en Mac) te lleva a cualquier sitio: «AAPL valoración», «seguir KO»… En el móvil: Explorar → Comandos.", action: "Abrir comandos" },
+      position: { title: "Añade lo que tienes", desc: "Una posición a mano o el archivo de tu bróker: cada una tendrá una luz y su motivo.", action: "Añadir una posición" },
+      exit: { title: "Ponle una salida", desc: "El precio en el que tu idea deja de cumplirse y cuánto te costaría. Tres pasos cortos.", action: "Ponle una salida" },
+      alerts: { title: "Elige dónde te avisamos", desc: "Telegram o las notificaciones de este dispositivo: los avisos llegan aunque no tengas la app abierta.", action: "Elegir" },
+      follow: { title: "Sigue una empresa que te interese", desc: "Toca «Seguir» en cualquier acción: verás sus novedades en tu inicio.", action: "Buscar ideas" },
     },
   },
   calendar: {

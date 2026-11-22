@@ -33,9 +33,10 @@ npm run e2e                                # browser journeys (see e2e/README.md
   - A failure is shown as such, never filled with made-up or demo data.
   - Demo data is never mixed with real data.
 - **Research notebooks, trades, phone-alert devices and account settings** (watchlist, tags, columns, chart packs, saved screens, risk; `lib/prefs.ts`) belong to the beta invite's label (`david:IEP-…` → `david`): renaming a label in `BETA_INVITE_CODES` starts that person empty. In demo mode without a database they live in memory.
-- **Secrets:** they stay server-side, in env vars. The Web Push key pair comes from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` or is created once in the database. The beta gate (`src/proxy.ts`) guards licensed data; only `/api/sec/*` (public domain) and health are open.
+- **Secrets:** they stay server-side, in env vars. The Web Push key pair comes from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` or is created once in the database. Telegram alerts need `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (off otherwise); `/stats` shows to labels in `ADMIN_LABELS`. Demo mode reads `DEMO_SPLITS`, `DEMO_LISTINGS` and `DEMO_TELEGRAM` (a pretend bot) for browser checks. The beta gate (`src/proxy.ts`) guards licensed data; only `/api/sec/*` (public domain), health, cron and the Telegram webhook (it checks Telegram's secret) are open.
 - **UI:**
   - Use the tokens in `globals.css` and the primitives in `components/ui.tsx`.
   - Amber accent for actions and selection only; charts use `--series-*`.
   - Touch targets of 44 px on phones; no horizontal scroll from 320 px.
+- **Measurement:** product events are first-party and anonymous in content (`lib/funnel.ts`): add a name there before tracking it, never tickers or amounts.
 - **Educational, not advice:** no buy/sell language.

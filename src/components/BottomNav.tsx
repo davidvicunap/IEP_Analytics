@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { ExploreSheet, isExplorePath } from "./ExploreMenu";
-import { GridIcon, HomeIcon, NotebookIcon, StarIcon } from "./icons";
+import { GridIcon, HomeIcon, NotebookIcon } from "./icons";
 
 /** Phone navigation. Hidden while a text field has focus, so it never rides on the keyboard. */
 export default function BottomNav() {
@@ -31,12 +31,6 @@ export default function BottomNav() {
   const items = [
     { href: "/", label: t.nav.home, Icon: HomeIcon, active: path === "/" },
     {
-      href: "/watchlist",
-      label: t.nav.watchlist,
-      Icon: StarIcon,
-      active: path.startsWith("/watchlist"),
-    },
-    {
       href: "/research",
       label: t.nav.research,
       Icon: NotebookIcon,
@@ -52,7 +46,7 @@ export default function BottomNav() {
         aria-label={t.ux.mainNav}
         className={`md:hidden fixed bottom-0 inset-x-0 z-30 bg-panel/90 backdrop-blur-md border-t border-line pb-[env(safe-area-inset-bottom)] ${typing ? "hidden" : ""}`}
       >
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-3">
           {items.map(({ href, label, Icon, active }) => (
             <li key={href}>
               <Link

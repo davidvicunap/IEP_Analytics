@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseUpdate } from "@/lib/telegram";
 import { botApi, telegramConfig, telegramStore } from "@/lib/telegramServer";
 import { dictFor } from "@/lib/pushServer";
+import { recordEvent } from "@/lib/eventStore";
 
 /**
  * Telegram calls this for every message to the bot (open past the beta gate: Telegram has no
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       if (!taken) await reply(t.telegram.botExpired);
       else {
         await store.link(update.chatId, taken.owner, taken.lang, now);
+        await recordEvent(taken.owner, "alerts_telegram_on", {}, now);
         await reply(t.telegram.botLinked);
       }
     } else if (update.command.kind === "stop") {

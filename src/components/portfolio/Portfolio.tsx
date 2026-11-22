@@ -87,7 +87,7 @@ export default function Portfolio() {
     ) : null;
 
   return (
-    <Panel title={P.title} id="portfolio" action={<CurrencyPicker />}>
+    <Panel title={P.title} id="portfolio" action={open.length ? <CurrencyPicker /> : undefined}>
       <div className="space-y-4">
         {state.status === "error" ? (
           <IssueNote issue={state.issue} onRetry={retry} />
@@ -199,7 +199,7 @@ function Holdings({ open, info }: { open: ReturnType<typeof positions>; info: Re
             <li key={p.symbol} className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-start sm:gap-4" data-testid={`holding-${p.symbol}`}>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/stock/${encodeURIComponent(p.symbol)}`} prefetch={false} className="inline-flex min-h-11 items-center font-semibold hover:underline sm:min-h-0">
+                  <Link href={`/stock/${encodeURIComponent(p.symbol)}`} prefetch={false} className="inline-flex min-h-11 min-w-11 items-center font-semibold hover:underline sm:min-h-0 sm:min-w-0">
                     {p.symbol}
                   </Link>
                   <Badge tone={TONE[light]}>{P.light[light]}</Badge>

@@ -132,7 +132,7 @@ function Score({ closed }: { closed: ClosedTrade[] }) {
     { k: T.score.closed, v: String(s.closed) },
     { k: T.score.winRate, v: s.winRate === null ? dash : `${fmtNum(s.winRate * 100, lang, 0)}%`, note: fill(T.winRateNote, { w: s.wins, n: s.closed }) },
     { k: T.score.avgReturn, v: s.avgReturn === null ? dash : signedPct(s.avgReturn, lang), note: fill(T.avgSplit, { w: s.avgWin === null ? dash : signedPct(s.avgWin, lang), l: s.avgLoss === null ? dash : signedPct(s.avgLoss, lang) }) },
-    { k: T.score.avgR, v: s.avgR === null ? dash : `${s.avgR > 0 ? "+" : s.avgR < 0 ? "−" : ""}${fmtNum(Math.abs(s.avgR), lang, 2)} R`, note: s.withStop ? fill(T.rNote, { n: s.withStop }) : T.rNone },
+    { k: T.score.avgR, v: s.avgR === null ? dash : fill(T.perDollar, { v: `${s.avgR > 0 ? "+" : s.avgR < 0 ? "−" : ""}US$ ${fmtNum(Math.abs(s.avgR), lang, 2)}` }), note: s.withStop ? fill(T.rNote, { n: s.withStop }) : T.rNone },
     { k: T.score.stops, v: s.withStop ? fill(T.stopsValue, { k: s.withStop - s.pastStop, n: s.withStop }) : dash, note: T.stopsNote },
     { k: T.score.days, v: s.avgDays === null ? dash : fmtNum(s.avgDays, lang, 0) },
     { k: T.score.realized, v: signedMoney(s.realized, lang) },

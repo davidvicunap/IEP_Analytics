@@ -253,3 +253,16 @@ export const telegramCodes = pgTable("telegram_codes", {
   lang: text("lang").notNull().default("es"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+/** First-party product events (what people do, never what they hold), for the admin funnel. */
+export const events = pgTable(
+  "events",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    props: jsonb("props").notNull().default({}),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("events_at_idx").on(t.at), index("events_owner_idx").on(t.owner, t.name)],
+);

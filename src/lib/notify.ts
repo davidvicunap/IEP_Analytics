@@ -1,6 +1,7 @@
 // Where alerts go: every phone/browser with push turned on and every linked Telegram chat of the
 // beta label, each in its own language. A channel that isn't set up is skipped; failures are
 // counted and logged, never thrown into the check that raised the alert.
+import { recordEvent } from "./eventStore";
 import type { Lang } from "./format";
 import type { CoreDict } from "./i18n/es";
 import type { PushMessage } from "./push";
@@ -26,6 +27,7 @@ export async function deliver(owner: string, build: (t: CoreDict, lang: Lang) =>
     channels.push ? sendToOwner(owner, build, { store: channels.push, sender: channels.sender, now }).catch((e) => fail("push", e)) : EMPTY,
     channels.telegram ? sendTelegram(owner, build, channels.telegram).catch((e) => fail("telegram", e)) : EMPTY,
   ]);
+  for (const [channel, r] of [["push", push], ["telegram", telegram]] as const) if (r.sent > 0) await recordEvent(owner, "alert_sent", { channel, n: r.sent }, now);
   return { push, telegram };
 }
 

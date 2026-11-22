@@ -14,6 +14,7 @@ import { RISK_PCTS, addLines, positionSize, reasonsFrom, removeLines, reviewOpti
 import type { ResearchNote } from "@/lib/research";
 import { saveNote, type SaveIssue } from "@/lib/researchClient";
 import { riskStore, useRisk } from "@/lib/riskClient";
+import { track } from "@/lib/track";
 import type { Direction } from "@/lib/thesis";
 import type { Candle, Result } from "@/lib/types";
 import { useResource } from "@/lib/useResource";
@@ -22,7 +23,7 @@ import type { VerdictPoint } from "@/lib/verdict";
 import type { VerdictPayload } from "@/lib/verdictData";
 import { Mark, verdictEvidence } from "../AtAGlance";
 import { CheckIcon } from "../icons";
-import { IssueNote, Panel, Segmented, Skeleton, StatusMessage, buttonClass } from "../ui";
+import { Explain, IssueNote, Panel, Segmented, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 import MoneySettings from "../portfolio/MoneySettings";
 import { PlanPreview } from "./Thesis";
@@ -103,6 +104,7 @@ export default function PlanBuilder({
     const r = await saveNote(symbol, { ...draft, fairValueSource: "manual", price, baseUpdatedAt: note.updatedAt });
     if (r.ok) {
       setStatus({ kind: "idle" });
+      if (watchable) track("plan_saved");
       onSaved();
     } else setStatus({ kind: "error", issue: r.error });
   };
@@ -309,6 +311,7 @@ function LevelsStep({ symbol, draft, set, price, history }: { symbol: string; dr
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted">{P.levelsIntro}</p>
+      <Explain className="-mt-4">{P.levelsHow}</Explain>
       <div className="flex flex-wrap items-end gap-3">
         <NumberField label={R.entry} value={draft.entry} onChange={set("entry")} suffix="$" className="w-40" />
         {price !== null && draft.entry !== cents(price) && (

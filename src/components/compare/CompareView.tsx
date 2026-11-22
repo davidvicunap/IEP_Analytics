@@ -62,7 +62,6 @@ export default function CompareView() {
   const suggestion = (watch.list.length >= 2 ? watch.list : ["AAPL", "MSFT", "GOOGL"]).slice(0, 3);
   const comparing = symbols.length >= 2;
   useEffect(() => {
-    if (comparing) markStep("compare");
   }, [comparing]);
 
   return (

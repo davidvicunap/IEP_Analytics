@@ -8,6 +8,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate, fmtNum } from "@/lib/format";
 import { fmtMoney } from "@/lib/money";
 import { parseBrokerCsv, type CsvResult, type DateOrder } from "@/lib/brokerCsv";
+import { track } from "@/lib/track";
 import { importTrades } from "@/lib/tradesClient";
 import { useWatchlist } from "@/lib/watchlist";
 import { StatusMessage, buttonClass } from "../ui";
@@ -50,6 +51,7 @@ export default function ImportTrades({ onDone, onCancel }: { onDone: (n: number)
       return setStatus({ kind: "error", text });
     }
     for (const s of new Set(ok.map((x) => x.symbol))) add(s);
+    track("import_done", { n: r.data.imported });
     onDone(r.data.imported);
   };
   const other = (o: DateOrder): DateOrder => (o === "dmy" ? "mdy" : "dmy");

@@ -5,6 +5,7 @@
 import { useId, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtPrice } from "@/lib/format";
+import { track } from "@/lib/track";
 import { addTrade } from "@/lib/tradesClient";
 import { useQuotes } from "@/lib/useQuotes";
 import { useWatchlist } from "@/lib/watchlist";
@@ -38,6 +39,7 @@ export default function AddPosition({ onDone, onCancel }: { onDone: (symbol: str
     const r = await addTrade(symbol, { side: "buy", date, shares, price, fees: 0, stop: null, note: "" });
     if (!r.ok) return setStatus({ kind: "error", text: r.error === "invalid" ? T.invalid : r.error === "beta_expired" ? t.data.betaExpired : T.failed });
     add(symbol); // you follow what you own
+    track("position_added");
     onDone(symbol);
   };
 
