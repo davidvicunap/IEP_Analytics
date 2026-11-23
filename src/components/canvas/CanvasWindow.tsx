@@ -112,6 +112,9 @@ function CanvasWindow({
   };
 
   const symbolLabel = w.kind === "note" ? null : w.symbol;
+  // The title bar keeps its size on screen whatever the canvas zoom (within 0.5×–2×), so its
+  // buttons stay easy to hit; the content zooms with the canvas.
+  const chrome = Math.min(2, Math.max(0.5, 1 / zoom));
   return (
     <section
       data-window={w.id}
@@ -121,6 +124,7 @@ function CanvasWindow({
       style={{ left: r.x, top: r.y, width: r.w, height: r.h, zIndex: maximized ? 100_000 : w.z }}
     >
       <div
+        style={{ zoom: chrome }}
         className="flex min-h-11 shrink-0 cursor-grab touch-none select-none items-center gap-0.5 border-b border-line px-1 active:cursor-grabbing sm:min-h-9"
         onPointerDown={(e) => begin(e, "move")}
         onPointerMove={moveTo}
