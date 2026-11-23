@@ -8,7 +8,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         <main style={{ maxWidth: 420, margin: "15vh auto", padding: 16, textAlign: "center" }}>
           <h1 style={{ fontSize: 20 }}>Algo salió mal · Something went wrong</h1>
           <p style={{ color: "#a3a098", fontSize: 14 }}>
-            No pudimos cargar IEP Analytics. · We couldn&apos;t load IEP Analytics.
+            No pudimos cargar Investment Edge Platform. · We couldn&apos;t load Investment Edge Platform.
           </p>
           {error.digest && <p style={{ color: "#a3a098", fontSize: 11 }}>ref: {error.digest}</p>}
           <button

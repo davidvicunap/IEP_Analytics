@@ -1,4 +1,4 @@
-# Working on IEP Analytics
+# Working on Investment Edge Platform (IEP)
 
 US stock analysis in plain language (ES/EN). Next.js 16 App Router on Vercel, React 19, TypeScript strict, Tailwind 4. Product plan: `PRODUCT_PLAN.md`.
 

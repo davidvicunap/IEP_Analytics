@@ -643,7 +643,7 @@ async function svgToPng(
 <text x="${pad}" y="47" font-size="12" fill="${o.colors.muted}">${esc(o.subtitle)}</text>
 ${legend}
 <g transform="translate(${pad},${head})">${inner}</g>
-<text x="${pad}" y="${H - 10}" font-size="11" fill="${o.colors.muted}">${esc(o.source)} · IEP Analytics</text>
+<text x="${pad}" y="${H - 10}" font-size="11" fill="${o.colors.muted}">${esc(o.source)} · Investment Edge Platform (IEP)</text>
 </svg>`;
   const img = new Image();
   const url = URL.createObjectURL(new Blob([doc], { type: "image/svg+xml;charset=utf-8" }));

@@ -66,7 +66,7 @@ export default function BetaGate({ next }: { next: string }) {
           <div className="flex items-center gap-2 font-semibold tracking-tight text-lg">
             <LogoMark size={28} />
             <span>
-              IEP <span className="font-normal text-muted">Analytics</span>
+              IEP <span className="font-normal text-muted">Investment Edge Platform</span>
             </span>
           </div>
           <h1 className="mt-6 text-2xl font-semibold tracking-[-0.02em]">{t.beta.title}</h1>

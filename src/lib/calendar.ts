@@ -79,7 +79,7 @@ export function byWeek(events: CalEvent[]): { monday: string; events: CalEvent[]
 export function toIcs(events: CalEvent[], title: (e: CalEvent) => string, now = new Date()): string {
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//IEP Analytics//Calendar//ES", "CALSCALE:GREGORIAN"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Investment Edge Platform//Calendar//ES", "CALSCALE:GREGORIAN"];
   for (const e of events) {
     const d = e.date.replace(/-/g, "");
     lines.push(

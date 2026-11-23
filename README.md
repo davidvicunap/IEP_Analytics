@@ -1,4 +1,4 @@
-# IEP Analytics
+# Investment Edge Platform (IEP)
 
 Un "Bloomberg Terminal para dummies": análisis de acciones de EE.UU. explicado en lenguaje simple, optimizado para móvil, tablet y desktop. Interfaz en español e inglés.
 

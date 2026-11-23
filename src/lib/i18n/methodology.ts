@@ -18,7 +18,7 @@ export interface MethodologyText {
 const es: MethodologyText = {
   title: "Metodología",
   intro:
-    "De dónde sale cada número de IEP Analytics y cómo se calcula. La regla general: cada cifra muestra su fuente y su fecha, un fallo se muestra como fallo (nunca se rellena con datos inventados) y los datos de demostración nunca se mezclan con los reales. Es una herramienta educativa: describe, no recomienda comprar ni vender.",
+    "De dónde sale cada número de Investment Edge Platform (IEP) y cómo se calcula. La regla general: cada cifra muestra su fuente y su fecha, un fallo se muestra como fallo (nunca se rellena con datos inventados) y los datos de demostración nunca se mezclan con los reales. Es una herramienta educativa: describe, no recomienda comprar ni vender.",
   contents: "Contenido",
   updated: "Refleja el funcionamiento de la app a noviembre de 2026.",
   sections: [
@@ -206,7 +206,7 @@ const es: MethodologyText = {
 const en: MethodologyText = {
   title: "Methodology",
   intro:
-    "Where every number in IEP Analytics comes from and how it's calculated. The general rule: every figure shows its source and time, a failure is shown as a failure (never filled with made-up data) and demo data is never mixed with real data. It's an educational tool: it describes, it doesn't recommend buying or selling.",
+    "Where every number in Investment Edge Platform (IEP) comes from and how it's calculated. The general rule: every figure shows its source and time, a failure is shown as a failure (never filled with made-up data) and demo data is never mixed with real data. It's an educational tool: it describes, it doesn't recommend buying or selling.",
   contents: "Contents",
   updated: "Describes how the app works as of November 2026.",
   sections: [
