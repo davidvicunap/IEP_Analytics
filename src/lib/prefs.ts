@@ -2,18 +2,21 @@
 // value is validated (the server never stores anything the app couldn't read back), and how a
 // device's own settings merge with the account's the first time that device syncs, so nothing
 // you saved before is lost. Pure: storage is prefsStore.ts, the browser side prefsSync.ts.
+import { mergeCanvases, parseCanvases } from "./canvas";
 import { MAX_PACKS, parsePacks, type Pack } from "./chartPacks";
 import { parseRisk } from "./planBuilder";
 import { parseColumns, parseTags, toggleTag, type Tags } from "./watchDashboard";
 import { WATCHLIST_LIMIT, sanitizeList } from "./watchlistShared";
 
-/** `risk`: the account size and % at risk the guided plan sizes positions with. */
-export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk"] as const;
+/** `risk`: the account size and % at risk the guided plan sizes positions with; `canvases`: Trading Canvas layouts. */
+export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk", "canvases"] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 export const isPrefKey = (k: string): k is PrefKey => (PREF_KEYS as readonly string[]).includes(k);
 
 /** The largest value accepted per key (JSON bytes): far above any real use, a guard against abuse. */
 export const PREF_MAX_BYTES = 64_000;
+/** Canvases hold many windows and notes: a larger allowance. */
+export const prefMaxBytes = (key: PrefKey) => (key === "canvases" ? 256_000 : PREF_MAX_BYTES);
 
 export interface SavedScreen {
   name: string;
@@ -44,6 +47,7 @@ const PARSE: Record<PrefKey, (raw: unknown) => unknown> = {
   chartpacks: parsePacks,
   screens: parseScreens,
   risk: parseRisk,
+  canvases: parseCanvases,
 };
 
 /** Keys whose value is an object rather than a list. */
@@ -91,6 +95,8 @@ export function mergePref(key: PrefKey, account: unknown, device: unknown): unkn
     case "risk":
       // One choice: the account's, unless it has none yet.
       return parseRisk(account).account !== null ? parseRisk(account) : parseRisk(device);
+    case "canvases":
+      return mergeCanvases(account, device);
   }
 }
 

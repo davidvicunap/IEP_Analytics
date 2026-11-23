@@ -1331,6 +1331,96 @@ await test("my portfolio: add from the search list, import a broker CSV (a split
   await p.context().close();
 });
 
+await test("trading canvas: a template, linked windows, a note moved by keyboard and by drag, close and undo, maximize, saved across reloads; a sheet on phones", async () => {
+  const p = await page({ lang: "en" });
+  await p.route(/\/api\/search\?q=/, (r) => {
+    const q = new URL(r.request().url()).searchParams.get("q").toUpperCase();
+    r.fulfill(json([{ symbol: q, name: `${q} Corp.` }]));
+  });
+  await p.goto(base + "/canvas");
+  await p.getByRole("heading", { level: 1, name: "Trading Canvas" }).waitFor();
+  await axe(p);
+  // Start: the company and a template.
+  const start = p.getByRole("main");
+  await searchInside(start, "MSFT");
+  await p.getByTestId("start-symbol").getByText("MSFT").waitFor();
+  await p.getByRole("radio", { name: /Technical desk/ }).click();
+  await p.getByRole("button", { name: "Create canvas" }).click();
+  await p.waitForURL(/\/canvas\?c=c-/);
+  const windows = p.locator("[data-window]");
+  await p.getByRole("button", { name: /Switch canvas: MSFT: Technical desk/ }).waitFor();
+  assert((await windows.count()) === 5, `windows ${await windows.count()}`);
+  // Linked windows follow one company.
+  await windows.first().getByRole("button", { name: /Change this window's company: MSFT/ }).click();
+  await searchInside(windows.first(), "NVDA");
+  await p.waitForFunction(() => [...document.querySelectorAll("[data-window] button")].filter((b) => /company: NVDA$/.test(b.getAttribute("aria-label") ?? "")).length === 5);
+  // A note, from the menu.
+  await p.getByRole("button", { name: "Add window" }).click();
+  await p.getByRole("dialog", { name: "Add a window" }).getByRole("button", { name: /^Note/ }).click();
+  const note = p.locator("[data-window]").filter({ has: p.getByLabel("Note text") });
+  await note.getByLabel("Note text").fill("Breakout above the 200-day average.");
+  // Moved with the keyboard from its title…
+  const left = async () => Number((await note.getAttribute("style")).match(/left: (-?\d+)px/)[1]);
+  const x0 = await left();
+  await note.getByRole("button", { name: /^Note\. Move the window/ }).focus();
+  await p.keyboard.press("ArrowRight");
+  await p.keyboard.press("ArrowRight");
+  assert((await left()) === x0 + 16, `keyboard move ${x0} → ${await left()}`);
+  // …and by dragging its title bar (the canvas zoom scales the distance).
+  const handle = note.getByRole("button", { name: /^Note\. Move the window/ });
+  const box = await handle.boundingBox();
+  await p.mouse.move(box.x + 20, box.y + box.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(box.x + 120, box.y + box.height / 2, { steps: 6 });
+  await p.mouse.up();
+  assert((await left()) > x0 + 60, `drag ${x0} → ${await left()}`);
+  // Close and undo.
+  await note.getByRole("button", { name: "Close window" }).click();
+  await p.getByText("Window closed.").waitFor();
+  assert((await windows.count()) === 5, "note not closed");
+  await p.getByRole("button", { name: "Undo" }).click();
+  await p.getByLabel("Note text").waitFor();
+  // Maximize and back with Escape.
+  await note.getByRole("button", { name: "Maximize" }).click();
+  await note.getByRole("button", { name: "Restore" }).waitFor();
+  await p.keyboard.press("Escape");
+  await note.getByRole("button", { name: "Maximize" }).waitFor();
+  // Zoom from the toolbar.
+  await p.getByRole("button", { name: "Zoom in" }).click();
+  await p.getByRole("button", { name: /Back to 100% \(\d+ %\)/ }).waitFor();
+  await p.getByRole("button", { name: "Fit all" }).click();
+  await axe(p);
+  // Everything is still there after a reload.
+  await p.waitForTimeout(700); // saved half a second after the last change
+  await p.reload();
+  await p.getByRole("button", { name: /Switch canvas: MSFT: Technical desk/ }).waitFor();
+  assert((await p.locator("[data-window]").count()) === 6, "windows after reload");
+  assert((await p.getByLabel("Note text").inputValue()) === "Breakout above the 200-day average.", "note text");
+  assert((await p.locator("[data-window] button[aria-label$='company: NVDA']").count()) === 5, "linked symbol after reload");
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+
+  // On a phone the add menu is a sheet and nothing scrolls sideways.
+  const m = await page({ lang: "en", width: 390, height: 844, touch: true });
+  await m.goto(base + "/canvas");
+  await m.getByRole("button", { name: "Create canvas" }).click();
+  await m.waitForURL(/\/canvas\?c=c-/);
+  await m.getByRole("button", { name: "Add window" }).tap();
+  const sheet = m.getByRole("dialog", { name: "Add a window" });
+  await sheet.waitFor();
+  const sb = await sheet.boundingBox();
+  assert(sb.x <= 1 && Math.abs(sb.x + sb.width - 390) <= 1, `sheet ${JSON.stringify(sb)}`);
+  assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 390, "horizontal scroll");
+  await m.context().close();
+});
+
+/** Types in the search field inside `scope` and picks the first suggestion. */
+async function searchInside(scope, text) {
+  const box = scope.getByRole("combobox").first();
+  await box.fill(text);
+  await scope.page().getByRole("option", { name: new RegExp(text) }).first().click();
+}
+
 await test("telegram: a one-time link connects the chat, then a test and disconnect; the webhook only listens to Telegram", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/research");

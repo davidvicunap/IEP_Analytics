@@ -19,6 +19,7 @@ const en: CoreDict = {
   explore: {
     title: "Tools",
     items: {
+      canvas: { name: "Trading Canvas", desc: "Charts, statements, valuation and news on an infinite canvas." },
       watchlist: { name: "Watchlist", desc: "The companies you follow, with your columns and tags." },
       screener: { name: "Screener", desc: "Filter thousands of companies by quality, growth or debt." },
       compare: { name: "Compare", desc: "Up to four companies side by side." },
@@ -638,6 +639,7 @@ const en: CoreDict = {
       compare: "Compare companies",
       calendar: "Calendar of your stocks",
       results: "My track record: trades and hit rate",
+      canvas: "Trading Canvas: your analysis canvases",
     },
     settings: { dark: "Dark theme", light: "Light theme", es: "Español", en: "English" },
     follow: "Follow {s}",

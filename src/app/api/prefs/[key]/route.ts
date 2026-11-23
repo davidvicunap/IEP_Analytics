@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { PREF_MAX_BYTES, isPrefKey, normalizePref } from "@/lib/prefs";
+import { isPrefKey, normalizePref, prefMaxBytes } from "@/lib/prefs";
 import { prefsStore } from "@/lib/prefsStore";
 import { notebookOwner, sameOrigin } from "@/lib/researchServer";
 
@@ -15,7 +15,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ key: str
   if (!store) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503 });
 
   const text = await req.text();
-  if (text.length > PREF_MAX_BYTES) return NextResponse.json({ ok: false, error: "invalid" }, { status: 413 });
+  if (text.length > prefMaxBytes(key)) return NextResponse.json({ ok: false, error: "invalid" }, { status: 413 });
   let body: unknown;
   try {
     body = JSON.parse(text);

@@ -55,8 +55,9 @@ export default function TradingViewWidget({
   attribution,
   attributionHref = "https://www.tradingview.com/",
   fullscreen,
+  fill = false,
 }: {
-  widget: "advanced-chart" | "timeline";
+  widget: "advanced-chart" | "timeline" | "technical-analysis";
   config: Record<string, unknown>;
   heightClass: string;
   title: string;
@@ -64,6 +65,8 @@ export default function TradingViewWidget({
   attributionHref?: string;
   /** Labels for a full-screen button; no button when omitted. */
   fullscreen?: { enter: string; exit: string };
+  /** Fill the parent's height (a canvas window) instead of using `heightClass`. */
+  fill?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
@@ -94,21 +97,24 @@ export default function TradingViewWidget({
     script.type = "text/javascript";
     script.async = true;
     script.text = key;
-    el.append(inner, script);
+    // The settings often change right after mounting (the resolved theme): wait a moment so only
+    // the final one is embedded. A script removed before it runs makes TradingView's code throw.
+    const start = setTimeout(() => el.append(inner, script), 60);
     // TradingView creates its iframe asynchronously: give it a title for screen readers.
     const observer = new MutationObserver(() => {
       el.querySelectorAll("iframe:not([title])").forEach((f) => f.setAttribute("title", title));
     });
     observer.observe(el, { childList: true, subtree: true });
     return () => {
+      clearTimeout(start);
       observer.disconnect();
       el.replaceChildren();
     };
   }, [widget, key, title]);
 
   return (
-    <div>
-      <div ref={frame} className={`w-full bg-panel ${isFull ? "h-full" : heightClass}`}>
+    <div className={fill ? "flex h-full flex-col" : undefined}>
+      <div ref={frame} className={`w-full bg-panel ${isFull || fill ? "h-full" : heightClass} ${fill ? "min-h-0 flex-1" : ""}`}>
         <div ref={ref} className="tradingview-widget-container h-full w-full overflow-hidden rounded-lg" style={{ height: "100%" }} aria-label={title} role="region" />
       </div>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">

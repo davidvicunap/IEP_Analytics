@@ -3,7 +3,7 @@ import { MAX_SCREENS, PREF_KEYS, isEmptyPref, isPrefKey, mergePref, normalizePre
 
 describe("account settings", () => {
   it("knows its keys", () => {
-    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk"]);
+    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk", "canvases"]);
     expect(isPrefKey("watchlist")).toBe(true);
     expect(isPrefKey("theme")).toBe(false);
   });

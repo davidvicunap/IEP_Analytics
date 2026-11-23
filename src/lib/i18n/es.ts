@@ -19,6 +19,7 @@ const es = {
   explore: {
     title: "Herramientas",
     items: {
+      canvas: { name: "Trading Canvas", desc: "Gráficos, estados financieros, valoración y noticias en un lienzo infinito." },
       watchlist: { name: "Mi lista", desc: "Las empresas que sigues, con tus columnas y etiquetas." },
       screener: { name: "Buscador", desc: "Filtra miles de empresas por calidad, crecimiento o deuda." },
       compare: { name: "Comparar", desc: "Hasta cuatro empresas lado a lado." },
@@ -638,6 +639,7 @@ const es = {
       compare: "Comparar empresas",
       calendar: "Calendario de tus acciones",
       results: "Mis resultados: operaciones y aciertos",
+      canvas: "Trading Canvas: tus lienzos de análisis",
     },
     settings: { dark: "Tema oscuro", light: "Tema claro", es: "Español", en: "English" },
     follow: "Seguir {s}",

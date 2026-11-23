@@ -234,3 +234,8 @@ summary { list-style: none; }
 /* Horizontal scrollers without a visible scrollbar (tab bars, market strip). */
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Trading Canvas: while something is dragged, embedded frames don't swallow the pointer. */
+[data-busy] iframe {
+  pointer-events: none;
+}
