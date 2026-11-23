@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPct, fmtPrice } from "@/lib/format";
 import type { Level } from "@/lib/scoring";
@@ -11,6 +11,12 @@ import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
 
 // ---- Layout -----------------------------------------------------------------------------
+
+/**
+ * Inside a Trading Canvas window the window is the frame: panels drop their box, their title
+ * (the window's title bar says it) and their ids (a canvas can show the same panel twice).
+ */
+export const InWindow = createContext(false);
 
 export function Panel({
   title,
@@ -30,6 +36,20 @@ export function Panel({
   /** No box: for sections that whitespace and alignment already separate. */
   bare?: boolean;
 }) {
+  const inWindow = useContext(InWindow);
+  if (inWindow) {
+    return (
+      <section className={className}>
+        {(action || description) && (
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            {description ? <p className="max-w-[68ch] text-[13px] leading-relaxed text-muted">{description}</p> : <span />}
+            {action}
+          </div>
+        )}
+        {children}
+      </section>
+    );
+  }
   return (
     <section id={id} className={`${bare ? "" : "rounded-lg border border-line bg-panel p-5 sm:p-6"} ${className}`} aria-labelledby={title && id ? `${id}-title` : undefined}>
       {title && (

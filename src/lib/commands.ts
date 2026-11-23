@@ -34,6 +34,7 @@ export const PAGES = {
   compare: { words: ["comparar", "compare", "comparador", "comparison"], href: "/compare" },
   calendar: { words: ["calendario", "calendar", "agenda", "fechas", "dates"], href: "/calendar" },
   results: { words: ["resultados", "results", "historial", "record", "operaciones", "trades", "aciertos"], href: "/research/results" },
+  canvas: { words: ["canvas", "lienzo", "mesa", "workspace", "trading", "ventanas", "windows"], href: "/canvas" },
 } as const;
 export type PageId = keyof typeof PAGES;
 

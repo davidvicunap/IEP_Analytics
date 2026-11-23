@@ -23,6 +23,28 @@ export default function AppChrome({ demo, children }: { demo: boolean; children:
     }
   }, [gate]);
   if (pathname === "/beta" || pathname.startsWith("/beta/")) return <>{children}</>;
+  const skip = (
+    <a
+      href="#main"
+      className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-accent focus:px-4 focus:py-3 focus:text-accent-fg focus:font-semibold"
+    >
+      {t.ux.skip}
+    </a>
+  );
+  // A workspace (the Trading Canvas) fills the screen under the header: no footer, no page scroll.
+  if (pathname === "/canvas" || pathname.startsWith("/canvas/")) {
+    return (
+      <div className="flex h-dvh flex-col overflow-hidden">
+        {skip}
+        <Header demo={demo} />
+        <main id="main" tabIndex={-1} className="relative min-h-0 w-full flex-1 pb-[calc(3.5rem+env(safe-area-inset-bottom))] outline-none md:pb-0">
+          {children}
+        </main>
+        <BottomNav />
+        <Toaster />
+      </div>
+    );
+  }
   return (
     <>
       <a

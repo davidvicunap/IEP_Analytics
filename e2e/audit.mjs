@@ -21,6 +21,23 @@ const quick = process.argv.includes("--quick");
 mkdirSync(outDir, { recursive: true });
 
 const WATCHLIST = ["AAPL", "MSFT", "NVDA", "BRK.B", "GOOGL", "JPM"];
+// A Trading Canvas with windows of several kinds (charts are TradingView embeds, blocked below).
+const CANVASES = [
+  {
+    id: "c-audit",
+    name: "AAPL: audit",
+    view: { x: 24, y: 24, zoom: 0.8 },
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    widgets: [
+      { id: "w-1", kind: "chart", x: 0, y: 0, w: 760, h: 464, z: 1, symbol: "AAPL", link: 1, interval: "D" },
+      { id: "w-2", kind: "glance", x: 776, y: 0, w: 400, h: 464, z: 2, symbol: "AAPL", link: 1 },
+      { id: "w-3", kind: "financials", x: 0, y: 480, w: 760, h: 520, z: 3, symbol: "AAPL", link: 1 },
+      { id: "w-4", kind: "plan", x: 776, y: 480, w: 400, h: 360, z: 4, symbol: "AAPL", link: 1 },
+      { id: "w-5", kind: "note", x: 1192, y: 0, w: 320, h: 240, z: 5, symbol: null, link: 0, text: "Gross margin trending up." },
+    ],
+  },
+];
+
 const PAGES = [
   { name: "home", path: "/" },
   { name: "stock", path: "/stock/AAPL" },
@@ -40,7 +57,9 @@ const PAGES = [
   { name: "compare", path: "/compare?s=AAPL,MSFT" },
   { name: "compare-empty", path: "/compare" },
   { name: "calendar", path: "/calendar" },
-  { name: "stats", path: "/stats" }, // the demo's local user is the admin
+  { name: "stats", path: "/stats" },
+  { name: "canvas-start", path: "/canvas" },
+  { name: "canvas", path: "/canvas", canvas: true }, // a saved canvas with five windows // the demo's local user is the admin
   { name: "home-new", path: "/", empty: true },
   { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },
@@ -74,13 +93,14 @@ async function open(browser, page, width, lang, theme) {
   });
   await ctx.addCookies([{ name: "lang", value: lang, url: base }]);
   await ctx.addInitScript(
-    ([theme, list]) => {
+    ([theme, list, canvases]) => {
       try {
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
+        if (canvases) localStorage.setItem("iep.canvases", JSON.stringify(canvases));
       } catch {}
     },
-    [theme, page.empty ? [] : WATCHLIST],
+    [theme, page.empty ? [] : WATCHLIST, page.canvas ? CANVASES : null],
   );
   // SEC/FMP-backed client sections have no data locally: answer them like an unconfigured server.
   await ctx.route(/\/api\/(sec|analysts|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
