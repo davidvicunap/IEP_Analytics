@@ -1,6 +1,6 @@
 # State machines
 
-Every piece of state in IEP Analytics that moves through distinct phases, where it lives, and how it is tested. Read this before adding a data view, a background job or anything that waits on the network.
+Every piece of state in Investment Edge Platform (IEP) that moves through distinct phases, where it lives, and how it is tested. Read this before adding a data view, a background job or anything that waits on the network.
 
 **Rule:** a view never invents its own loading/error flags. It uses one of the machines below, so every screen fails, retries and recovers the same way.
 

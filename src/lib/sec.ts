@@ -7,7 +7,7 @@ export const SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchan
 const LISTED_EXCHANGES = new Set(["NASDAQ", "NYSE", "CBOE"]);
 
 export function secUserAgent(env: Record<string, string | undefined> = process.env): string {
-  return env.SEC_USER_AGENT?.trim() || "IEP Analytics https://iepanalytics.vercel.app";
+  return env.SEC_USER_AGENT?.trim() || "Investment Edge Platform https://iepanalytics.vercel.app";
 }
 
 /**

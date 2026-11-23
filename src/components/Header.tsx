@@ -72,10 +72,11 @@ export default function Header({ demo }: { demo: boolean }) {
   return (
     <header className="sticky top-0 z-30 bg-bg border-b border-line pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center gap-2 sm:gap-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]">
-        <Link href="/" className="flex items-center gap-2 shrink-0 min-h-11 text-[15px] font-semibold tracking-[-0.01em]" aria-label="IEP Analytics">
+        <Link href="/" className="flex items-center gap-2 shrink-0 min-h-11 text-[15px] font-semibold tracking-[-0.01em]" aria-label="Investment Edge Platform (IEP)">
           <LogoMark size={26} />
+          {/* The short name always; the full one where there's room. */}
           <span className="hidden sm:inline">
-            IEP <span className="text-muted font-medium">Analytics</span>
+            IEP<span className="hidden xl:inline font-medium text-muted"> Investment Edge Platform</span>
           </span>
         </Link>
         <div className="flex-1 min-w-0">

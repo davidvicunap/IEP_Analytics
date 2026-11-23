@@ -1,4 +1,4 @@
-// IEP Analytics service worker: shows live-thesis alerts sent by the server (Web Push) and opens
+// Investment Edge Platform (IEP) service worker: shows live-thesis alerts sent by the server (Web Push) and opens
 // the thesis when one is tapped. It caches nothing: every page still comes from the network.
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -11,7 +11,7 @@ self.addEventListener("push", (event) => {
     m = { body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(m.title || "IEP Analytics", {
+    self.registration.showNotification(m.title || "IEP", {
       body: m.body || "",
       tag: m.tag || undefined,
       renotify: Boolean(m.tag),

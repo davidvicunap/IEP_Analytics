@@ -1,4 +1,4 @@
-# IEP Analytics — Plan de producto (Fases 1–4)
+# Investment Edge Platform (IEP) — Plan de producto (Fases 1–4)
 
 > **Estado:** aprobado con cambios (ver [sección 5](#5-decisiones-aprobadas-2026-11-06)) · **Fecha:** 2026-11-06 · **Alcance:** auditoría, benchmark, visión/roadmap y arquitectura. Este documento **no** cambia código.
 >
@@ -8,7 +8,7 @@
 
 ## 0. Resumen ejecutivo
 
-**Dónde estamos.** IEP Analytics funciona en producción con datos reales de FMP: buscador, ficha con gráfico e indicadores, fundamentales con semáforo, resumen en lenguaje simple y watchlist local, en ES/EN y en modo claro/oscuro. La base de código es limpia (4 dependencias, TypeScript estricto, lógica financiera con tests), pero **todavía no es un producto publicable ni escalable**.
+**Dónde estamos.** Investment Edge Platform (IEP) funciona en producción con datos reales de FMP: buscador, ficha con gráfico e indicadores, fundamentales con semáforo, resumen en lenguaje simple y watchlist local, en ES/EN y en modo claro/oscuro. La base de código es limpia (4 dependencias, TypeScript estricto, lógica financiera con tests), pero **todavía no es un producto publicable ni escalable**.
 
 **Tres bloqueantes antes de crecer:**
 
@@ -729,7 +729,7 @@ portfolios(id, user_id, name) · transactions(id, portfolio_id, security_id, typ
 
 **Construcción:** empieza por MVP-0, en commits pequeños. Al cerrar cada módulo: resumen, cómo probarlo y siguiente paso.
 
-> **Aviso:** IEP Analytics es una herramienta educativa. Nada en este documento ni en el producto constituye asesoría financiera.
+> **Aviso:** Investment Edge Platform (IEP) es una herramienta educativa. Nada en este documento ni en el producto constituye asesoría financiera.
 
 ---
 

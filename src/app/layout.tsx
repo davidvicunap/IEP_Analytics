@@ -13,9 +13,9 @@ import AppChrome from "@/components/AppChrome";
 import { isDemo } from "@/lib/data";
 
 export const metadata: Metadata = {
-  title: { default: "IEP Analytics", template: "%s · IEP Analytics" },
+  title: { default: "Investment Edge Platform (IEP)", template: "%s · IEP" },
   description: "Análisis de acciones de EE.UU. explicado simple · US stock analysis made simple",
-  applicationName: "IEP Analytics",
+  applicationName: "Investment Edge Platform",
   icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
   // Installable on phones (Add to Home Screen), which iPhone needs for notifications.
   appleWebApp: { capable: true, title: "IEP", statusBarStyle: "default" },
