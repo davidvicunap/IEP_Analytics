@@ -26,7 +26,7 @@ const CANVASES = [
   {
     id: "c-audit",
     name: "AAPL: audit",
-    view: { x: 24, y: 24, zoom: 0.8 },
+    view: { x: 24, y: 24, zoom: 1 }, // content zooms with the canvas; window controls keep their size at any zoom
     updatedAt: "2026-11-01T00:00:00.000Z",
     widgets: [
       { id: "w-1", kind: "chart", x: 0, y: 0, w: 760, h: 464, z: 1, symbol: "AAPL", link: 1, interval: "D" },
