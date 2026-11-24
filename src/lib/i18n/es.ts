@@ -223,7 +223,13 @@ const es = {
     tvAttribution: "Gráfico de {s} por TradingView",
     fullscreen: "Pantalla completa",
     exitFullscreen: "Salir de pantalla completa",
-    tvHelp: "Arrastra para moverte, usa la rueda o pellizca para hacer zoom, la barra izquierda para dibujar líneas y «Indicadores» arriba para añadir medias, RSI o MACD.",
+    tvHelp: "Arrastra para moverte, usa la rueda o pellizca para hacer zoom y la barra izquierda para dibujar líneas.",
+    studies: {
+      title: "Indicadores guardados",
+      note: "Tus gráficos de TradingView se abren con estos, aquí y en tus lienzos, en cualquier dispositivo. Lo que añadas o dibujes dentro del gráfico no se guarda: es de TradingView y no podemos leerlo.",
+      full: "Máximo {n} indicadores: quita uno para añadir otro.",
+      names: { sma: "Media simple", ema: "Media exponencial", bb: "Bandas de Bollinger", vwap: "VWAP", rsi: "RSI", macd: "MACD", stochrsi: "RSI estocástico", atr: "ATR", obv: "OBV" },
+    },
     levels: {
       more: "Soportes, resistencias y señales técnicas",
       title: "Soportes y resistencias",
