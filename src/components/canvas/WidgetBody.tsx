@@ -12,6 +12,8 @@ import { MAX_NOTE, type Interval, type ValuationView, type Widget, type WidgetKi
 import { useNotes, useTheses } from "@/lib/researchClient";
 import { useQuotes } from "@/lib/useQuotes";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "../TradingViewWidget";
+import { widgetStudies } from "@/lib/chartStudies";
+import { useChartStudies } from "@/lib/chartStudiesClient";
 import { Badge, IssueNote, Provenance, Skeleton } from "../ui";
 
 const Loading = () => (
@@ -49,6 +51,7 @@ export default function WidgetBody({
 }) {
   const { t, lang } = useI18n();
   const theme = useResolvedTheme();
+  const studies = useChartStudies();
   const s = w.symbol ?? "";
   const tv = tvSymbol(s);
   switch (w.kind) {
@@ -76,6 +79,7 @@ export default function WidgetBody({
             hotlist: false,
             calendar: false,
             save_image: true,
+            studies: widgetStudies(studies),
             support_host: "https://www.tradingview.com",
           }}
         />

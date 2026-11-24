@@ -322,6 +322,28 @@ await test("research hub: how to start when empty; theses with today's price and
   await p.context().close();
 });
 
+await test("chart indicators: chosen once, every TradingView chart opens with them (stock page and canvas), kept on reload", async () => {
+  const p = await page({ lang: "en" });
+  await p.route(/tradingview\.com|tradingview-widget\.com/, (r) => r.abort());
+  const embedded = () => p.evaluate(() => [...document.querySelectorAll(".tradingview-widget-container script")].map((s) => JSON.parse(s.textContent || "{}").studies ?? null));
+  await p.goto(base + "/stock/AAPL");
+  await p.locator("#panel-overview").getByRole("button", { name: "TradingView", exact: true }).click();
+  const box = p.getByRole("group", { name: "Saved indicators" });
+  await box.getByRole("button", { name: "RSI", exact: true }).click();
+  await box.getByRole("button", { name: "Bollinger Bands" }).click();
+  await until(async () => JSON.stringify(await embedded()) === JSON.stringify([["BB@tv-basicstudies", "RSI@tv-basicstudies"]]), "stock chart studies");
+  await axe(p);
+  await p.reload();
+  assert((await p.getByRole("group", { name: "Saved indicators" }).getByRole("button", { name: "RSI", exact: true }).getAttribute("aria-pressed")) === "true", "kept on reload");
+  // A canvas chart window opens with the same indicators.
+  await p.evaluate(() => localStorage.setItem("iep.canvases", JSON.stringify([{ id: "c-tv", name: "TV", view: { x: 0, y: 0, zoom: 1 }, updatedAt: "2026-11-20T12:00:00.000Z", widgets: [{ id: "w-1", kind: "chart", x: 0, y: 0, w: 640, h: 400, z: 1, symbol: "AAPL", link: 1, interval: "D" }] }])));
+  await p.goto(base + "/canvas?c=c-tv");
+  await until(async () => JSON.stringify(await embedded()) === JSON.stringify([["BB@tv-basicstudies", "RSI@tv-basicstudies"]]), "canvas chart studies");
+  await p.evaluate(() => localStorage.removeItem("iep.chartstudies"));
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
 await test("search: touch selection on a phone (expandable header search)", async () => {
   const p = await page({ width: 375, height: 740, touch: true });
   await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "NVDA", name: "NVIDIA" }])));

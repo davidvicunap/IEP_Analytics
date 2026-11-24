@@ -8,6 +8,9 @@ import { keyLevels, type KeyLevels } from "@/lib/levels";
 import type { Candle, DataIssue } from "@/lib/types";
 import type { ChartLevel } from "./PriceChart";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "./TradingViewWidget";
+import ChartStudiesPicker from "./ChartStudiesPicker";
+import { widgetStudies } from "@/lib/chartStudies";
+import { useChartStudies } from "@/lib/chartStudiesClient";
 import { Explain, IssueNote, Panel, Segmented } from "./ui";
 import { ChevronDownIcon } from "./icons";
 import ChartPlaceholder from "./ChartPlaceholder";
@@ -70,6 +73,7 @@ export default function ChartTab({
     [levels, showLevels],
   );
   const tv = tvSymbol(symbol, exchange);
+  const studies = useChartStudies();
 
   return (
     <Panel
@@ -110,10 +114,12 @@ export default function ChartTab({
                 hotlist: false,
                 calendar: false,
                 save_image: true,
+                studies: widgetStudies(studies),
                 support_host: "https://www.tradingview.com",
               }}
             />
             <p className="mt-2 text-xs text-muted">{t.chart.tvHelp}</p>
+            <ChartStudiesPicker />
           </>
         ) : historyIssue ? (
           <IssueNote issue={historyIssue} />

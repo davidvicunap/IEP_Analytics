@@ -223,7 +223,13 @@ const en: CoreDict = {
     tvAttribution: "{s} chart by TradingView",
     fullscreen: "Full screen",
     exitFullscreen: "Exit full screen",
-    tvHelp: "Drag to move, scroll or pinch to zoom, use the left toolbar to draw lines and “Indicators” at the top to add averages, RSI or MACD.",
+    tvHelp: "Drag to move, scroll or pinch to zoom, and use the left toolbar to draw lines.",
+    studies: {
+      title: "Saved indicators",
+      note: "Your TradingView charts open with these, here and in your canvases, on any device. What you add or draw inside the chart isn't kept: it belongs to TradingView and we can't read it.",
+      full: "At most {n} indicators: remove one to add another.",
+      names: { sma: "Simple average", ema: "Exponential average", bb: "Bollinger Bands", vwap: "VWAP", rsi: "RSI", macd: "MACD", stochrsi: "Stochastic RSI", atr: "ATR", obv: "OBV" },
+    },
     levels: {
       more: "Support, resistance and technical signals",
       title: "Support and resistance",
