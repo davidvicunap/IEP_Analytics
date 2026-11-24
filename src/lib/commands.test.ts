@@ -42,8 +42,8 @@ describe("commands for a line", () => {
       "/stock/AAPL?tab=filings&view=insiders",
       "/stock/MSFT",
       "/stock/KO",
+      "page:canvas",
       "page:watchlist",
-      "page:screener",
     ]);
   });
 
@@ -55,8 +55,9 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("apple valoracion", ctx({ results, following: ["AAPL"] })))).toEqual(["/stock/AAPL?tab=valuation", "/stock/APLE?tab=valuation"]);
     expect(hrefs(commandsFor("aapl", ctx()))).toEqual(["/stock/AAPL"]);
     expect(hrefs(commandsFor("nvda 10-k", ctx()))).toEqual(["/stock/NVDA/report"]);
-    expect(hrefs(commandsFor("graficos nvda", ctx()))).toEqual(["/charts?s=NVDA"]);
-    expect(hrefs(commandsFor("pack nvda", ctx()))).toEqual(["/charts/packs?s=NVDA"]);
+    // The chart generator and packs are out of the MVP (features.ts): the company itself opens.
+    expect(hrefs(commandsFor("graficos nvda", ctx()))).toEqual(["/stock/NVDA"]);
+    expect(hrefs(commandsFor("pack nvda", ctx()))).toEqual(["/stock/NVDA"]);
   });
 
   it("uses the stock on screen when only a section or an action is typed", () => {
@@ -68,13 +69,13 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("dis", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation&view=dcf", "/stock/DIS"]);
   });
 
-  it("compares several tickers, with the stock on screen first", () => {
-    const cmp = (q: string, c = ctx()) => commandsFor(q, c).filter((x) => x.type === "compare");
-    expect(cmp("compare aapl msft googl")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT", "GOOGL"] }]);
-    expect(cmp("compare dis aapl")).toEqual([{ type: "compare", symbols: ["DIS", "AAPL"] }]);
-    expect(cmp("aapl vs msft")).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
-    expect(cmp("comparar msft", ctx({ symbol: "AAPL" }))).toEqual([{ type: "compare", symbols: ["AAPL", "MSFT"] }]);
-    expect(commandsFor("comparar", ctx())[0]).toEqual({ type: "page", page: "compare" });
+  it("offers neither comparing nor the pages left out of the MVP", () => {
+    expect(commandsFor("compare aapl msft", ctx()).some((x) => x.type === "compare")).toBe(false);
+    for (const q of ["comparar", "calendario", "generador", "aciertos"]) {
+      expect(hrefs(commandsFor(q, ctx())).filter((h) => h.startsWith("page:"))).toEqual([]);
+    }
+    expect(hrefs(commandsFor("cartera", ctx()))[0]).toBe("page:portfolio");
+    expect(hrefs(commandsFor("lienzo", ctx()))[0]).toBe("page:canvas");
   });
 
   it("finds pages and settings by their words", () => {

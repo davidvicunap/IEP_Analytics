@@ -17,7 +17,8 @@ import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
+import { CanvasIcon, ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
+import { isOn } from "@/lib/features";
 import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -299,24 +300,38 @@ function StockHeader({
           </p>
         </div>
         <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+          {/* Work this company on a canvas: its own if there is one, else a new one. */}
           <Link
-            href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
+            href={`/canvas?s=${encodeURIComponent(identity.symbol)}`}
             className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-            title={t.stock.packsTitle}
-            aria-label={t.stock.packsTitle}
+            title={t.stock.canvasTitle}
+            aria-label={t.stock.canvasTitle}
           >
-            <GridIcon size={16} />
-            <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
+            <CanvasIcon size={16} />
+            <span className="hidden min-[360px]:inline">{t.stock.canvas}</span>
           </Link>
-          <Link
-            href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
-            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-            title={t.compare.title}
-            aria-label={t.compare.title}
-          >
-            <ColumnsIcon size={16} />
-            <span className="hidden min-[360px]:inline">{t.compare.button}</span>
-          </Link>
+          {isOn("chartPacks") && (
+            <Link
+              href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
+              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+              title={t.stock.packsTitle}
+              aria-label={t.stock.packsTitle}
+            >
+              <GridIcon size={16} />
+              <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
+            </Link>
+          )}
+          {isOn("compare") && (
+            <Link
+              href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
+              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+              title={t.compare.title}
+              aria-label={t.compare.title}
+            >
+              <ColumnsIcon size={16} />
+              <span className="hidden min-[360px]:inline">{t.compare.button}</span>
+            </Link>
+          )}
           <WatchButton symbol={identity.symbol} />
         </div>
       </div>

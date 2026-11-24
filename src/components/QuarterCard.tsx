@@ -39,7 +39,7 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
     // No SEC filings (an ETF, a foreign filer): nothing to review, so no card.
     if (state.issue === "not_found") return null;
     return (
-      <Panel title={Q.title}>
+      <Panel bare className="border-t border-line pt-5" title={Q.title}>
         <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
@@ -53,7 +53,7 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
   if (r.priorLabel) cols.push({ label: fill(Q.cols.vs, { q: r.priorLabel }), pick: (x) => x.vsPrior });
 
   return (
-    <Panel title={Q.title} description={fill(Q.period, { q: r.label, d: fmtDate(r.end, lang) })} id="quarter">
+    <Panel bare className="border-t border-line pt-5" title={Q.title} description={fill(Q.period, { q: r.label, d: fmtDate(r.end, lang) })} id="quarter">
       {revenue?.vsYearAgo != null && (
         <p className="mb-3 text-sm">
           {fill(Q.headline, { v: `${revenue.vsYearAgo > 0 ? "+" : revenue.vsYearAgo < 0 ? "−" : ""}${fmtNum(Math.abs(revenue.vsYearAgo) * 100, lang, 1)}%` })}

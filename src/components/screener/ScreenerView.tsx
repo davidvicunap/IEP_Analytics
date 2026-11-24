@@ -1,5 +1,6 @@
 "use client";
 
+import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -176,11 +177,11 @@ export default function ScreenerView() {
       </section>
 
       <Panel
-        title={data ? fill(S.results, { m: fmtNum(data.matched, lang, 0), t: fmtNum(data.total, lang, 0) }) : S.title}
+        title={data ? fill(S.results, { m: fmtNum(data.matched, lang, 0), t: fmtNum(data.total, lang, 0) }) : S.resultsTitle}
         description={data && data.matched > data.rows.length ? S.showing : undefined}
         id="screener-results"
         action={
-          data && data.rows.length > 1 ? (
+          data && data.rows.length > 1 && isOn("charts") ? (
             <Link
               href={`/charts?s=${data.rows.slice(0, 5).map((r) => encodeURIComponent(r.symbol)).join(",")}&m=${CHART_METRIC[screen.sort] ?? "revenue"}&f=annual&k=line&r=10`}
               className={buttonClass("ghost", true, "text-muted")}

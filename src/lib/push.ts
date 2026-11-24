@@ -54,7 +54,7 @@ export function alertMessages(fired: { symbol: string; alerts: Signal[] }[], t: 
   const P = t.push;
   const withAlerts = fired.filter((f) => f.alerts.length > 0);
   if (withAlerts.length > MAX_STOCK_NOTIFICATIONS) {
-    return [{ title: fill(P.msgTheses, { n: withAlerts.length }), body: withAlerts.map((f) => f.symbol).join(" · "), url: "/research", tag: "theses" }];
+    return [{ title: fill(P.msgTheses, { n: withAlerts.length }), body: withAlerts.map((f) => f.symbol).join(" · "), url: "/", tag: "theses" }];
   }
   return withAlerts.map(({ symbol, alerts }) => {
     const lines = alerts.slice(0, MAX_LINES).map((a) => alertText(a, t.thesis, lang));
@@ -76,9 +76,9 @@ export function uncheckedMessage(list: { symbol: string; kinds: SignalKind[] }[]
     .slice(0, 6)
     .map((x) => `${x.symbol}: ${[...new Set(x.kinds.map((k) => names[k]))].join(", ")}`)
     .join(" · ");
-  return [{ title: t.push.msgUncheckedTitle, body: `${body}${list.length > 6 ? " …" : ""}\n${t.push.msgUncheckedNext}`, url: "/research", tag: "unchecked" }];
+  return [{ title: t.push.msgUncheckedTitle, body: `${body}${list.length > 6 ? " …" : ""}\n${t.push.msgUncheckedNext}`, url: "/", tag: "unchecked" }];
 }
 
 export function testMessage(t: CoreDict): PushMessage {
-  return { title: t.push.msgTestTitle, body: t.push.msgTestBody, url: "/research", tag: "test" };
+  return { title: t.push.msgTestTitle, body: t.push.msgTestBody, url: "/", tag: "test" };
 }

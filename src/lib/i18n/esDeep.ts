@@ -522,6 +522,7 @@ const esDeep = {
     },
     clear: "Quitar filtros",
     results: "{m} de {t} empresas cumplen los filtros",
+    resultsTitle: "Resultados",
     showing: "Se muestran las 100 primeras.",
     cols: { company: "Empresa", industry: "Industria", revenue: "Ingresos", rank: "Tamaño" },
     sortBy: "Ordenar por {c}",

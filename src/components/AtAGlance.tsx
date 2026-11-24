@@ -41,7 +41,7 @@ export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: 
 
   if (state.status === "loading") {
     return (
-      <Panel title={G.title} id="glance">
+      <Panel bare title={G.title} id="glance" className="border-t border-line pt-5">
         <p role="status" className="sr-only">{G.loading}</p>
         <div className="space-y-4" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -56,7 +56,7 @@ export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: 
   }
   if (state.status === "error") {
     return (
-      <Panel title={G.title} id="glance">
+      <Panel bare title={G.title} id="glance" className="border-t border-line pt-5">
         <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
@@ -65,7 +65,7 @@ export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: 
   const evidence = (p: VerdictPoint) => verdictEvidence(p, G, lang);
 
   return (
-    <Panel title={G.title} id="glance">
+    <Panel bare title={G.title} id="glance" className="border-t border-line pt-5">
       <ul className="-mx-2 space-y-0.5">
         {v.points.map((p) => (
           <li key={p.key}>

@@ -41,9 +41,9 @@ describe("notification text", () => {
 
   it("many stocks at once: one summary that opens the list", () => {
     const many = Array.from({ length: MAX_STOCK_NOTIFICATIONS + 1 }, (_, i) => ({ symbol: `S${i}`, alerts: [stop] }));
-    expect(alertMessages(many, en, "en")).toEqual([{ title: "4 theses with new alerts", body: "S0 · S1 · S2 · S3", url: "/research", tag: "theses" }]);
+    expect(alertMessages(many, en, "en")).toEqual([{ title: "4 theses with new alerts", body: "S0 · S1 · S2 · S3", url: "/", tag: "theses" }]);
     expect(alertMessages([{ symbol: "X", alerts: [] }], en, "en")).toEqual([]);
-    expect(testMessage(es).url).toBe("/research");
+    expect(testMessage(es).url).toBe("/");
   });
 });
 

@@ -523,6 +523,7 @@ const enDeep: DeepDict = {
     },
     clear: "Clear filters",
     results: "{m} of {t} companies match",
+    resultsTitle: "Results",
     showing: "Showing the first 100.",
     cols: { company: "Company", industry: "Industry", revenue: "Revenue", rank: "Size" },
     sortBy: "Sort by {c}",
