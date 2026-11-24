@@ -10,3 +10,6 @@ next-env.d.ts
 
 # local e2e output
 .e2e/
+
+# Local PGlite database (npm run db:local)
+.local/

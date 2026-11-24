@@ -14,7 +14,21 @@ export function databaseUrl(env: Record<string, string | undefined> = process.en
 
 let db: Db | null = null;
 
+/**
+ * Local development on real SEC data: LOCAL_PGLITE_DIR runs Postgres in this process (PGlite,
+ * filled by `npm run db:local`). Loaded at runtime only when set, so production never bundles it.
+ */
+function localDb(dir: string): Db {
+  const { createRequire } = (process as unknown as { getBuiltinModule(id: "node:module"): typeof import("node:module") }).getBuiltinModule("node:module");
+  const load = createRequire(`${process.cwd()}/`);
+  const { PGlite } = load("@electric-sql/pglite") as typeof import("@electric-sql/pglite");
+  const { drizzle: local } = load("drizzle-orm/pglite") as typeof import("drizzle-orm/pglite");
+  return local(new PGlite(dir), { schema }) as unknown as Db;
+}
+
 export function getDb(): Db | null {
+  const dir = process.env.LOCAL_PGLITE_DIR;
+  if (dir) return (db ??= localDb(dir));
   const url = databaseUrl();
   if (!url) return null;
   db ??= drizzle(neon(url), { schema }) as unknown as Db;
