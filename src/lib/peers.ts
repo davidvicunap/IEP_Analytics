@@ -174,10 +174,33 @@ export async function companyYearInputs(db: Db, cik: number, year: number): Prom
   return row ? cleanInputs(row.inputs) : null;
 }
 
-/** Largest listed peers, same 3-digit SIC first, then the rest of the 2-digit group. */
-export async function suggestedPeers(db: Db, sic: number, year: number, cik: number, n: number): Promise<string[]> {
-  const pool = await listedPeers(db, sic, year, cik, 40);
-  const close = pool.filter((p) => Math.floor(p.sic / 10) === Math.floor(sic / 10));
-  const rest = pool.filter((p) => Math.floor(p.sic / 10) !== Math.floor(sic / 10));
-  return [...close, ...rest].slice(0, n).map((p) => p.symbol);
+/**
+ * Peers ordered by how close they are, in four bands: same 3-digit SIC industry within 10× the
+ * target's revenue; same industry within 100×; the wider 2-digit group within 10×; everyone
+ * else. Within a band: same 4-digit SIC first, then nearest in revenue (log distance), then size.
+ * A smaller company in the same industry is a better comparison than a similar-sized one in a
+ * neighbouring industry (computers before tractors).
+ */
+export function rankPeers(pool: ListedPeer[], sic: number, revenue: number | null, n: number): string[] {
+  const sameIndustry = (p: ListedPeer) => Math.floor(p.sic / 10) === Math.floor(sic / 10);
+  const dist = (p: ListedPeer) => (revenue && revenue > 0 && p.inputs.revenue && p.inputs.revenue > 0 ? Math.abs(Math.log(p.inputs.revenue / revenue)) : Infinity);
+  const band = (p: ListedPeer) => {
+    const d = dist(p);
+    if (sameIndustry(p)) return d <= Math.log(10) ? 0 : d <= Math.log(100) ? 1 : 3;
+    return d <= Math.log(10) ? 2 : 3;
+  };
+  const byDist = (a: ListedPeer, b: ListedPeer) => {
+    const da = dist(a);
+    const db = dist(b);
+    return da === db ? 0 : da - db;
+  };
+  return [...pool]
+    .sort((a, b) => band(a) - band(b) || Number(a.sic !== sic) - Number(b.sic !== sic) || byDist(a, b) || (a.rank ?? Infinity) - (b.rank ?? Infinity))
+    .slice(0, n)
+    .map((p) => p.symbol);
+}
+
+/** Suggested peers for comps: the 2-digit SIC group's largest 80 listed companies, ranked by `rankPeers`. */
+export async function suggestedPeers(db: Db, sic: number, year: number, cik: number, n: number, revenue: number | null = null): Promise<string[]> {
+  return rankPeers(await listedPeers(db, sic, year, cik, 80), sic, revenue, n);
 }

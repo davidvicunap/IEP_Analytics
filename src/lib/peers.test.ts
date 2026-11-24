@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "@/db/schema";
 import type { Db } from "@/db/client";
-import { backfillSic, ensureSic, latestMetricsYear, peerInputs, refreshCompanyMetrics } from "./peers";
+import { backfillSic, ensureSic, latestMetricsYear, peerInputs, rankPeers, refreshCompanyMetrics, type ListedPeer } from "./peers";
 import { assembleRatios, sectorComparison } from "./ratiosData";
 import type { StatementSet } from "./secFinancials";
 
@@ -154,5 +154,24 @@ describe("assembleRatios with ambiguous revenue", () => {
     const gross = r.ratios.find((x) => x.key === "grossMargin")!; // no cost data: nothing to explain
     expect(gross.value).toBeNull();
     expect(gross.note).toBeNull();
+  });
+});
+
+describe("suggested peers", () => {
+  const p = (symbol: string, sic: number, revenue: number | undefined, rank: number): ListedPeer => ({ cik: rank, symbol, sic, rank, inputs: revenue === undefined ? {} : { revenue } });
+  it("same industry and size first; a smaller company in the industry before a neighbour of the same size", () => {
+    const pool = [
+      p("GIANT", 3571, 500_000, 1), // same industry, 1,000× the size
+      p("SAME", 3571, 300, 9),
+      p("SAME2", 3571, 1_000, 8),
+      p("NEAR3", 3572, 600, 3),
+      p("SMALL3", 3576, 20, 7), // same 3-digit industry, 25× smaller
+      p("GROUP", 3550, 500, 2), // neighbouring industry, same size
+      p("NOREV", 3571, undefined, 4),
+    ];
+    expect(rankPeers(pool, 3571, 500, 10)).toEqual(["SAME", "SAME2", "NEAR3", "SMALL3", "GROUP", "GIANT", "NOREV"]);
+    expect(rankPeers(pool, 3571, 500, 2)).toEqual(["SAME", "SAME2"]);
+    // Without the target's revenue: same 4-digit industry first, then by size rank.
+    expect(rankPeers(pool, 3571, null, 3)).toEqual(["GIANT", "NOREV", "SAME2"]);
   });
 });

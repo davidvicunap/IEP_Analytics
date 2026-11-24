@@ -1,41 +1,6 @@
-import { Suspense } from "react";
-import { dataSource, getQuotes } from "@/lib/data";
-import HomeView, { MarketsSection, PopularSection } from "@/components/HomeView";
-import { MarketCardsSkeleton, QuoteRowsSkeleton } from "@/components/QuoteList";
+import ResearchHub from "@/components/home/ResearchHub";
 
-const INDEXES = ["SPY", "QQQ", "DIA", "IWM"];
-const POPULAR = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "JPM"];
-
-// Always rendered per request: otherwise every build tries to prerender it and spends
-// 12 FMP calls of the daily quota.
-export const dynamic = "force-dynamic";
-
-/**
- * The search and the page shell stream at once; each quote section waits only for its own
- * quotes (independent Suspense boundaries), so a slow provider never blocks the search.
- */
+/** Home: your research (theses and canvases). The portfolio lives at /portfolio. */
 export default function Home() {
-  const source = dataSource();
-  return (
-    <HomeView
-      markets={
-        <Suspense fallback={<MarketCardsSkeleton n={INDEXES.length} />}>
-          <Markets source={source} />
-        </Suspense>
-      }
-      popular={
-        <Suspense fallback={<QuoteRowsSkeleton n={POPULAR.length} source />}>
-          <Popular source={source} />
-        </Suspense>
-      }
-    />
-  );
-}
-
-async function Markets({ source }: { source: ReturnType<typeof dataSource> }) {
-  return <MarketsSection entries={await getQuotes(INDEXES)} source={source} />;
-}
-
-async function Popular({ source }: { source: ReturnType<typeof dataSource> }) {
-  return <PopularSection entries={await getQuotes(POPULAR)} source={source} />;
+  return <ResearchHub />;
 }

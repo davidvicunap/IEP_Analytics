@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { ExploreSheet, isExplorePath } from "./ExploreMenu";
-import { GridIcon, HomeIcon, NotebookIcon } from "./icons";
+import { CanvasIcon, MoreIcon, NotebookIcon, SlidersIcon, StarIcon } from "./icons";
 
 /** Phone navigation. Hidden while a text field has focus, so it never rides on the keyboard. */
 export default function BottomNav() {
@@ -29,13 +29,10 @@ export default function BottomNav() {
   }, []);
   const [exploring, setExploring] = useState(false);
   const items = [
-    { href: "/", label: t.nav.home, Icon: HomeIcon, active: path === "/" },
-    {
-      href: "/research",
-      label: t.nav.research,
-      Icon: NotebookIcon,
-      active: path.startsWith("/research"),
-    },
+    { href: "/", label: t.nav.home, Icon: NotebookIcon, active: path === "/" || path.startsWith("/research") },
+    { href: "/canvas", label: t.nav.canvas, Icon: CanvasIcon, active: path.startsWith("/canvas") },
+    { href: "/watchlist", label: t.nav.watchlist, Icon: StarIcon, active: path.startsWith("/watchlist") },
+    { href: "/screener", label: t.nav.screener, Icon: SlidersIcon, active: path.startsWith("/screener") },
   ];
   const exploreActive = exploring || isExplorePath(path);
   return (
@@ -46,7 +43,7 @@ export default function BottomNav() {
         aria-label={t.ux.mainNav}
         className={`md:hidden fixed bottom-0 inset-x-0 z-30 bg-bg border-t border-line pb-[env(safe-area-inset-bottom)] ${typing ? "hidden" : ""}`}
       >
-        <ul className="grid grid-cols-3">
+        <ul className="grid grid-cols-5">
           {items.map(({ href, label, Icon, active }) => (
             <li key={href}>
               <Link
@@ -68,7 +65,7 @@ export default function BottomNav() {
               className={`relative flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] ${exploreActive ? "text-fg font-semibold" : "text-muted"}`}
             >
               {exploreActive && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-fg" aria-hidden="true" />}
-              <GridIcon size={22} />
+              <MoreIcon size={22} />
               {t.nav.explore}
             </button>
           </li>

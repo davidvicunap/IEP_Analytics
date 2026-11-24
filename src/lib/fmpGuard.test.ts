@@ -22,7 +22,7 @@ const fakeRedis = {
 vi.mock("./redis", () => ({ getRedis: () => fakeRedis }));
 
 import { PAUSE_SECONDS, QUOTE_TTL, REMEMBER, isMarketOpen, quoteTtl, rememberKey } from "./fmpGuard";
-import { fmpMarketCaps, fmpProfile, fmpQuote } from "./fmp";
+import { fmpProfile, fmpQuote } from "./fmp";
 
 const quoteRow = [{ symbol: "AAPL", name: "Apple Inc.", price: 230, changePercentage: 1 }];
 const respond = (status: number, body: unknown) => async () => new Response(JSON.stringify(body), { status });
@@ -76,7 +76,7 @@ describe("guarded FMP calls", () => {
   it("remembers per request, not per endpoint", async () => {
     const fetch = vi.fn(respond(402, { "Error Message": "not available under your current subscription" }));
     vi.stubGlobal("fetch", fetch);
-    await fmpMarketCaps(["MSFT", "NVDA"]);
+    await fmpProfile("MSFT");
     vi.stubGlobal("fetch", vi.fn(respond(200, quoteRow)));
     expect((await fmpQuote("AAPL")).ok).toBe(true);
   });

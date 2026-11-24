@@ -40,6 +40,7 @@ const CANVASES = [
 
 const PAGES = [
   { name: "home", path: "/" },
+  { name: "portfolio", path: "/portfolio" },
   { name: "stock", path: "/stock/AAPL" },
   { name: "business", path: "/stock/AAPL", tab: "business" },
   { name: "valuation", path: "/stock/AAPL", tab: "valuation" },
@@ -79,8 +80,8 @@ const WIDTHS = quick
 const COMBOS = quick ? [["es", "light"], ["en", "dark"]] : [["es", "light"], ["es", "dark"], ["en", "light"], ["en", "dark"]];
 
 const TAB_LABEL = {
-  es: { business: "Negocio", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
-  en: { business: "Business", valuation: "Valuation", filings: "Filings", research: "My research" },
+  es: { business: "Finanzas", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
+  en: { business: "Financials", valuation: "Valuation", filings: "Filings", research: "My research" },
 };
 
 async function open(browser, page, width, lang, theme) {

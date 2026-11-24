@@ -17,10 +17,11 @@
 
 export type StatementKey = "income" | "balance" | "cashflow";
 export type LineKey =
-  | "revenue" | "costOfRevenue" | "grossProfit" | "operatingIncome" | "interestExpense" | "pretaxIncome" | "incomeTax"
-  | "netIncome" | "epsDiluted" | "dilutedShares"
-  | "cash" | "totalAssets" | "totalLiabilities" | "currentDebt" | "longTermDebt" | "equity"
-  | "operatingCashFlow" | "depreciation" | "capex" | "freeCashFlow" | "dividendsPaid" | "buybacks";
+  | "revenue" | "costOfRevenue" | "grossProfit" | "researchDevelopment" | "sga" | "operatingIncome" | "interestExpense"
+  | "pretaxIncome" | "incomeTax" | "netIncome" | "epsDiluted" | "dilutedShares"
+  | "cash" | "shortTermInvestments" | "receivables" | "inventory" | "currentAssets" | "totalAssets"
+  | "currentLiabilities" | "totalLiabilities" | "currentDebt" | "longTermDebt" | "equity"
+  | "operatingCashFlow" | "depreciation" | "stockComp" | "capex" | "freeCashFlow" | "dividendsPaid" | "buybacks";
 
 interface LineDef {
   key: LineKey;
@@ -46,6 +47,8 @@ export const LINES: LineDef[] = [
   },
   { key: "costOfRevenue", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["CostOfGoodsAndServicesSold", "CostOfRevenue", "CostOfGoodsSold", "CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization"] },
   { key: "grossProfit", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["GrossProfit"] },
+  { key: "researchDevelopment", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["ResearchAndDevelopmentExpense", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"] },
+  { key: "sga", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["SellingGeneralAndAdministrativeExpense"] },
   { key: "operatingIncome", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["OperatingIncomeLoss"] },
   { key: "interestExpense", statement: "income", kind: "flow", unit: "USD", additive: true, concepts: ["InterestExpense", "InterestExpenseNonoperating", "InterestExpenseDebt", "InterestAndDebtExpense"] },
   {
@@ -57,7 +60,12 @@ export const LINES: LineDef[] = [
   { key: "epsDiluted", statement: "income", kind: "flow", unit: "USD/shares", additive: false, concepts: ["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted", "EarningsPerShareBasic"] },
   { key: "dilutedShares", statement: "income", kind: "flow", unit: "shares", additive: false, concepts: ["WeightedAverageNumberOfDilutedSharesOutstanding", "WeightedAverageNumberOfShareOutstandingBasicAndDiluted"] },
   { key: "cash", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", "Cash"] },
+  { key: "shortTermInvestments", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["MarketableSecuritiesCurrent", "ShortTermInvestments", "AvailableForSaleSecuritiesDebtSecuritiesCurrent"] },
+  { key: "receivables", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["AccountsReceivableNetCurrent"] },
+  { key: "inventory", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["InventoryNet"] },
+  { key: "currentAssets", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["AssetsCurrent"] },
   { key: "totalAssets", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["Assets"] },
+  { key: "currentLiabilities", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["LiabilitiesCurrent"] },
   { key: "totalLiabilities", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["Liabilities"] },
   // Debt due within a year: the total when tagged, otherwise its usual largest part.
   { key: "currentDebt", statement: "balance", kind: "instant", unit: "USD", additive: false, concepts: ["DebtCurrent", "LongTermDebtCurrent", "ShortTermBorrowings", "CommercialPaper"] },
@@ -68,6 +76,7 @@ export const LINES: LineDef[] = [
     key: "depreciation", statement: "cashflow", kind: "flow", unit: "USD", additive: true,
     concepts: ["DepreciationDepletionAndAmortization", "DepreciationAmortizationAndAccretionNet", "DepreciationAndAmortization", "Depreciation"],
   },
+  { key: "stockComp", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["ShareBasedCompensation", "AllocatedShareBasedCompensationExpense"] },
   { key: "capex", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"] },
   { key: "dividendsPaid", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsOfDividends", "PaymentsOfDividendsCommonStock"] },
   { key: "buybacks", statement: "cashflow", kind: "flow", unit: "USD", additive: true, concepts: ["PaymentsForRepurchaseOfCommonStock"] },
@@ -85,6 +94,9 @@ export interface Cell {
   form?: string;
   derived?: "ytd_difference" | "fy_minus_9m" | "formula" | "ttm" | "projection";
   alt?: { concept: string; value: number }; // another total the SEC data has for this period
+  filed?: string; // when the filing the value comes from was filed
+  /** Restated for splits after that filing: shares × this, per-share figures ÷ this. */
+  splitAdjusted?: number;
 }
 
 export interface Period {
@@ -165,7 +177,7 @@ function latest(facts: Fact[], pred: (f: Fact) => boolean): Fact | undefined {
 }
 
 function cellFrom(f: Fact | undefined, concept: string): Cell | null {
-  return f ? { value: f.val, concept, accn: f.accn, form: f.form } : null;
+  return f ? { value: f.val, concept, accn: f.accn, form: f.form, filed: f.filed } : null;
 }
 
 // ---- Annual ---------------------------------------------------------------
@@ -299,6 +311,7 @@ function quarterCell(gaap: ConceptMap, line: LineDef, q: Period, years: Period[]
       concept,
       accn: cur.accn,
       form: cur.form,
+      filed: cur.filed,
       derived: q.label.startsWith("Q4") ? "fy_minus_9m" : "ytd_difference",
     };
   });
@@ -333,6 +346,31 @@ function splitRatio(r: number): number | null {
   const x = inv ? 1 / r : r;
   const n = SPLIT_RATIOS.find((k) => Math.abs(x / k - 1) <= 0.06);
   return n ? (inv ? 1 / n : n) : null;
+}
+
+/**
+ * How much a value from a filing must be restated for the splits that came after it. Each period
+ * is read from the latest filing that reports it, so recent years come already restated while old
+ * ones (only in pre-split filings) don't: without this, EPS jumps at the split. A filing is
+ * restated when it was filed on or after the first post-split cover-page count.
+ */
+export function splitFactor(filed: string | undefined, splits: Split[]): number {
+  if (!filed) return 1;
+  return splits.reduce((k, s) => (filed < s.before ? k * s.ratio : k), 1);
+}
+
+function adjustForSplits(set: StatementSet, splits: Split[]) {
+  if (splits.length === 0) return;
+  for (const line of LINES) {
+    if (line.unit !== "shares" && line.unit !== "USD/shares") continue;
+    const cells = set.lines[line.key];
+    if (!cells) continue;
+    set.lines[line.key] = cells.map((c) => {
+      const k = splitFactor(c.filed, splits);
+      if (k === 1 || c.value === null) return c;
+      return { ...c, value: line.unit === "shares" ? c.value * k : c.value / k, splitAdjusted: k };
+    });
+  }
 }
 
 export function parseShares(dei: ConceptMap | undefined): SharesHistory {
@@ -378,7 +416,9 @@ export function parseCompanyFacts(json: unknown, opts: { years?: number; quarter
     annual.lines[line.key] = years.map((p) => annualCell(gaap, line, p));
     quarterly.lines[line.key] = quarters.map((q) => quarterCell(gaap, line, q, allYears));
   }
+  const shares = parseShares(root.facts?.dei);
   for (const set of [annual, quarterly]) {
+    adjustForSplits(set, shares.splits);
     addDerived(set);
     dropEmptyLines(set);
   }
@@ -387,7 +427,7 @@ export function parseCompanyFacts(json: unknown, opts: { years?: number; quarter
     entityName: typeof root.entityName === "string" ? root.entityName : "",
     annual,
     quarterly,
-    shares: parseShares(root.facts?.dei),
+    shares,
   };
 }
 

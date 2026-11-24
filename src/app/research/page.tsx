@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import ResearchList from "@/components/research/ResearchList";
+import { redirect } from "next/navigation";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const en = (await cookies()).get("lang")?.value === "en";
-  return { title: en ? "My research" : "Mi análisis" };
-}
-
+/** The list of theses is the home page now; old links and bookmarks land there. */
 export default function ResearchPage() {
-  return <ResearchList />;
+  redirect("/");
 }

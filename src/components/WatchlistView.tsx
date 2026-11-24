@@ -1,5 +1,6 @@
 "use client";
 
+import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -88,7 +89,7 @@ export default function WatchlistView() {
   };
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-[26px] font-semibold tracking-[-0.02em] leading-tight">{t.watchlist.title}</h1>
@@ -127,7 +128,7 @@ export default function WatchlistView() {
                   </button>
                 )}
                 <ColumnsMenu columns={columns} onToggle={toggleColumn} />
-                {list.length > 1 && (
+                {list.length > 1 && isOn("charts") && (
                   <Link
                     href={`/charts?s=${shown.slice(0, 5).map(encodeURIComponent).join(",")}&m=revenue&f=annual&t=growth&k=line&r=10`}
                     className={buttonClass("ghost", true, "text-muted")}

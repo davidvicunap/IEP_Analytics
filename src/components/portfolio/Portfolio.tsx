@@ -19,6 +19,7 @@ import { book, positions } from "@/lib/trades";
 import { useQuotes } from "@/lib/useQuotes";
 import AddPosition from "./AddPosition";
 import ImportTrades from "./ImportTrades";
+import { isOn } from "@/lib/features";
 import { Badge, IssueNote, Panel, Provenance, Skeleton, StatusMessage, buttonClass } from "../ui";
 
 type Lang = "es" | "en";
@@ -62,9 +63,11 @@ export default function Portfolio() {
       <button type="button" onClick={() => setMode(mode === "add" ? null : "add")} aria-expanded={mode === "add"} className={buttonClass(open.length ? "secondary" : "primary", true)}>
         {P.add}
       </button>
-      <button type="button" onClick={() => setMode(mode === "import" ? null : "import")} aria-expanded={mode === "import"} className={buttonClass("secondary", true)}>
-        {P.import}
-      </button>
+      {isOn("portfolioImport") && (
+        <button type="button" onClick={() => setMode(mode === "import" ? null : "import")} aria-expanded={mode === "import"} className={buttonClass("secondary", true)}>
+          {P.import}
+        </button>
+      )}
     </div>
   );
   const forms =

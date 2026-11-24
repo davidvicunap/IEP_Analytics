@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filingUrl, parseCompanyFacts } from "./secFinancials";
+import { filingUrl, parseCompanyFacts, splitFactor } from "./secFinancials";
 
 // A compact companyfacts payload with the traps real filings have.
 const K24 = { accn: "0000320193-24-000123", form: "10-K", filed: "2024-11-01" };
@@ -233,5 +233,52 @@ describe("revenue: largest total wins", () => {
       [29e9, "RevenueFromContractWithCustomerIncludingAssessedTax"],
       [25e9, "Revenues"],
     ]);
+  });
+});
+
+describe("per-share figures across a split", () => {
+  // FY2017 only appears in filings made before a 4-for-1 split; FY2018 in one made after it.
+  const fact = (end: string, val: number, filed: string) => ({ start: `${Number(end.slice(0, 4)) - 1}${end.slice(4, 8)}${String(Number(end.slice(8)) + 1).padStart(2, "0")}`, end, val, accn: `a-${filed}`, form: "10-K", filed });
+  const json = {
+    cik: 1,
+    entityName: "Splitco",
+    facts: {
+      "us-gaap": {
+        Revenues: { units: { USD: [fact("2017-09-30", 229e9, "2017-11-03"), fact("2018-09-29", 265e9, "2020-10-30")] } },
+        NetIncomeLoss: { units: { USD: [fact("2017-09-30", 48e9, "2017-11-03"), fact("2018-09-29", 59e9, "2020-10-30")] } },
+        EarningsPerShareDiluted: { units: { "USD/shares": [fact("2017-09-30", 9.21, "2019-10-31"), fact("2018-09-29", 2.98, "2020-10-30")] } },
+        WeightedAverageNumberOfDilutedSharesOutstanding: { units: { shares: [fact("2017-09-30", 5.25e9, "2019-10-31"), fact("2018-09-29", 20e9, "2020-10-30")] } },
+      },
+      dei: {
+        EntityCommonStockSharesOutstanding: {
+          units: {
+            shares: [
+              { end: "2020-07-17", val: 4.28e9, accn: "q3", form: "10-Q", filed: "2020-07-31" },
+              { end: "2020-10-16", val: 17.0e9, accn: "k", form: "10-K", filed: "2020-10-30" },
+            ],
+          },
+        },
+      },
+    },
+  };
+
+  it("restates values from filings made before the split, so EPS and shares don't jump", () => {
+    const f = parseCompanyFacts(json);
+    expect(f.shares.splits).toEqual([{ after: "2020-07-17", before: "2020-10-16", ratio: 4 }]);
+    const eps = f.annual.lines.epsDiluted!.map((c) => c.value);
+    const shares = f.annual.lines.dilutedShares!.map((c) => c.value);
+    expect(eps[0]).toBeCloseTo(9.21 / 4);
+    expect(eps[1]).toBe(2.98);
+    expect(shares).toEqual([21e9, 20e9]);
+    expect(f.annual.lines.epsDiluted![0].splitAdjusted).toBe(4);
+    expect(f.annual.lines.epsDiluted![1].splitAdjusted).toBeUndefined();
+  });
+
+  it("a filing made on the split's side of the first post-split count is already restated", () => {
+    const splits = [{ after: "2014-04-11", before: "2014-07-11", ratio: 7 }, { after: "2020-07-17", before: "2020-10-16", ratio: 4 }];
+    expect(splitFactor("2013-10-30", splits)).toBe(28);
+    expect(splitFactor("2014-10-27", splits)).toBe(4);
+    expect(splitFactor("2020-10-30", splits)).toBe(1);
+    expect(splitFactor(undefined, splits)).toBe(1);
   });
 });

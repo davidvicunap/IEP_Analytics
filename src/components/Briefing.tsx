@@ -1,5 +1,6 @@
 "use client";
 
+import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -95,7 +96,7 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
       </div>
 
       {portfolio}
-      <Theses />
+      <ThesisAlerts />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={B.filings.title} empty={B.filings.empty} loading={loading && !brief?.filings.length} items={brief?.filings ?? []} hideEmpty>
@@ -132,9 +133,11 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
           items={brief?.results ?? []}
           note={brief?.results.length ? B.results.note : undefined}
           more={
-            <Link href="/calendar" prefetch={false} className="link text-xs">
-              {t.calendar.open}
-            </Link>
+            isOn("calendar") ? (
+              <Link href="/calendar" prefetch={false} className="link text-xs">
+                {t.calendar.open}
+              </Link>
+            ) : undefined
           }
         >
           {(r) => (
@@ -169,7 +172,7 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
         <p className="text-sm text-muted" data-testid="brief-quiet">
           {fill(B.quiet, { list: quiet.map((q) => q.charAt(0).toLowerCase() + q.slice(1)).join(" · ") })}{" "}
           {/* The calendar link sits here only when the results list is folded (otherwise it's under the list). */}
-          {quiet.includes(B.results.title) && (
+          {quiet.includes(B.results.title) && isOn("calendar") && (
             <Link href="/calendar" prefetch={false} className="link">
               {t.calendar.open}
             </Link>
@@ -194,7 +197,7 @@ export const sentenceCase = (s: string) => s.charAt(0).toLocaleUpperCase() + s.s
 const THESIS_ROWS = 6;
 
 /** Live theses with an active alert, most urgent first; quiet when every thesis is on track. */
-function Theses() {
+export function ThesisAlerts({ title }: { title?: string } = {}) {
   const { t, lang } = useI18n();
   const T = t.thesis;
   const notes = useNotes();
@@ -203,7 +206,7 @@ function Theses() {
   // Notebooks that failed to load: say so (their alerts and fair values are missing), don't hide it.
   if (notes.state.status === "error")
     return (
-      <Panel title={T.briefTitle} id="theses">
+      <Panel title={title ?? T.briefTitle} id="theses">
         <IssueNote issue={notes.state.issue} onRetry={notes.retry} />
       </Panel>
     );
@@ -214,7 +217,7 @@ function Theses() {
   const rows = all.filter((a) => !a.dismissedAt).sort(byUrgency);
   const seen = all.length - rows.length;
   return (
-    <Panel title={T.briefTitle} id="theses">
+    <Panel title={title ?? T.briefTitle} id="theses">
       {state.status === "error" ? (
         <IssueNote issue={state.issue} onRetry={retry} />
       ) : !data ? (
@@ -233,14 +236,14 @@ function Theses() {
       )}
       {rows.length > THESIS_ROWS && (
         <p className="mt-3 text-xs">
-          <Link href="/research" prefetch={false} className="link">
+          <Link href="/" prefetch={false} className="link">
             {fill(T.briefMore, { n: rows.length - THESIS_ROWS })}
           </Link>
         </p>
       )}
       {seen > 0 && (
         <p className="mt-3 text-xs text-muted">
-          <Link href="/research" prefetch={false} className="link">
+          <Link href="/" prefetch={false} className="link">
             {seen === 1 ? T.briefSeenOne : fill(T.briefSeen, { n: seen })}
           </Link>
         </p>

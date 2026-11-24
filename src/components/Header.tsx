@@ -87,11 +87,17 @@ export default function Header({ demo }: { demo: boolean }) {
           )}
         </div>
         <nav aria-label={t.ux.mainNav} className="hidden md:flex items-center gap-1 text-sm">
-          <NavLink href="/" active={onHome}>
+          <NavLink href="/" active={onHome || path.startsWith("/research")}>
             {t.nav.home}
           </NavLink>
-          <NavLink href="/research" active={path.startsWith("/research")}>
-            {t.nav.research}
+          <NavLink href="/canvas" active={path.startsWith("/canvas")}>
+            {t.nav.canvas}
+          </NavLink>
+          <NavLink href="/watchlist" active={path.startsWith("/watchlist")}>
+            {t.nav.watchlist}
+          </NavLink>
+          <NavLink href="/screener" active={path.startsWith("/screener")}>
+            {t.nav.screener}
           </NavLink>
           <ExploreMenu />
         </nav>

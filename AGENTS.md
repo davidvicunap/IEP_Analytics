@@ -19,7 +19,10 @@ npm run e2e                                # browser journeys (see e2e/README.md
 
 - `src/lib/`: data access, financial maths and state machines, all pure and unit-tested. `fmp.ts` and `sec*.ts` are the providers; `data.ts` is the facade; `resource.ts` holds the client fetch machine.
 - `src/app/api/*`: JSON routes that return `Result<T>` (`{ ok, data, fetchedAt }` or `{ ok: false, error: DataIssue }`).
-- `src/components/`: views. Stock page tabs live in `StockView.tsx` (Overview, Business, Valuation, Filings, My research); the chart generator in `charts/`; the Trading Canvas (infinite canvas of windows, `/canvas`) in `canvas/`, its model in `lib/canvas.ts`. Panels shown inside a canvas window render without their box under `<InWindow>`.
+- `src/components/`: views. The home page is the research hub (`home/ResearchHub.tsx`: theses and canvases); the portfolio lives at `/portfolio`. Stock page tabs live in `StockView.tsx` (Overview, Finanzas, Valuation, Filings, My research); Finanzas is `FinancialHighlights.tsx` + `FinancialStatements.tsx` over `lib/financialsView.ts`; the Trading Canvas (infinite canvas of windows, `/canvas`, `?s=AAPL` opens or starts one for a company) in `canvas/`, its model in `lib/canvas.ts`. Panels shown inside a canvas window render without their box under `<InWindow>`.
+- `src/lib/features.ts`: tools left out of the MVP's navigation (chart generator, packs, compare, calendar, track record, broker import, Telegram). Their code and URLs stay; flip a flag to offer one again.
+- Comps market values are SEC cover-page shares × price (`lib/marketCap.ts`); no paid market-cap feed.
+- Local checks on real SEC data without spending FMP calls: `LOCAL_PGLITE_DIR=.local/pg npm run db:local` fills an in-process Postgres (see `scripts/local-db.ts`); run the app with the same variable and `BETA_GATE=off`.
 - `src/lib/i18n/`: `es.ts` / `en.ts` ship with every page; `esDeep.ts` / `enDeep.ts` hold the stock tabs' and charts' text, loaded under `<DeepI18n>`. Add every string in both languages.
 
 ## Rules

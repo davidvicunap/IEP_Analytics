@@ -178,6 +178,32 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) =>
  * QUOTES_PER_REQUEST symbols: the rest are returned in `skipped` instead of being dropped
  * silently, so the client can ask for them in another request.
  */
+export type RecentPrice = { price: number; at: string; stored: boolean } | { error: DataIssue };
+
+/**
+ * Prices for a list where the day's close is enough (comps peers): a stored price younger than
+ * `maxAgeMs` is used as is, the rest are asked to FMP (cached), and one FMP can't give falls
+ * back to the last stored price, whatever its age (its time is shown).
+ */
+export async function recentPrices(symbols: string[], maxAgeMs: number, now = Date.now()): Promise<Map<string, RecentPrice>> {
+  const out = new Map<string, RecentPrice>();
+  const stored = await readStored(symbols);
+  const ask: string[] = [];
+  for (const s of symbols) {
+    const st = stored.get(s);
+    if (st && now - Date.parse(st.fetchedAt) <= maxAgeMs) out.set(s, { price: st.quote.price, at: st.fetchedAt, stored: true });
+    else ask.push(s);
+  }
+  const results = await mapLimit(ask, QUOTE_CONCURRENCY, getQuote);
+  ask.forEach((s, i) => {
+    const r = results[i];
+    const st = stored.get(s);
+    if (r.ok) out.set(s, { price: r.data.price, at: r.fetchedAt, stored: false });
+    else out.set(s, st ? { price: st.quote.price, at: st.fetchedAt, stored: true } : { error: r.error });
+  });
+  return out;
+}
+
 export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { skipped?: string[] }> {
   const all = [...new Set(symbols.map(normalizeSymbol).filter((s): s is string => !!s))];
   const list = all.slice(0, QUOTES_PER_REQUEST);

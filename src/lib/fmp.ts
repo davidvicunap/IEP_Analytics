@@ -337,25 +337,6 @@ export function fmpEquityRiskPremium(): Promise<Result<Rate>> {
   });
 }
 
-/**
- * Current market caps for many symbols in one call. Plans that cover only some symbols
- * simply leave the others out, so callers must handle a partial map.
- */
-export function fmpMarketCaps(symbols: string[]): Promise<Result<Record<string, number>>> {
-  const list = [...new Set(symbols.map((s) => s.toUpperCase()))].sort();
-  return attempt("market-capitalization-batch", async () => {
-    if (list.length === 0) return { data: {}, fetchedAt: new Date().toISOString() };
-    const { rows, fetchedAt } = await get("market-capitalization-batch", { symbols: list.join(",") }, TTL.fundamentals);
-    const data: Record<string, number> = {};
-    for (const r of rows) {
-      const sym = str(r.symbol);
-      const cap = num(r.marketCap);
-      if (sym && cap !== undefined && cap > 0) data[sym.toUpperCase()] = cap;
-    }
-    return { data, fetchedAt };
-  });
-}
-
 // ---- Analysts -------------------------------------------------------------------------
 // Consensus figures from FMP. Lower plans cover a fixed list of large companies; for the rest
 // FMP answers with a plan error, which the UI shows as such.

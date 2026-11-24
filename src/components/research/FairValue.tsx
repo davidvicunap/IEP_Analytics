@@ -45,7 +45,7 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
   const up = upside(note.fairValue, price);
   const lastNote = note.log.find((e) => e.kind === "note");
   return (
-    <Panel title={R.title} id="research-card" action={note.closed ? <StatusBadge status="closed" /> : isWatched(note) ? <CardStatus symbol={symbol} /> : undefined}>
+    <Panel bare className="border-t border-line pt-5" title={R.title} id="research-card" action={note.closed ? <StatusBadge status="closed" /> : isWatched(note) ? <CardStatus symbol={symbol} /> : undefined}>
       {started ? (
         <div className="space-y-2 text-sm">
           {note.thesis ? <p className="line-clamp-4 whitespace-pre-wrap">{note.thesis}</p> : <p className="text-muted">{R.noThesis}</p>}

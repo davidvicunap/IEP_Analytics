@@ -99,7 +99,7 @@ async function buildQuality(symbol: string): Promise<{ data: QualityPayload; fet
 }
 
 // Only successful payloads are cached; errors are thrown out of the cache and retried.
-const cachedQuality = unstable_cache(buildQuality, ["sec-quality-v1"], { revalidate: 21_600, tags: ["sec"] });
+const cachedQuality = unstable_cache(buildQuality, ["sec-quality-v2"], { revalidate: 21_600, tags: ["sec"] });
 
 export async function getQuality(symbol: string): Promise<Result<QualityPayload>> {
   if (!getDb()) return { ok: false, error: "not_configured" };

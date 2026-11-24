@@ -3,6 +3,7 @@
 // Trading Canvas: pick or start a canvas, then work on it. The canvas being edited lives in this
 // component's state (so drags and pans stay smooth) and is saved a moment after each change, to
 // this browser and, through the settings sync, to the account.
+import { TICKER } from "@/lib/search";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -55,17 +56,23 @@ export default function CanvasApp() {
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("c");
-  const current = canvases.find((c) => c.id === id) ?? canvases[0] ?? null;
+  // ?s=AAPL (from a stock page or a thesis): the latest canvas showing it, else a new one for it.
+  const raw = params.get("s")?.trim().toUpperCase() ?? "";
+  const asked = TICKER.test(raw) ? raw : null;
+  const showing = asked && !id ? [...canvases].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)).find((c) => c.widgets.some((w) => w.symbol === asked)) : undefined;
+  const current = canvases.find((c) => c.id === id) ?? showing ?? (asked ? null : (canvases[0] ?? null));
   if (!hydrated) return <WorkspaceSkeleton />;
   if (params.get("new") === "1" || !current) {
     return (
       <Start
+        key={asked ?? ""}
+        initialSymbol={asked}
         existing={canvases}
         onCreated={(doc) => {
           fitOnOpen.add(doc.id);
           router.replace(`/canvas?c=${doc.id}`);
         }}
-        onBack={current ? () => router.replace(`/canvas?c=${current.id}`) : undefined}
+        onBack={current ? () => router.replace(`/canvas?c=${current.id}`) : canvases[0] ? () => router.replace(`/canvas?c=${canvases[0].id}`) : undefined}
       />
     );
   }
@@ -89,11 +96,11 @@ function WorkspaceSkeleton() {
 
 // ---- Start a canvas ----------------------------------------------------------------------------
 
-function Start({ existing, onCreated, onBack }: { existing: CanvasDoc[]; onCreated: (doc: CanvasDoc) => void; onBack?: () => void }) {
+function Start({ existing, onCreated, onBack, initialSymbol }: { existing: CanvasDoc[]; onCreated: (doc: CanvasDoc) => void; onBack?: () => void; initialSymbol: string | null }) {
   const { t } = useI18n();
   const C = t.canvas;
   const { list } = useWatchlist();
-  const [symbol, setSymbol] = useState<string>(list[0] ?? "AAPL");
+  const [symbol, setSymbol] = useState<string>(initialSymbol ?? list[0] ?? "AAPL");
   const [template, setTemplate] = useState<Template>("full");
   const full = existing.length >= MAX_CANVASES;
   const create = () => {

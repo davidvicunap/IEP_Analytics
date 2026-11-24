@@ -32,8 +32,8 @@ export default function GettingStarted() {
   const first = held[0] ?? watch.list[0];
   const href: Record<StepKey, string> = {
     position: "#portfolio",
-    exit: first ? `/stock/${encodeURIComponent(first)}?tab=research&plan=1` : "/research",
-    alerts: "/research#push",
+    exit: first ? `/stock/${encodeURIComponent(first)}?tab=research&plan=1` : "/",
+    alerts: "/#push",
     follow: "/screener",
   };
 

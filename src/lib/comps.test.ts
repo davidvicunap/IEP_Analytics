@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { compsRow, impliedValues, netDebtOf, peerStats, quantile, type CompsCompany } from "./comps";
+import { MIN_PEERS, compsRow, impliedValues, netDebtOf, peerStats, quantile, type CompsCompany } from "./comps";
 
 // Target: revenue 1,000, operating income 200, D&A 50 (EBITDA 250), net income 150,
 // equity 600, OCF 260, capex 60 (FCF 200), debt 300 + 100, cash 150 → net debt 250.
 const target: CompsCompany = {
-  symbol: "ME", name: "Me", marketCap: 3000, marketCapSource: "market",
+  symbol: "ME", name: "Me", marketCap: 3000, marketCapSource: "sec",
   inputs: { revenue: 1000, revenuePrev: 800, operatingIncome: 200, depreciation: 50, netIncome: 150, equity: 600, ocf: 260, capex: 60, longTermDebt: 300, currentDebt: 100, cash: 150 },
 };
 const peer = (symbol: string, marketCap: number | null, k: number): CompsCompany => ({
-  symbol, name: symbol, marketCap, marketCapSource: marketCap === null ? null : "market",
+  symbol, name: symbol, marketCap, marketCapSource: marketCap === null ? null : "sec",
   inputs: { revenue: 100 * k, operatingIncome: 20 * k, depreciation: 5 * k, netIncome: 10 * k, equity: 50 * k, ocf: 15 * k, capex: 5 * k, longTermDebt: 10 * k, cash: 10 * k },
 });
 
@@ -57,7 +57,15 @@ describe("peer statistics", () => {
 
 describe("implied values", () => {
   const peers = [peer("A", 100, 1), peer("B", 300, 2), peer("C", 600, 3)].map(compsRow);
-  const values = impliedValues(compsRow(target), peers, 30); // 3,000 / 30 = 100 shares
+  // Three peers to keep the arithmetic readable; the screen itself asks for MIN_PEERS (4).
+  const values = impliedValues(compsRow(target), peers, 30, "median", 3); // 3,000 / 30 = 100 shares
+
+  it("says nothing with fewer than four peers that have the multiple", () => {
+    expect(MIN_PEERS).toBe(4);
+    expect(impliedValues(compsRow(target), peers, 30)).toEqual([]);
+    const four = [...peers, compsRow(peer("D", 400, 2))];
+    expect(impliedValues(compsRow(target), four, 30).map((v) => v.multiple)).toContain("pe");
+  });
 
   it("applies the median P/E to the target's net income", () => {
     const pe = values.find((v) => v.multiple === "pe")!;
@@ -80,7 +88,7 @@ describe("implied values", () => {
   });
 
   it("can use the mean instead of the median", () => {
-    const mean = impliedValues(compsRow(target), peers, 30, "mean").find((v) => v.multiple === "pe")!;
+    const mean = impliedValues(compsRow(target), peers, 30, "mean", 3).find((v) => v.multiple === "pe")!;
     expect(mean.mid).toBeCloseTo((15 * 150) / 100);
   });
 });

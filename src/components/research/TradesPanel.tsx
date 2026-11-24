@@ -3,6 +3,7 @@
 // "My trades in X" on the stock's research tab: the open position at today's price, the trades
 // logged for this stock and a form to log a buy or a sell (a buy keeps the thesis stop, so the
 // result can be measured in R). Text: `trades` in the deep dictionary.
+import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -163,11 +164,13 @@ export default function TradesPanel({ symbol, price, note }: { symbol: string; p
                 ))}
               </ul>
             )}
-            <p className="mt-3 text-sm">
-              <Link href="/research/results" prefetch={false} className="link">
-                {T.seeRecord}
-              </Link>
-            </p>
+            {isOn("trackRecord") && (
+              <p className="mt-3 text-sm">
+                <Link href="/research/results" prefetch={false} className="link">
+                  {T.seeRecord}
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       )}

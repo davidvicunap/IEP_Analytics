@@ -17,7 +17,8 @@ import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
+import { CanvasIcon, ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
+import { isOn } from "@/lib/features";
 import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -26,6 +27,7 @@ const ChartTab = dynamic(() => import("./ChartTab"), { loading: () => <Panel><Ch
 const FundamentalsPanel = dynamic(() => import("./fundamentals/FundamentalsPanel"), { loading: tabLoading });
 const ValuationPanel = dynamic(() => import("./ValuationPanel"), { loading: tabLoading });
 const FinancialStatements = dynamic(() => import("./FinancialStatements"), { loading: tabLoading });
+const FinancialHighlights = dynamic(() => import("./FinancialHighlights"), { loading: tabLoading });
 const FilingsPanel = dynamic(() => import("./FilingsPanel"), { loading: tabLoading });
 const InsidersPanel = dynamic(() => import("./InsidersPanel"), { loading: tabLoading });
 const NewsPanel = dynamic(() => import("./NewsPanel"), { loading: tabLoading });
@@ -33,9 +35,9 @@ const ResearchPanel = dynamic(() => import("./research/ResearchPanel"), { loadin
 
 type Tab = "overview" | "business" | "valuation" | "filings" | "research";
 const TABS: Tab[] = ["overview", "business", "valuation", "filings", "research"];
-type BusinessView = "summary" | "statements";
+type BusinessView = "highlights" | "income" | "balance" | "cashflow" | "summary";
 type FilingsView = "filings" | "insiders" | "news";
-const BUSINESS_VIEWS: BusinessView[] = ["summary", "statements"];
+const BUSINESS_VIEWS: BusinessView[] = ["highlights", "income", "balance", "cashflow", "summary"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
 type ValuationView = "comps" | "history" | "dcf" | "expectations";
 const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "dcf", "expectations"];
@@ -44,7 +46,7 @@ const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "dcf", "expectatio
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
   chart: { tab: "overview" },
   fundamentals: { tab: "business" },
-  financials: { tab: "business", view: "statements" },
+  financials: { tab: "business", view: "income" },
   insiders: { tab: "filings", view: "insiders" },
   news: { tab: "filings", view: "news" },
 };
@@ -58,8 +60,9 @@ function useStockUrlState() {
   const raw = params.get("tab");
   const legacy = raw ? LEGACY[raw] : undefined;
   const tab: Tab = legacy ? legacy.tab : raw && (TABS as string[]).includes(raw) ? (raw as Tab) : "overview";
-  const rawView = legacy?.view ?? params.get("view");
-  const businessView: BusinessView = (BUSINESS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as BusinessView) : "summary";
+  // "statements" was the single statements view before each statement had its own.
+  const rawView = legacy?.view ?? (params.get("view") === "statements" ? "income" : params.get("view"));
+  const businessView: BusinessView = (BUSINESS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as BusinessView) : "highlights";
   const filingsView: FilingsView = (FILINGS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as FilingsView) : "filings";
   const valuationView: ValuationView = (VALUATION_VIEWS as string[]).includes(rawView ?? "") ? (rawView as ValuationView) : "comps";
   const chart = useMemo(() => parseChartSettings(new URLSearchParams(params.toString())), [params]);
@@ -206,9 +209,13 @@ export default function StockView({
                 <FundamentalsPanel symbol={symbol} />
               </Deep>
             </>
+          ) : businessView === "highlights" ? (
+            <Deep>
+              <FinancialHighlights symbol={symbol} />
+            </Deep>
           ) : (
             <Deep>
-              <FinancialStatements symbol={symbol} />
+              <FinancialStatements symbol={symbol} statement={businessView} />
             </Deep>
           )}
         </div>,
@@ -236,7 +243,12 @@ export default function StockView({
 
 /** The views inside a tab (Business: summary or statements; Filings: filings, insiders, news). */
 function SubNav<T extends string>({ label, value, onChange, options }: { label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
-  return <Segmented label={label} value={value} onChange={onChange} options={options} />;
+  // Scrolls on its own when it doesn't fit (five views on a 320 px phone), never the page.
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <Segmented label={label} value={value} onChange={onChange} options={options} className="inline-flex w-max" />
+    </div>
+  );
 }
 
 /** A tab whose text lives in the deep dictionary: waits for it like for its code. */
@@ -288,24 +300,38 @@ function StockHeader({
           </p>
         </div>
         <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+          {/* Work this company on a canvas: its own if there is one, else a new one. */}
           <Link
-            href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
+            href={`/canvas?s=${encodeURIComponent(identity.symbol)}`}
             className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-            title={t.stock.packsTitle}
-            aria-label={t.stock.packsTitle}
+            title={t.stock.canvasTitle}
+            aria-label={t.stock.canvasTitle}
           >
-            <GridIcon size={16} />
-            <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
+            <CanvasIcon size={16} />
+            <span className="hidden min-[360px]:inline">{t.stock.canvas}</span>
           </Link>
-          <Link
-            href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
-            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-            title={t.compare.title}
-            aria-label={t.compare.title}
-          >
-            <ColumnsIcon size={16} />
-            <span className="hidden min-[360px]:inline">{t.compare.button}</span>
-          </Link>
+          {isOn("chartPacks") && (
+            <Link
+              href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
+              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+              title={t.stock.packsTitle}
+              aria-label={t.stock.packsTitle}
+            >
+              <GridIcon size={16} />
+              <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
+            </Link>
+          )}
+          {isOn("compare") && (
+            <Link
+              href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
+              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+              title={t.compare.title}
+              aria-label={t.compare.title}
+            >
+              <ColumnsIcon size={16} />
+              <span className="hidden min-[360px]:inline">{t.compare.button}</span>
+            </Link>
+          )}
           <WatchButton symbol={identity.symbol} />
         </div>
       </div>
@@ -436,7 +462,7 @@ function Overview({
       </div>
       <div className="max-lg:contents lg:space-y-4 min-w-0">
         <div className="order-1">
-          <AtAGlance symbol={identity.symbol} onOpen={(tab) => goTo(tab)} />
+          <AtAGlance symbol={identity.symbol} onOpen={(tab, view) => goTo(tab, view)} />
         </div>
         <div className="order-4">
           <ResearchCard symbol={identity.symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />

@@ -233,7 +233,7 @@ await test("getting started: own → exit → alerts → follow tick themselves 
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
   let trades = [];
   await p.route(/\/api\/trades$/, (r) => (r.request().method() === "GET" ? r.fulfill(json({ ok: true, fetchedAt: "x", data: trades })) : r.continue()));
-  await p.goto(base + "/");
+  await p.goto(base + "/portfolio");
   const box = p.locator("#getting-started");
   await box.getByText("0 of 4 done").waitFor();
   assert((await box.getByRole("link", { name: "Add a position" }).getAttribute("href")) === "#portfolio", "the first step points at the portfolio");
@@ -247,7 +247,7 @@ await test("getting started: own → exit → alerts → follow tick themselves 
   await p.reload();
   await box.getByText("2 of 4 done").waitFor();
   assert((await box.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit step opens the held stock's plan");
-  assert((await box.getByRole("link", { name: "Choose" }).getAttribute("href")) === "/research#push", "alerts step opens the channels");
+  assert((await box.getByRole("link", { name: "Choose" }).getAttribute("href")) === "/#push", "alerts step opens the channels");
   // An alert channel turned on (remembered in this browser).
   await p.evaluate(() => localStorage.setItem("iep.onboarding", JSON.stringify({ alerts: true })));
   await p.reload();
@@ -261,29 +261,65 @@ await test("getting started: own → exit → alerts → follow tick themselves 
   await p.context().close();
 });
 
-await test("navigation: three places (portfolio, research, tools); Tools lists every tool with what it's for, a sheet on phones", async () => {
+await test("navigation: research, canvas, list and screener; More holds the portfolio and the method; a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/");
+  await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
   const nav = p.getByRole("navigation", { name: /main/i }).first();
-  assert((await nav.getByRole("link", { name: "My portfolio" }).count()) === 1, "home is My portfolio");
-  assert((await nav.getByRole("link", { name: "Watchlist" }).count()) === 0, "the watchlist moved into Tools");
-  await nav.getByRole("button", { name: "Tools" }).click();
-  await p.getByRole("link", { name: /Watchlist\s*The companies you follow/ }).waitFor();
-  await p.getByRole("link", { name: /Compare\s*Up to four companies side by side/ }).waitFor();
+  for (const name of ["Research", "Canvas", "Watchlist", "Screener"]) assert((await nav.getByRole("link", { name, exact: true }).count()) === 1, `${name} in the nav`);
+  // Tools left out of the MVP aren't offered (their pages still open by URL).
+  await nav.getByRole("button", { name: "More" }).click();
+  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).waitFor();
+  assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs/ }).count()) === 0, "hidden tools offered");
   await axe(p);
-  await p.getByRole("link", { name: /Calendar\s*Results, deadlines/ }).click();
-  await p.waitForURL(/\/calendar$/);
+  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).click();
+  await p.waitForURL(/\/portfolio$/);
+  await p.goto(base + "/research");
+  await p.waitForURL((u) => u.pathname === "/");
   await p.context().close();
 
   const m = await page({ lang: "es", width: 390, height: 800, touch: true });
   await m.goto(base + "/");
-  await m.getByRole("button", { name: "Herramientas" }).click();
-  const sheet = m.getByRole("dialog", { name: "Herramientas" });
-  await sheet.getByRole("link", { name: /Mi lista/ }).waitFor();
-  await sheet.getByRole("link", { name: /Buscador/ }).waitFor();
+  const bar = m.getByRole("navigation", { name: /principal/i }).last();
+  for (const name of ["Mi análisis", "Lienzo", "Mi lista", "Buscador"]) await bar.getByRole("link", { name }).waitFor();
+  await bar.getByRole("button", { name: "Más" }).click();
+  const sheet = m.getByRole("dialog", { name: "Más" });
+  await sheet.getByRole("link", { name: /Mi cartera/ }).waitFor();
   await sheet.getByRole("button", { name: "Comandos y atajos" }).click();
   await m.getByRole("dialog", { name: "Comandos" }).waitFor();
   await m.context().close();
+});
+
+await test("research hub: how to start when empty; theses with today's price and their canvas; a stock opens its canvas or starts one", async () => {
+  const p = await page({ lang: "en" });
+  let notes = [];
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
+  await p.goto(base + "/");
+  await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
+  await p.getByRole("heading", { name: "How it works" }).waitFor();
+  await p.getByText("No canvases yet.", { exact: false }).waitFor();
+  assert((await p.getByRole("link", { name: "New canvas" }).getAttribute("href")) === "/canvas?new=1", "new canvas");
+  await axe(p);
+  // A thesis on KO and a canvas showing KO.
+  const note = (symbol, thesis, fairValue) => ({ symbol, thesis, bull: "", bear: "", fairValue, entry: null, stop: null, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-20T00:00:00Z" });
+  notes = [note("KO", "Pricing power holds.", 80), note("MSFT", "Cloud keeps compounding.", null)];
+  await p.evaluate(() =>
+    localStorage.setItem("iep.canvases", JSON.stringify([{ id: "c-ko", name: "KO desk", view: { x: 0, y: 0, zoom: 1 }, updatedAt: "2026-11-20T12:00:00.000Z", widgets: [{ id: "w-1", kind: "glance", x: 0, y: 0, w: 400, h: 464, z: 1, symbol: "KO", link: 1 }] }])),
+  );
+  await p.reload();
+  const theses = p.getByRole("region", { name: "Your theses" }).or(p.locator("section", { has: p.getByRole("heading", { name: "Your theses" }) }));
+  await theses.getByText("Pricing power holds.").waitFor();
+  assert((await p.getByRole("link", { name: "Open the canvas for KO" }).getAttribute("href")) === "/canvas?c=c-ko", "KO's canvas");
+  assert((await p.getByRole("link", { name: "Open MSFT in a new canvas" }).getAttribute("href")) === "/canvas?new=1&s=MSFT", "MSFT starts one");
+  await p.getByRole("link", { name: /KO desk/ }).waitFor();
+  await axe(p);
+  // From a stock page: KO opens its canvas; MSFT starts a new one with MSFT picked.
+  await p.goto(base + "/canvas?s=KO");
+  await p.getByText("KO desk").first().waitFor();
+  await p.goto(base + "/canvas?s=MSFT");
+  await p.getByTestId("start-symbol").getByText("MSFT").waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
 });
 
 await test("search: touch selection on a phone (expandable header search)", async () => {
@@ -598,7 +634,7 @@ await test("home briefing: following stocks shows what changed, each row opening
     KO: snap("KO", { recent: [0, 1, 2].map((i) => ({ accn: `ko-${i}`, form: "DEFA14A", filed: day(-i), reportDate: null, primaryDocument: "a.htm", items: [] })) }),
   };
   await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
-  await p.goto(base + "/");
+  await p.goto(base + "/portfolio");
   await p.getByRole("heading", { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches)$/ }).waitFor();
   await p.getByText("Lo nuevo de las acciones que sigues (3).", { exact: false }).waitFor();
   const filing = p.getByRole("link", { name: /AAPL\s*Anuales \(10-K\)/ });
@@ -624,7 +660,7 @@ await test("home briefing: following stocks shows what changed, each row opening
 
 await test("home briefing: SEC data that can't load is said once, the rest still shows", async () => {
   const p = await page({ watchlist: ["AAPL", "MSFT"] }); // demo: the SEC summaries answer "not configured"
-  await p.goto(base + "/");
+  await p.goto(base + "/portfolio");
   await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
   await p.getByTestId("brief-quiet").getByText(/nuevas presentaciones/).waitFor();
   await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
@@ -817,10 +853,10 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   const p = await page();
   await p.goto(base + "/stock/AAPL");
   assert((await p.getByRole("tab").count()) === 5, "five tabs");
-  await p.getByRole("tab", { name: "Negocio", exact: true }).click();
+  await p.getByRole("tab", { name: "Finanzas", exact: true }).click();
   await p.waitForURL(/tab=business/);
-  await p.getByRole("button", { name: "Estados financieros" }).click();
-  await p.waitForURL(/view=statements/);
+  await p.getByRole("button", { name: "Resultados" }).click();
+  await p.waitForURL(/view=income/);
   await p.goBack();
   await p.waitForURL((u) => u.search.includes("tab=business") && !u.search.includes("view="));
   await p.goBack();
@@ -828,7 +864,7 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   assert((await p.getByRole("tab", { name: "Resumen" }).getAttribute("aria-selected")) === "true", "Back didn't return to overview");
   await p.goForward();
   await p.waitForURL(/tab=business/);
-  await p.getByRole("tab", { name: "Negocio", exact: true }).focus();
+  await p.getByRole("tab", { name: "Finanzas", exact: true }).focus();
   await p.keyboard.press("End");
   await p.waitForURL(/tab=research/);
   assert(await p.evaluate(() => document.activeElement?.id === "tab-research"), "End didn't move focus");
@@ -919,7 +955,7 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
       }),
     ),
   );
-  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
   const card = p.locator("article", { hasText: "Beneficio neto" });
   await card.waitFor();
   assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
@@ -928,6 +964,82 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
   const cells = await card.locator("tbody td").allInnerTexts();
   assert(cells.some((c) => c.startsWith("−$")) && cells.includes("—"), `cells ${cells.join(",")}`);
   await p.context().close();
+});
+
+// Six fiscal years shaped like the SEC statements API answers (lib/financials.ts).
+function financialsPayload() {
+  const years = [2020, 2021, 2022, 2023, 2024, 2025];
+  const cell = (value, extra = {}) => ({ value, concept: "Test", accn: "0000000000-00-000000", ...extra });
+  const rev = years.map((_, i) => 100e9 * 1.1 ** i);
+  const line = (f) => years.map((_, i) => cell(f(i)));
+  const annual = {
+    periods: years.map((y) => ({ end: `${y}-09-30`, label: `FY${y}`, form: "10-K" })),
+    lines: {
+      revenue: line((i) => rev[i]),
+      costOfRevenue: line((i) => rev[i] * 0.6),
+      grossProfit: line((i) => rev[i] * 0.4),
+      researchDevelopment: line((i) => rev[i] * 0.05),
+      operatingIncome: line((i) => rev[i] * (0.2 + i * 0.01)),
+      interestExpense: years.map((_, i) => cell(i < 4 ? 1e9 : null)),
+      netIncome: line((i) => rev[i] * 0.15),
+      epsDiluted: years.map((_, i) => cell(1 + i * 0.2, i < 2 ? { splitAdjusted: 4 } : {})),
+      dilutedShares: years.map((_, i) => cell(16e9 - i * 0.2e9, i < 2 ? { splitAdjusted: 4 } : {})),
+      cash: line(() => 30e9),
+      totalAssets: line(() => 300e9),
+      longTermDebt: line(() => 20e9),
+      operatingCashFlow: line((i) => rev[i] * 0.25),
+      capex: line(() => 5e9),
+      freeCashFlow: line((i) => rev[i] * 0.25 - 5e9),
+      buybacks: line(() => 10e9),
+    },
+  };
+  return {
+    ok: true,
+    fetchedAt: new Date().toISOString(),
+    data: {
+      symbol: "AAPL", cik: 320193, entityName: "Apple Inc.", fetchedAt: new Date().toISOString(), annual,
+      quarterly: { periods: [], lines: {} },
+      shares: { points: [], splits: [{ after: "2022-07-01", before: "2022-10-01", ratio: 4 }], reliableFrom: null },
+    },
+  };
+}
+
+await test("financials: highlights in words, statements in one unit, three readings, phone width", async () => {
+  const p = await page();
+  await p.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
+  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
+  await p.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
+  await p.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
+  await p.getByRole("button", { name: "Resultados" }).click();
+  await p.waitForURL(/view=income/);
+  await p.getByText("Cifras en miles de millones de dólares; negativos entre paréntesis.").waitFor();
+  await p.getByText("No reportado desde FY2024").waitFor();
+  await p.getByText("Acciones y BPA de años anteriores ajustados por el split 4:1 de 2022, para que los años se puedan comparar.").waitFor();
+  const table = p.getByRole("region", { name: "Resultados · Anual" });
+  assert((await table.getByRole("row", { name: /^Ingresos/ }).innerText()).includes("161.1"), "revenue in billions");
+  await p.getByRole("button", { name: "% de ingresos" }).click();
+  await p.getByText("Cada línea como porcentaje de los ingresos del mismo período.").waitFor();
+  assert((await table.getByRole("row", { name: /^Costo de ventas/ }).innerText()).includes("60.0%"), "common size");
+  await p.getByRole("button", { name: "Variación" }).click();
+  assert((await table.getByRole("row", { name: /^Ingresos/ }).innerText()).includes("10.0%"), "growth");
+  await axe(p);
+  await p.getByRole("button", { name: "Flujo de caja" }).click();
+  await p.waitForURL(/view=cashflow/);
+  await p.getByRole("button", { name: "Valores" }).click();
+  assert((await p.getByRole("region", { name: "Flujo de caja · Anual" }).getByRole("row", { name: /^Inversión en activos/ }).innerText()).includes("(5.0)"), "payments in parentheses");
+  await p.context().close();
+
+  const phone = await page({ width: 360, height: 780, touch: true });
+  await phone.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
+  for (const view of ["highlights", "income"]) {
+    await phone.goto(base + `/stock/AAPL?tab=business&view=${view}`);
+    await phone.getByText(view === "income" ? "Cifras en miles de millones de dólares; negativos entre paréntesis." : /^Los ingresos crecieron/).waitFor();
+    const over = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(over <= 0, `${view}: page overflows by ${over}px`);
+  }
+  await axe(phone);
+  await phone.context().close();
 });
 
 await test("at a glance: five lines from SEC figures, each opening its tab; gaps said plainly", async () => {
@@ -949,7 +1061,7 @@ await test("at a glance: five lines from SEC figures, each opening its tab; gaps
   await p.waitForURL(/tab=valuation/);
   await p.goBack();
   await p.locator("#glance").getByRole("button", { name: /Más deuda que la mayoría/ }).click();
-  await p.waitForURL(/tab=business/);
+  await p.waitForURL(/tab=business&view=summary/);
   await p.goBack();
   await axe(p);
   await p.context().close();
@@ -968,11 +1080,11 @@ await test("data tabs: an expired beta session asks to sign in again and comes b
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
   await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
-  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
   const href = await link.getAttribute("href");
-  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness", `href ${href}`);
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness%26view%3Dsummary", `href ${href}`);
   assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
   await axe(p);
   await p.context().close();
@@ -1254,8 +1366,9 @@ await test("track record: log a buy and a sell (an oversell is refused), see the
   await box.getByText("A later sell relies on that buy: delete the sell first.").waitFor();
   await axe(p);
 
-  await box.getByRole("link", { name: "See my track record" }).click();
-  await p.waitForURL(/\/research\/results$/);
+  // The track record is out of the MVP's navigation (features.ts) but its page still works.
+  assert((await box.getByRole("link", { name: "See my track record" }).count()) === 0, "track record offered");
+  await p.goto(base + "/research/results");
   const score = p.getByTestId("scorecard");
   await score.getByText("Closed trades").waitFor();
   const text = await score.innerText();
@@ -1269,9 +1382,10 @@ await test("track record: log a buy and a sell (an oversell is refused), see the
   await p.context().close();
 });
 
-await test("my portfolio: add from the search list, import a broker CSV (a split restated, a renamed and a delisted ticker flagged), totals in pesos, one tap to an exit", async () => {
+// The broker import is out of the MVP (features.ts): the same trades go in through the API here.
+await test("my portfolio: add from the search list, trades with a split restated and a renamed and a delisted ticker flagged, totals in pesos, one tap to an exit", async () => {
   const p = await page({ lang: "en", watchlist: [] });
-  await p.goto(base + "/");
+  await p.goto(base + "/portfolio");
   await p.evaluate(async () => {
     const all = await (await fetch("/api/trades")).json();
     for (const t of [...all.data].reverse()) await fetch(`/api/trades/${t.id}`, { method: "DELETE" });
@@ -1291,18 +1405,15 @@ await test("my portfolio: add from the search list, import a broker CSV (a split
   await box.getByRole("button", { name: "Add to my portfolio" }).click();
   await box.getByText("KO is in your portfolio. We're following it for you.").waitFor();
   assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("KO"), "owning it should follow it");
-  // A broker file in Spanish, with a dividend row that isn't a trade.
-  await box.getByRole("button", { name: "Import from my broker" }).click();
-  const csv = ["Fecha;Emisora;Tipo;Títulos;Precio;Comisión", "05/01/2026;SPLT *;Compra;2;1.000,00;0", "06/02/2026;OLDCO;Compra;3;50;0", "07/02/2026;GONE;Compra;10;5;0", "08/02/2026;MSFT;Dividendo;;;"].join("\n");
-  await box.getByLabel("Or paste the contents").fill(csv);
-  await box.getByRole("button", { name: "Read" }).click();
-  const summary = box.getByTestId("import-summary");
-  await summary.getByText("3 trades (3 buys, 0 sells) in 3 companies.").waitFor();
-  await summary.getByText("1 row isn't a buy or a sell", { exact: false }).waitFor();
-  await summary.getByText("Dates read as day/month/year.", { exact: false }).waitFor();
-  await axe(p);
-  await box.getByRole("button", { name: "Import 3 trades" }).click();
-  await box.getByText("Imported 3 trades.").waitFor();
+  assert((await box.getByRole("button", { name: "Import from my broker" }).count()) === 0, "the import is out of the MVP");
+  await p.evaluate(async () => {
+    const add = (symbol, date, shares, price) =>
+      fetch("/api/trades", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol, side: "buy", date, shares, price, fees: 0 }) });
+    await add("SPLT", "2026-01-05", 2, 1000);
+    await add("OLDCO", "2026-02-06", 3, 50);
+    await add("GONE", "2026-02-07", 10, 5);
+  });
+  await p.reload();
   // Each holding: one light and its reason, the most urgent first.
   const holdings = box.getByTestId("holdings");
   await holdings.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
@@ -1421,28 +1532,28 @@ async function searchInside(scope, text) {
   await scope.page().getByRole("option", { name: new RegExp(text) }).first().click();
 }
 
-await test("telegram: a one-time link connects the chat, then a test and disconnect; the webhook only listens to Telegram", async () => {
+// Telegram alerts are out of the MVP's screens (features.ts); the service behind them still works.
+await test("telegram: no settings on screen; the API still links a chat with a one-time code, tests and disconnects; the webhook only listens to Telegram", async () => {
   const p = await page({ lang: "en" });
-  await p.goto(base + "/research");
-  const tg = p.getByTestId("telegram-settings");
-  await tg.getByRole("button", { name: "Connect Telegram" }).click();
-  const open = tg.getByRole("link", { name: "Open Telegram" });
-  await open.waitFor();
-  const href = await open.getAttribute("href");
-  const code = new URL(href).searchParams.get("start");
+  await p.goto(base + "/");
+  await p.getByTestId("push-settings").waitFor();
+  assert((await p.getByTestId("telegram-settings").count()) === 0, "Telegram settings shown");
+  const api = (url, method, body) => p.evaluate(async ([url, method, body]) => {
+    const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    return { status: r.status, body: await r.json().catch(() => null) };
+  }, [url, method, body]);
+  const link = await api("/api/telegram", "POST", { lang: "en" });
+  const href = link.body?.data?.url ?? "";
+  const code = href ? new URL(href).searchParams.get("start") : null;
   assert(href.startsWith("https://t.me/iep_demo_bot?start=") && code, `link ${href}`);
-  await tg.getByText(/tap “Start” in the bot's chat/).waitFor();
   // Without Telegram's secret the webhook refuses; with it, /start links this chat.
   const hook = (secret) => fetch(base + "/api/telegram/webhook", { method: "POST", headers: { "content-type": "application/json", ...(secret ? { "x-telegram-bot-api-secret-token": secret } : {}) }, body: JSON.stringify({ message: { chat: { id: 777, type: "private" }, text: `/start ${code}`, from: { language_code: "en" } } }) });
   assert((await hook(null)).status === 401, "webhook without secret");
   assert((await hook("demo-webhook-secret")).ok, "webhook with secret");
-  await tg.getByRole("button", { name: "I've connected it" }).click();
-  await tg.getByText("Connected: alerts reach you on Telegram.").waitFor();
-  await tg.getByRole("button", { name: "Send a test alert" }).click();
-  await tg.getByText("Sent to Telegram.").waitFor();
-  await axe(p);
-  await tg.getByRole("button", { name: "Disconnect Telegram" }).click();
-  await tg.getByRole("button", { name: "Connect Telegram" }).waitFor();
+  assert((await api("/api/telegram", "GET")).body?.data?.linked === true, "linked");
+  assert((await api("/api/telegram/test", "POST")).status === 200, "test alert");
+  await api("/api/telegram", "DELETE");
+  assert((await api("/api/telegram", "GET")).body?.data?.linked === false, "disconnected");
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
@@ -1593,10 +1704,10 @@ await test("calendar: results, SEC deadlines and review dates by week; range, fi
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Add to my calendar (.ics)" }).click()]);
   const ics = readFileSync(await download.path(), "utf8");
   assert(ics.includes("SUMMARY:KO: review thesis") && ics.includes("SUMMARY:MSFT: 10-Q due") && !ics.includes("AAPL"), ics);
-  // The home briefing links here.
-  await p.goto(base + "/");
-  await p.getByRole("link", { name: "See calendar" }).click();
-  await p.waitForURL(/\/calendar$/);
+  // Out of the MVP (features.ts): the portfolio's briefing no longer links here.
+  await p.goto(base + "/portfolio");
+  await p.getByRole("heading", { level: 1 }).first().waitFor();
+  assert((await p.getByRole("link", { name: "See calendar" }).count()) === 0, "calendar offered");
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 
@@ -1711,10 +1822,11 @@ await test("compare: companies side by side from the URL, add and remove, phone 
   await p.getByRole("button", { name: "Remove MSFT from the comparison" }).click();
   await p.waitForURL(/s=AAPL,KO$/);
   await p.getByRole("heading", { name: "Compare: AAPL · KO" }).waitFor();
-  // The stock page links here.
+  // Out of the MVP (features.ts): the stock page offers a canvas instead, but the URL still works.
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("link", { name: "Compare" }).click();
-  await p.waitForURL(/\/compare\?s=AAPL$/);
+  await p.getByRole("link", { name: "Work this company on a canvas" }).waitFor();
+  assert((await p.getByRole("link", { name: "Compare" }).count()) === 0, "compare offered");
+  await p.goto(base + "/compare?s=AAPL");
   await p.getByText("Add at least one more company to compare.").waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
@@ -1924,10 +2036,8 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
-    // The list lives under Tools (the bottom bar keeps three places).
-    const tools = lang === "es" ? "Herramientas" : "Tools";
-    await p.getByRole("button", { name: tools }).tap();
-    await p.getByRole("dialog", { name: tools }).getByRole("link", { name: lang === "es" ? /Mi lista/ : /Watchlist/ }).tap();
+    // The list is in the bottom bar.
+    await p.getByRole("navigation", { name: lang === "es" ? "Navegación principal" : "Main navigation" }).last().getByRole("link", { name: lang === "es" ? "Mi lista" : "Watchlist" }).tap();
     await p.waitForURL(/\/watchlist/);
     await p.locator(`a[href="/stock/${symbol}"]`).waitFor();
     await axe(p);

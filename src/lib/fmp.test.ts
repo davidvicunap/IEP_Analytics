@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
 import {
-  fmpAnalystEstimates, fmpEquityRiskPremium, fmpGrades, fmpMarketCaps, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
+  fmpAnalystEstimates, fmpEquityRiskPremium, fmpGrades, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
   kindFromMessage, kindFromStatus,
 } from "./fmp";
 
@@ -152,24 +152,6 @@ describe("valuation inputs", () => {
     );
     const r = await fmpEquityRiskPremium();
     expect(r.ok && r.data.value).toBeCloseTo(0.0446);
-  });
-
-  it("returns market caps for the symbols the plan covers and skips the rest", async () => {
-    const fetchMock = respond(200, [
-      { symbol: "JPM", date: "2026-11-06", marketCap: 889137973100 },
-      { symbol: "WFC", date: "2026-11-06", marketCap: 251975289000 },
-    ]);
-    vi.stubGlobal("fetch", fetchMock);
-    const r = await fmpMarketCaps(["wfc", "JPM", "ADM", "JPM"]);
-    expect(r.ok && r.data).toEqual({ JPM: 889137973100, WFC: 251975289000 });
-    const url = String((fetchMock.mock.calls[0] as unknown[])[0]);
-    expect(url).toContain("market-capitalization-batch?symbols=ADM%2CJPM%2CWFC");
-  });
-
-  it("reports a plan restriction instead of an empty answer", async () => {
-    vi.stubGlobal("fetch", respond(402, "Restricted Endpoint"));
-    const r = await fmpMarketCaps(["ADM"]);
-    expect(r).toEqual({ ok: false, error: "plan_restricted" });
   });
 });
 

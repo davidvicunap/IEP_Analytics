@@ -108,7 +108,7 @@ export function PopularSection({ entries, source }: { entries: QuoteEntry[]; sou
   return <ServerQuotes entries={others.length >= 3 ? others : entries} source={source} caption={t.home.popular} />;
 }
 
-function RecentlyViewed() {
+export function RecentlyViewed() {
   const { t } = useI18n();
   const { list } = useRecent();
   if (list.length === 0) return null;
@@ -131,7 +131,7 @@ function RecentlyViewed() {
 
 
 /** First stocks of the watchlist; only the visible ones are requested. */
-function MiniWatchlist() {
+export function MiniWatchlist() {
   const { t } = useI18n();
   const { list } = useWatchlist();
   const shown = list.slice(0, MINI_LIMIT);
