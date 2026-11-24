@@ -38,7 +38,7 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("", ctx({ symbol: "AAPL", recent: ["MSFT", "KO"] })))).toEqual([
       "/stock/AAPL?tab=valuation",
       "/stock/AAPL?tab=research",
-      "/stock/AAPL?tab=business&view=statements",
+      "/stock/AAPL?tab=business&view=income",
       "/stock/AAPL?tab=filings&view=insiders",
       "/stock/MSFT",
       "/stock/KO",

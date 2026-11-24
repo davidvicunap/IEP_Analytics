@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cagr, change, findings, fmtPct, fmtPerShare, fmtScaled, metricSeries, notReportedSince, pickScale } from "./financialsView";
+import { STATEMENT_ROWS, cagr, change, findings, fmtPct, fmtPerShare, fmtScaled, metricSeries, notReportedSince, pickScale, shownValue } from "./financialsView";
 import type { Cell, LineKey, StatementSet } from "./secFinancials";
 
 const set = (rows: Partial<Record<LineKey, (number | null)[]>>, years = 6): StatementSet => ({
@@ -28,6 +28,19 @@ describe("units and formatting", () => {
     expect(change(100, 90)).toBeCloseTo(-0.1);
     expect(change(-100, -50)).toBeCloseTo(0.5);
     expect(change(0, 5)).toBeNull();
+  });
+
+  it("a cell reads as a value, a share of revenue or assets, or a change", () => {
+    const capex = STATEMENT_ROWS.cashflow.find((r) => r.key === "capex")!;
+    const eps = STATEMENT_ROWS.income.find((r) => r.key === "epsDiluted")!;
+    const cur = { revenue: { value: 200 }, capex: { value: 10 }, epsDiluted: { value: 2 }, totalAssets: { value: 400 }, cash: { value: 40 } };
+    const prev = { revenue: { value: 160 }, capex: { value: 8 }, epsDiluted: { value: 1.6 } };
+    expect(shownValue(capex, cur, prev, "values", "cashflow")).toBe(-10);
+    expect(shownValue(capex, cur, prev, "common", "cashflow")).toBeCloseTo(-0.05);
+    expect(shownValue(capex, cur, prev, "growth", "cashflow")).toBeCloseTo(0.25);
+    expect(shownValue(eps, cur, prev, "common", "income")).toBeNull();
+    expect(shownValue(eps, cur, null, "growth", "income")).toBeNull();
+    expect(shownValue({ key: "cash" }, cur, null, "common", "balance")).toBeCloseTo(0.1);
   });
 
   it("a line the company stopped reporting says since when", () => {
@@ -74,6 +87,9 @@ describe("findings from the statements", () => {
     const debtor = set({ revenue: [100, 120], freeCashFlow: [10, 10], cash: [5, 5], longTermDebt: [50, 45] }, 2);
     expect(findings(debtor).find((x) => x.kind === "netDebt")).toMatchObject({ amount: 40, fcfYears: 4 });
     expect(findings(set({ revenue: [100] }, 1))).toEqual([]);
+    // Short-term investments reported last year but not this one: no cash figure at all.
+    const gap = set({ revenue: [100, 120], cash: [5, 5], shortTermInvestments: [40, null], longTermDebt: [8, 8] }, 2);
+    expect(findings(gap).some((x) => x.kind === "netCash" || x.kind === "netDebt")).toBe(false);
     expect(findings(set({ revenue: [-5, 10], netIncome: [-1, -2] }, 2)).map((x) => x.kind)).toEqual([]);
   });
 

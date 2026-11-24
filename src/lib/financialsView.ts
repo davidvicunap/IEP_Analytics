@@ -3,12 +3,15 @@
 // (values, share of revenue or assets, change on the year before), five-year growth, and the
 // findings the summary states in words. Pure and tested; the views live in components/financials.
 import type { Cell, LineKey, Period, StatementKey, StatementSet } from "./secFinancials";
+import type { Column } from "./statements";
 
 export interface Row {
   key: LineKey;
   /** A subtotal: set in bold with a rule above. */
   total?: boolean;
   kind?: "perShare" | "shares";
+  /** A payment, shown in parentheses as in the 10-K cash flow statement. */
+  outflow?: boolean;
 }
 
 export const STATEMENT_ROWS: Record<StatementKey, Row[]> = {
@@ -43,10 +46,10 @@ export const STATEMENT_ROWS: Record<StatementKey, Row[]> = {
     { key: "operatingCashFlow", total: true },
     { key: "depreciation" },
     { key: "stockComp" },
-    { key: "capex" },
+    { key: "capex", outflow: true },
     { key: "freeCashFlow", total: true },
-    { key: "dividendsPaid" },
-    { key: "buybacks" },
+    { key: "dividendsPaid", outflow: true },
+    { key: "buybacks", outflow: true },
   ],
 };
 
@@ -99,6 +102,21 @@ export function change(prev: number | null | undefined, cur: number | null | und
 /** The base a row is shared against: revenue for flows, total assets for the balance sheet. */
 export function commonBase(statement: StatementKey): LineKey {
   return statement === "balance" ? "totalAssets" : "revenue";
+}
+
+/**
+ * What a cell shows: the value (payments negative), its share of the period's revenue or
+ * assets, or its change on `prev` (the year before, or the same quarter a year earlier).
+ * Per-share and share-count rows have no common-size reading.
+ */
+export function shownValue(row: Row, cur: Column, prev: Column | null, mode: Mode, statement: StatementKey): number | null {
+  const v = cur[row.key]?.value ?? null;
+  if (mode === "growth") return prev ? change(prev[row.key]?.value, v) : null;
+  const signed = v !== null && row.outflow ? -v : v;
+  if (mode === "values") return signed;
+  if (row.kind) return null;
+  const base = cur[commonBase(statement)]?.value;
+  return signed !== null && base ? signed / base : null;
 }
 
 /** A line the company stopped reporting: values earlier, none in the latest `recent` periods. */
@@ -158,9 +176,13 @@ export function findings(annual: StatementSet, span = 5): Finding[] {
   const bb = window("buybacks") ?? 0;
   if (fcf !== null && fcf > 0 && div + bb > 0) out.push({ kind: "payout", share: (div + bb) / fcf, years, returned: div + bb });
 
+  // A part the company reported until recently and not now (a tagging change, usually) would
+  // make the figure wrong, not just smaller: say nothing instead.
+  const dropped = (key: LineKey) => val(annual, key, last) === null && [1, 2, 3].some((k) => last - k >= 0 && val(annual, key, last - k) !== null);
   const debt = (val(annual, "currentDebt", last) ?? 0) + (val(annual, "longTermDebt", last) ?? 0);
   const cash = val(annual, "cash", last);
-  if (cash !== null) {
+  const parts: LineKey[] = ["shortTermInvestments", "currentDebt", "longTermDebt"];
+  if (cash !== null && !parts.some(dropped)) {
     const liquid = cash + (val(annual, "shortTermInvestments", last) ?? 0);
     const net = debt - liquid;
     const lastFcf = val(annual, "freeCashFlow", last);

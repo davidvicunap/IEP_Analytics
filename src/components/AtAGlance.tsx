@@ -11,7 +11,14 @@ import { IssueNote, Panel, Skeleton } from "./ui";
 
 type Lang = "es" | "en";
 const PERCENT = new Set(["revenueGrowth", "epsGrowth", "roic", "roe", "equityToAssets", "fcfYield"]);
-const TAB: Record<VerdictKey, "business" | "valuation"> = { quality: "business", growth: "business", profitability: "business", debt: "business", valuation: "valuation" };
+// Growth opens the financials' highlights; quality, profitability and debt their tests and ratios.
+const TAB: Record<VerdictKey, { tab: "business" | "valuation"; view?: string }> = {
+  quality: { tab: "business", view: "summary" },
+  growth: { tab: "business", view: "highlights" },
+  profitability: { tab: "business", view: "summary" },
+  debt: { tab: "business", view: "summary" },
+  valuation: { tab: "valuation" },
+};
 
 export function fmtMetric(metric: string, v: number, lang: Lang) {
   return PERCENT.has(metric) ? `${v < 0 ? "−" : ""}${fmtNum(Math.abs(v) * 100, lang, 1)}%` : `${fmtNum(v, lang, 1)}x`;
@@ -27,7 +34,7 @@ export function Mark({ level }: { level: VerdictLevel }) {
  * The overview's verdict: five plain sentences, each with the number behind it and the
  * yardstick it's measured against. Every line opens the tab with the detail.
  */
-export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: (tab: "business" | "valuation") => void }) {
+export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: (tab: "business" | "valuation", view?: string) => void }) {
   const { t, lang } = useI18n();
   const G = t.glance;
   const { state, retry } = useResource<VerdictPayload>(`/api/verdict/${encodeURIComponent(symbol)}`, { shared: true });
@@ -64,7 +71,7 @@ export default function AtAGlance({ symbol, onOpen }: { symbol: string; onOpen: 
           <li key={p.key}>
             <button
               type="button"
-              onClick={() => onOpen(TAB[p.key])}
+              onClick={() => onOpen(TAB[p.key].tab, TAB[p.key].view)}
               className="group flex w-full min-h-11 items-start gap-3 rounded-lg px-2 py-2 text-left hover:bg-panel-2"
             >
               <Mark level={p.level} />

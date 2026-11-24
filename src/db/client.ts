@@ -23,12 +23,22 @@ function localDb(dir: string): Db {
   const load = createRequire(`${process.cwd()}/`);
   const { PGlite } = load("@electric-sql/pglite") as typeof import("@electric-sql/pglite");
   const { drizzle: local } = load("drizzle-orm/pglite") as typeof import("drizzle-orm/pglite");
-  return local(new PGlite(dir), { schema }) as unknown as Db;
+  const pg = new PGlite(dir);
+  // A killed server leaves the files half-written and the next start can't open them: close first.
+  const close = () => void pg.close().finally(() => process.exit(0));
+  process.once("SIGTERM", close);
+  process.once("SIGINT", close);
+  return local(pg, { schema }) as unknown as Db;
 }
 
 export function getDb(): Db | null {
   const dir = process.env.LOCAL_PGLITE_DIR;
-  if (dir) return (db ??= localDb(dir));
+  // Next loads this module once per bundle layer: one database per process, or two copies of
+  // Postgres would write the same folder and corrupt it.
+  if (dir) {
+    const g = globalThis as { __iepLocalDb?: Db };
+    return (g.__iepLocalDb ??= localDb(dir));
+  }
   const url = databaseUrl();
   if (!url) return null;
   db ??= drizzle(neon(url), { schema }) as unknown as Db;

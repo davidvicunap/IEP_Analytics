@@ -79,8 +79,8 @@ const WIDTHS = quick
 const COMBOS = quick ? [["es", "light"], ["en", "dark"]] : [["es", "light"], ["es", "dark"], ["en", "light"], ["en", "dark"]];
 
 const TAB_LABEL = {
-  es: { business: "Negocio", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
-  en: { business: "Business", valuation: "Valuation", filings: "Filings", research: "My research" },
+  es: { business: "Finanzas", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
+  en: { business: "Financials", valuation: "Valuation", filings: "Filings", research: "My research" },
 };
 
 async function open(browser, page, width, lang, theme) {

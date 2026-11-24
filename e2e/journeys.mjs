@@ -817,10 +817,10 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   const p = await page();
   await p.goto(base + "/stock/AAPL");
   assert((await p.getByRole("tab").count()) === 5, "five tabs");
-  await p.getByRole("tab", { name: "Negocio", exact: true }).click();
+  await p.getByRole("tab", { name: "Finanzas", exact: true }).click();
   await p.waitForURL(/tab=business/);
-  await p.getByRole("button", { name: "Estados financieros" }).click();
-  await p.waitForURL(/view=statements/);
+  await p.getByRole("button", { name: "Resultados" }).click();
+  await p.waitForURL(/view=income/);
   await p.goBack();
   await p.waitForURL((u) => u.search.includes("tab=business") && !u.search.includes("view="));
   await p.goBack();
@@ -828,7 +828,7 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   assert((await p.getByRole("tab", { name: "Resumen" }).getAttribute("aria-selected")) === "true", "Back didn't return to overview");
   await p.goForward();
   await p.waitForURL(/tab=business/);
-  await p.getByRole("tab", { name: "Negocio", exact: true }).focus();
+  await p.getByRole("tab", { name: "Finanzas", exact: true }).focus();
   await p.keyboard.press("End");
   await p.waitForURL(/tab=research/);
   assert(await p.evaluate(() => document.activeElement?.id === "tab-research"), "End didn't move focus");
@@ -919,7 +919,7 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
       }),
     ),
   );
-  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
   const card = p.locator("article", { hasText: "Beneficio neto" });
   await card.waitFor();
   assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
@@ -928,6 +928,82 @@ await test("stock: negative and missing values in the 10-year bars are honest", 
   const cells = await card.locator("tbody td").allInnerTexts();
   assert(cells.some((c) => c.startsWith("−$")) && cells.includes("—"), `cells ${cells.join(",")}`);
   await p.context().close();
+});
+
+// Six fiscal years shaped like the SEC statements API answers (lib/financials.ts).
+function financialsPayload() {
+  const years = [2020, 2021, 2022, 2023, 2024, 2025];
+  const cell = (value, extra = {}) => ({ value, concept: "Test", accn: "0000000000-00-000000", ...extra });
+  const rev = years.map((_, i) => 100e9 * 1.1 ** i);
+  const line = (f) => years.map((_, i) => cell(f(i)));
+  const annual = {
+    periods: years.map((y) => ({ end: `${y}-09-30`, label: `FY${y}`, form: "10-K" })),
+    lines: {
+      revenue: line((i) => rev[i]),
+      costOfRevenue: line((i) => rev[i] * 0.6),
+      grossProfit: line((i) => rev[i] * 0.4),
+      researchDevelopment: line((i) => rev[i] * 0.05),
+      operatingIncome: line((i) => rev[i] * (0.2 + i * 0.01)),
+      interestExpense: years.map((_, i) => cell(i < 4 ? 1e9 : null)),
+      netIncome: line((i) => rev[i] * 0.15),
+      epsDiluted: years.map((_, i) => cell(1 + i * 0.2, i < 2 ? { splitAdjusted: 4 } : {})),
+      dilutedShares: years.map((_, i) => cell(16e9 - i * 0.2e9, i < 2 ? { splitAdjusted: 4 } : {})),
+      cash: line(() => 30e9),
+      totalAssets: line(() => 300e9),
+      longTermDebt: line(() => 20e9),
+      operatingCashFlow: line((i) => rev[i] * 0.25),
+      capex: line(() => 5e9),
+      freeCashFlow: line((i) => rev[i] * 0.25 - 5e9),
+      buybacks: line(() => 10e9),
+    },
+  };
+  return {
+    ok: true,
+    fetchedAt: new Date().toISOString(),
+    data: {
+      symbol: "AAPL", cik: 320193, entityName: "Apple Inc.", fetchedAt: new Date().toISOString(), annual,
+      quarterly: { periods: [], lines: {} },
+      shares: { points: [], splits: [{ after: "2022-07-01", before: "2022-10-01", ratio: 4 }], reliableFrom: null },
+    },
+  };
+}
+
+await test("financials: highlights in words, statements in one unit, three readings, phone width", async () => {
+  const p = await page();
+  await p.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
+  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
+  await p.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
+  await p.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
+  await p.getByRole("button", { name: "Resultados" }).click();
+  await p.waitForURL(/view=income/);
+  await p.getByText("Cifras en miles de millones de dólares; negativos entre paréntesis.").waitFor();
+  await p.getByText("No reportado desde FY2024").waitFor();
+  await p.getByText("Acciones y BPA de años anteriores ajustados por el split 4:1 de 2022, para que los años se puedan comparar.").waitFor();
+  const table = p.getByRole("region", { name: "Resultados · Anual" });
+  assert((await table.getByRole("row", { name: /^Ingresos/ }).innerText()).includes("161.1"), "revenue in billions");
+  await p.getByRole("button", { name: "% de ingresos" }).click();
+  await p.getByText("Cada línea como porcentaje de los ingresos del mismo período.").waitFor();
+  assert((await table.getByRole("row", { name: /^Costo de ventas/ }).innerText()).includes("60.0%"), "common size");
+  await p.getByRole("button", { name: "Variación" }).click();
+  assert((await table.getByRole("row", { name: /^Ingresos/ }).innerText()).includes("10.0%"), "growth");
+  await axe(p);
+  await p.getByRole("button", { name: "Flujo de caja" }).click();
+  await p.waitForURL(/view=cashflow/);
+  await p.getByRole("button", { name: "Valores" }).click();
+  assert((await p.getByRole("region", { name: "Flujo de caja · Anual" }).getByRole("row", { name: /^Inversión en activos/ }).innerText()).includes("(5.0)"), "payments in parentheses");
+  await p.context().close();
+
+  const phone = await page({ width: 360, height: 780, touch: true });
+  await phone.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
+  for (const view of ["highlights", "income"]) {
+    await phone.goto(base + `/stock/AAPL?tab=business&view=${view}`);
+    await phone.getByText(view === "income" ? "Cifras en miles de millones de dólares; negativos entre paréntesis." : /^Los ingresos crecieron/).waitFor();
+    const over = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(over <= 0, `${view}: page overflows by ${over}px`);
+  }
+  await axe(phone);
+  await phone.context().close();
 });
 
 await test("at a glance: five lines from SEC figures, each opening its tab; gaps said plainly", async () => {
@@ -949,7 +1025,7 @@ await test("at a glance: five lines from SEC figures, each opening its tab; gaps
   await p.waitForURL(/tab=valuation/);
   await p.goBack();
   await p.locator("#glance").getByRole("button", { name: /Más deuda que la mayoría/ }).click();
-  await p.waitForURL(/tab=business/);
+  await p.waitForURL(/tab=business&view=summary/);
   await p.goBack();
   await axe(p);
   await p.context().close();
@@ -968,11 +1044,11 @@ await test("data tabs: an expired beta session asks to sign in again and comes b
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
   await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
-  await p.goto(base + "/stock/AAPL?tab=business");
+  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
   const href = await link.getAttribute("href");
-  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness", `href ${href}`);
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness%26view%3Dsummary", `href ${href}`);
   assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
   await axe(p);
   await p.context().close();
