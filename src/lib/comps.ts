@@ -13,7 +13,7 @@ export interface CompsCompany {
   symbol: string;
   name: string;
   marketCap: number | null;
-  marketCapSource: "market" | "manual" | null; // market = data provider; manual = typed by the user
+  marketCapSource: "sec" | "manual" | null; // sec = SEC share count × price; manual = typed by the user
   inputs: RatioInputs | null; // fiscal-year SEC figures
 }
 
@@ -73,6 +73,9 @@ export function quantile(values: number[], q: number): number | null {
   return s[lo] + (s[hi] - s[lo]) * (pos - lo);
 }
 
+/** Fewer peers with a value than this: no median, no range and no implied value for that multiple. */
+export const MIN_PEERS = 4;
+
 export interface Stats {
   n: number;
   low: number; // 25th percentile
@@ -111,6 +114,7 @@ export function impliedValues(
   peers: CompsRow[],
   price: number,
   stat: "median" | "mean" = "median",
+  minPeers = MIN_PEERS,
 ): ImpliedRange[] {
   const mc = pos(target.marketCap);
   if (!mc || !(price > 0)) return [];
@@ -119,7 +123,7 @@ export function impliedValues(
   const out: ImpliedRange[] = [];
   for (const m of COMPS_MULTIPLES) {
     const s = peerStats(peers, m);
-    if (!s) continue;
+    if (!s || s.n < minPeers) continue;
     const center = stat === "mean" ? s.mean : s.median;
     let perShare: ((x: number) => number | null) | null = null;
     let basis: number | null = null;
