@@ -13,7 +13,7 @@ const pct = (v: number, lang: "es" | "en", d = 1) => `${fmtNum(v * 100, lang, d)
  * Reverse DCF at the top of Valuation: the yearly revenue growth today's price assumes,
  * with the DCF's starting assumptions, next to what the company actually grew.
  */
-export default function PriceImplies({ v, onAdjust }: { v: ValuationPayload; onAdjust: () => void }) {
+export default function PriceImplies({ v }: { v: ValuationPayload }) {
   const { t, lang } = useI18n();
   const P = t.priceImplies;
   const { base, defaults, data } = v.maker;
@@ -46,10 +46,7 @@ export default function PriceImplies({ v, onAdjust }: { v: ValuationPayload; onA
         {fill(P.how, {
           wacc: pct(wacc, lang),
           tg: defaults.terminal === "gordon" ? pct(defaults.terminalGrowth, lang) : `${fmtNum(defaults.exitMultiple, lang, 1)}x EV/EBITDA`,
-        })}{" "}
-        <button type="button" onClick={onAdjust} className="link">
-          {P.adjust}
-        </button>
+        })}
       </p>
     </Panel>
   );

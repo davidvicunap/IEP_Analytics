@@ -18,7 +18,7 @@ const p = await ctx.newPage();
 const cdp = await ctx.newCDPSession(p);
 await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
 await p.goto(base + "/stock/AAPL", { waitUntil: "load" });
-await p.locator("canvas").first().waitFor();
+await p.getByRole("heading", { level: 1 }).first().waitFor();
 await p.waitForTimeout(1500);
 const measure = async (name, act) => {
   const xs = [];
@@ -32,12 +32,8 @@ const measure = async (name, act) => {
   console.log(`${name.padEnd(28)} median ${Math.round(xs[2])} ms  max ${Math.round(xs[4])} ms`);
 };
 const btn = (re) => p.getByRole("button", { name: re }).first();
-await measure("chart range (1M/1Y)", (i) => btn(i % 2 ? /^1A$|^1Y$/ : /^1M$/).tap());
-await measure("chart style (line/candles)", (i) => btn(i % 2 ? /^Velas$|^Candles$/ : /^Línea$|^Line$/).tap());
-// Phones keep indicators behind a disclosure (new design); open it once if present.
-const disclosure = p.getByRole("button", { name: /^Indicadores|^Indicators/ }).first();
-if ((await disclosure.count()) && (await disclosure.getAttribute("aria-expanded")) === "false") await disclosure.tap();
-await measure("indicator toggle (Bollinger)", () => btn(/Bollinger/).tap());
+await measure("saved indicator (RSI)", () => btn(/^RSI$/).tap());
 await measure("theme toggle", () => btn(/Tema|Theme/).tap());
-await measure("tab switch (Gráfico/Resumen)", (i) => p.getByRole("tab", { name: i % 2 ? /Resumen|Overview/ : /^Gráfico$|^Chart$/ }).tap());
+await measure("tab switch (Finanzas/Resumen)", (i) => p.getByRole("tab", { name: i % 2 ? /^Resumen$|^Overview$/ : /^Finanzas$|^Financials$/ }).tap());
+await measure("view switch (Resultados/Balance)", (i) => btn(i % 2 ? /^Balance$/ : /^Resultados$|^Income$/).tap());
 await b.close();

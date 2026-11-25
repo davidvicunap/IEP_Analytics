@@ -10,7 +10,7 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:local": "tsx scripts/local-db.ts",
-    "start:demo": "BETA_GATE=off DEMO_MODE=1 DEMO_PRICE_FALLBACK=HIMS:none,SMCI:close,AMD:stored DEMO_SPLITS=SPLT:10:2026-11-20 DEMO_LISTINGS=OLDCO:NEWCO,GONE: DEMO_TELEGRAM=1 next start -p 3123",
+    "start:demo": "BETA_GATE=off DEMO_MODE=1 DEMO_PRICE_FALLBACK=HIMS:none,SMCI:close,AMD:stored DEMO_SPLITS=SPLT:10:2026-11-20 DEMO_LISTINGS=OLDCO:NEWCO,GONE: next start -p 3123",
     "e2e": "node e2e/journeys.mjs http://localhost:3123",
     "e2e:audit": "node e2e/audit.mjs http://localhost:3123 .e2e/audit --shots",
     "e2e:measure": "node e2e/measure.mjs http://localhost:3123 .e2e/measure.json 5",

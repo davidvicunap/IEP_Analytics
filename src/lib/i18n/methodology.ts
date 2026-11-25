@@ -111,7 +111,7 @@ const es: MethodologyText = {
       title: "Valoración",
       body: [
         "Múltiplos de hoy = valor de mercado (FMP) ÷ la última cifra TTM presentada a la SEC. Su historia de 5 años usa el valor de mercado a fin de cada mes (precio de cierre ajustado × acciones de la SEC); solo se muestra si las acciones de la SEC están a menos de un 10 % de las de la cotización (si no, suele haber varias clases de acciones). «Barato/caro frente a sí misma» significa más de una desviación estándar por debajo o por encima de su media de 5 años, nunca frente a otras empresas.",
-        "DCF: 5 años de proyección. El crecimiento parte del crecimiento anual de los ingresos de los últimos 5 años (limitado entre −5 % y 25 %) y baja hasta el 2,5 % perpetuo; márgenes y proporciones son los TTM de hoy; el capex converge a la depreciación; el impuesto es el tipo efectivo (máximo 35 %, o 21 % si no hay dato). El coste de capital usa el bono a 10 años y la prima de riesgo de FMP, una beta frente al S&P 500 (SPY, mensual) y el coste de la deuda = intereses ÷ deuda. El valor terminal es de crecimiento perpetuo o un múltiplo EV/EBITDA (el de hoy, entre 4 y 40). Todo valor por defecto que no sale de datos se marca como convención y se puede cambiar.",
+        "Supuestos del DCF inverso: 5 años de proyección. El crecimiento parte del crecimiento anual de los ingresos de los últimos 5 años (limitado entre −5 % y 25 %) y baja hasta el 2,5 % perpetuo; márgenes y proporciones son los TTM de hoy; el capex converge a la depreciación; el impuesto es el tipo efectivo (máximo 35 %, o 21 % si no hay dato). El coste de capital usa el bono a 10 años y la prima de riesgo de FMP, una beta frente al S&P 500 (SPY, mensual) y el coste de la deuda = intereses ÷ deuda. El valor terminal es de crecimiento perpetuo o un múltiplo EV/EBITDA (el de hoy, entre 4 y 40). Todo valor por defecto que no sale de datos se marca como convención y se puede cambiar.",
         "DCF inverso: busca el crecimiento anual de los ingresos que hace que el DCF dé exactamente el precio de hoy, con el resto de supuestos por defecto, y lo compara con lo que la empresa creció de verdad.",
         "Comparables: empresas cotizadas de la misma industria (código SIC de tres dígitos) con ingresos dentro de 10 veces los de la empresa; luego las de la misma industria hasta 100 veces, y después el grupo SIC de dos dígitos; o las que elijas. Valor de mercado = acciones en circulación de la portada del último informe a la SEC × precio (si la empresa no publica un total, beneficio neto ÷ BPA diluido del año fiscal). Solo damos la mediana, el rango P25–P75 y el valor implícito de un múltiplo cuando al menos 4 comparables tienen el dato.",
       ],
@@ -147,16 +147,6 @@ const es: MethodologyText = {
       ],
     },
     {
-      id: "charts",
-      title: "Gráficos, paquetes y pares",
-      body: [
-        "El generador usa cifras de la SEC (anuales o trimestrales, con trimestres naturales) o, en mensual, precios y múltiplos de FMP. El crecimiento compara cada periodo con el mismo periodo del año anterior; el índice parte de 100 en el primer valor positivo.",
-        "Lectura de crecimiento: crecimiento anual compuesto entre el primer valor positivo y el último del periodo (trimestres contra el mismo trimestre), o la variación en puntos para porcentajes. Desde o hacia pérdidas no se da tasa.",
-        "Mediana de pares: la mediana de hasta 6 pares (los que elegiste en Comparables o las mayores de su industria), cada uno con su propio cálculo, y solo en los periodos con al menos 3 pares con dato.",
-        "Los paquetes guardan gráficos sin empresa para abrirlos con cualquiera. Se guardan en este navegador.",
-      ],
-    },
-    {
       id: "reader",
       title: "Lector de informes",
       body: [
@@ -187,8 +177,8 @@ const es: MethodologyText = {
           list: [
             "Mi análisis (tesis, puntos a favor y en contra, valor razonable, notas): se guarda en la base de datos, ligado a tu invitación de la beta. Cada cambio de valor razonable queda registrado con el precio de ese momento.",
             "Tesis vivas: una tesis abierta con stop, objetivo, valor razonable, fecha de revisión o condiciones propias se vigila al abrir la app, tres veces con el mercado abierto y una después del cierre, en días hábiles (precio de Financial Modeling Prep con su hora; «De un vistazo», informes y fechas de resultados de la SEC). El stop y el objetivo se juzgan según lo que esperas (que suba o que baje); el valor razonable, cuando el precio lo cruza desde el lado en que estaba al guardarlo (si lo pusiste por debajo del precio, te avisamos si baja hasta él). Una alerta salta una vez mientras su condición se cumple, no se repite en 24 horas y se apaga cuando deja de cumplirse. Si un dato no está disponible, lo decimos y no apagamos ni inventamos alertas. Al cerrar una tesis se guardan el resultado, lo aprendido y el precio de ese momento. Si activas los avisos en un teléfono o navegador, cada alerta nueva te llega también allí (Web Push; no guardamos más que la dirección que da tu navegador para recibirlos).",
-            "Lista, etiquetas, columnas, paquetes de gráficos y búsquedas guardadas: en tu cuenta, iguales en todos tus dispositivos. La primera vez que un dispositivo se sincroniza, lo que ya tenía guardado se suma a lo de tu cuenta, sin perder nada. Sin conexión se guardan en el navegador y se suben después.",
-            "En cada navegador: acciones vistas recientemente, escenarios del DCF, proyecciones de los estados, pares elegidos en Comparables y la vista del gráfico.",
+            "Lista, etiquetas, columnas, indicadores del gráfico y búsquedas guardadas: en tu cuenta, iguales en todos tus dispositivos. La primera vez que un dispositivo se sincroniza, lo que ya tenía guardado se suma a lo de tu cuenta, sin perder nada. Sin conexión se guardan en el navegador y se suben después.",
+            "En cada navegador: acciones vistas recientemente y pares elegidos en Comparables.",
           ],
         },
       ],
@@ -299,7 +289,7 @@ const en: MethodologyText = {
       title: "Valuation",
       body: [
         "Today's multiples = market value (FMP) ÷ the latest TTM figure filed with the SEC. Their 5-year history uses month-end market value (adjusted close × SEC share count); it's only shown when the SEC share count is within 10% of the quote's (otherwise there are usually several share classes). “Cheap/expensive against itself” means more than one standard deviation below or above its own 5-year mean, never against other companies.",
-        "DCF: 5 years projected. Growth starts from the last 5 years' revenue growth rate (kept between −5% and 25%) and fades to 2.5% forever; margins and ratios are today's TTM; capex converges to depreciation; tax is the effective rate (at most 35%, or 21% without data). The cost of capital uses FMP's 10-year Treasury and equity risk premium, a beta against the S&P 500 (SPY, monthly) and cost of debt = interest ÷ debt. The terminal value is perpetual growth or an EV/EBITDA multiple (today's, between 4 and 40). Every default that doesn't come from data is flagged as a convention and can be changed.",
+        "Reverse DCF assumptions: 5 years projected. Growth starts from the last 5 years' revenue growth rate (kept between −5% and 25%) and fades to 2.5% forever; margins and ratios are today's TTM; capex converges to depreciation; tax is the effective rate (at most 35%, or 21% without data). The cost of capital uses FMP's 10-year Treasury and equity risk premium, a beta against the S&P 500 (SPY, monthly) and cost of debt = interest ÷ debt. The terminal value is perpetual growth or an EV/EBITDA multiple (today's, between 4 and 40). Every default that doesn't come from data is flagged as a convention and can be changed.",
         "Reverse DCF: finds the yearly revenue growth that makes the DCF equal today's price, with the other assumptions at their defaults, and puts it next to what the company actually grew.",
         "Comps: listed companies in the same industry (three-digit SIC code) with revenue within 10 times the company's; then the same industry up to 100 times, then the two-digit SIC group; or the ones you choose. Market value = shares outstanding from the cover of the latest SEC filing × price (when a company doesn't report a total, net income ÷ diluted EPS for the fiscal year). We give the median, the P25–P75 range and an implied value for a multiple only when at least 4 peers have the figure.",
       ],
@@ -335,16 +325,6 @@ const en: MethodologyText = {
       ],
     },
     {
-      id: "charts",
-      title: "Charts, packs and peers",
-      body: [
-        "The generator uses SEC figures (annual or quarterly, by calendar quarter) or, for monthly, FMP prices and multiples. Growth compares each period with the same period a year earlier; the index starts at 100 on the first positive value.",
-        "Growth readout: the compound yearly growth rate between the first positive value and the last one in the period (quarters against the same quarter), or the change in points for percentages. From or into a loss, no rate is given.",
-        "Peer median: the median of up to 6 peers (the ones you chose in Comps, or the largest in its industry), each calculated on its own, only for periods where at least 3 peers have a value.",
-        "Packs save charts without a company so they can be opened for any. They're kept in this browser.",
-      ],
-    },
-    {
       id: "reader",
       title: "Filing reader",
       body: [
@@ -375,8 +355,8 @@ const en: MethodologyText = {
           list: [
             "Research (thesis, points for and against, fair value, notes): saved in the database, tied to your beta invite. Every fair-value change is logged with the price at that moment.",
             "Live theses: an open thesis with a stop, target, fair value, review date or conditions of your own is checked when you open the app, three times while the market is open and once after the close, on weekdays (price from Financial Modeling Prep with its time; \"At a glance\", reports and results dates from the SEC). The stop and target follow what you expect (a rise or a fall); the fair value alerts when the price crosses it from the side it was on when you saved it (set below the price, it alerts if the price falls to it). An alert fires once while its condition holds, doesn't repeat within 24 hours and clears when the condition no longer holds. When some data is unavailable we say so, and we neither clear nor invent alerts. Closing a thesis records its outcome, what you learned and the price at that moment. If you turn alerts on for a phone or browser, each new alert also reaches you there (Web Push; we keep only the address your browser gives us to receive them).",
-            "Watchlist, tags, columns, chart packs and saved screens: in your account, the same on all your devices. The first time a device syncs, what it already had is added to your account, so nothing is lost. Offline, they are kept in the browser and saved later.",
-            "Kept in each browser: recently viewed stocks, DCF scenarios, statement projections, chosen comps peers and the chart view.",
+            "Watchlist, tags, columns, chart indicators and saved screens: in your account, the same on all your devices. The first time a device syncs, what it already had is added to your account, so nothing is lost. Offline, they are kept in the browser and saved later.",
+            "Kept in each browser: recently viewed stocks and chosen comps peers.",
           ],
         },
       ],

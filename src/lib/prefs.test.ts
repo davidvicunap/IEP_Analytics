@@ -3,7 +3,7 @@ import { MAX_SCREENS, PREF_KEYS, isEmptyPref, isPrefKey, mergePref, normalizePre
 
 describe("account settings", () => {
   it("knows its keys", () => {
-    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk", "canvases", "chartstudies"]);
+    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "screens", "risk", "canvases", "chartstudies"]);
     expect(isPrefKey("watchlist")).toBe(true);
     expect(isPrefKey("theme")).toBe(false);
   });
@@ -14,7 +14,6 @@ describe("account settings", () => {
     expect(normalizePref("watchtags", ["wrong"])).toBeNull();
     expect(normalizePref("watchtags", { AAPL: ["Core", "core"] })).toEqual({ AAPL: ["Core"] });
     expect(normalizePref("watchcols", ["insiders", "bogus"])).toEqual(["insiders"]);
-    expect(normalizePref("chartpacks", [{ id: "essentials", name: "clash", charts: [] }])).toEqual([]); // built-in id
     expect(normalizePref("screens", [{ name: " Mine ", query: "roic=15" }, { name: "Mine", query: "x" }, { name: 3 }])).toEqual([{ name: "Mine", query: "roic=15" }]);
   });
 
@@ -27,8 +26,6 @@ describe("account settings", () => {
     expect(mergePref("watchlist", ["AAPL", "MSFT"], ["KO", "AAPL"])).toEqual(["AAPL", "MSFT", "KO"]);
     expect(mergePref("watchtags", { AAPL: ["Core"] }, { AAPL: ["core", "Tech"], KO: ["Dividends"] })).toEqual({ AAPL: ["Core", "Tech"], KO: ["Dividends"] });
     expect(mergePref("watchcols", ["quality"], ["insiders"])).toEqual(["quality"]); // one choice: the account's
-    const pack = (id: string) => ({ id, name: id, charts: [] });
-    expect((mergePref("chartpacks", [pack("p-a")], [pack("p-a"), pack("p-b")]) as { id: string }[]).map((p) => p.id)).toEqual(["p-a", "p-b"]);
     expect(mergePref("screens", [{ name: "A", query: "1" }], [{ name: "A", query: "2" }, { name: "B", query: "3" }])).toEqual([
       { name: "A", query: "1" },
       { name: "B", query: "3" },

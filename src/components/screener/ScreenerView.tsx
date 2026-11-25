@@ -1,6 +1,5 @@
 "use client";
 
-import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -28,26 +27,12 @@ import {
 import { useResource } from "@/lib/useResource";
 import { useSavedScreens } from "@/lib/screens";
 import SyncNote from "../SyncNote";
-import { ChartIcon, ChevronDownIcon, CloseIcon } from "../icons";
+import { ChevronDownIcon, CloseIcon } from "../icons";
 import { IssueNote, Panel, Segmented, Skeleton, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
 
 type Lang = "es" | "en";
 const PRESET_KEYS = Object.keys(PRESETS) as (keyof typeof PRESETS)[];
-
-// Ratios that have a chart in the chart generator (growth ones become a growth chart of the base figure).
-const CHART_METRIC: Partial<Record<SortKey, string>> = {
-  grossMargin: "grossMargin",
-  operatingMargin: "operatingMargin",
-  netMargin: "netMargin",
-  fcfMargin: "fcfMargin",
-  roic: "roic",
-  roe: "roe",
-  debtToEquity: "debtToEquity",
-  revenue: "revenue",
-  revenueGrowth: "revenue&t=growth",
-  epsGrowth: "eps&t=growth",
-};
 
 function fmtRatio(k: ScreenRatio, v: number | null, lang: Lang) {
   if (v === null) return "—";
@@ -180,17 +165,6 @@ export default function ScreenerView() {
         title={data ? fill(S.results, { m: fmtNum(data.matched, lang, 0), t: fmtNum(data.total, lang, 0) }) : S.resultsTitle}
         description={data && data.matched > data.rows.length ? S.showing : undefined}
         id="screener-results"
-        action={
-          data && data.rows.length > 1 && isOn("charts") ? (
-            <Link
-              href={`/charts?s=${data.rows.slice(0, 5).map((r) => encodeURIComponent(r.symbol)).join(",")}&m=${CHART_METRIC[screen.sort] ?? "revenue"}&f=annual&k=line&r=10`}
-              className={buttonClass("ghost", true, "text-muted")}
-            >
-              <ChartIcon size={16} />
-              <span className="hidden sm:inline">{S.compare}</span>
-            </Link>
-          ) : undefined
-        }
       >
         {state.status === "error" ? (
           <IssueNote issue={state.issue} onRetry={retry} />

@@ -40,24 +40,16 @@ const CANVASES = [
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "portfolio", path: "/portfolio" },
   { name: "stock", path: "/stock/AAPL" },
   { name: "business", path: "/stock/AAPL", tab: "business" },
   { name: "valuation", path: "/stock/AAPL", tab: "valuation" },
   { name: "filings", path: "/stock/AAPL", tab: "filings" },
-  { name: "charts", path: "/charts" },
-  { name: "research", path: "/research" },
-  { name: "results", path: "/research/results" },
   { name: "screener", path: "/screener" },
   { name: "notebook", path: "/stock/AAPL", tab: "research" },
   { name: "plan", path: "/stock/ORCL", tab: "research" }, // an empty notebook: the guided plan
   { name: "reader", path: "/stock/AAPL/report" },
-  { name: "packs", path: "/charts/packs?s=AAPL" },
   { name: "methodology", path: "/methodology" },
   { name: "watchlist", path: "/watchlist" },
-  { name: "compare", path: "/compare?s=AAPL,MSFT" },
-  { name: "compare-empty", path: "/compare" },
-  { name: "calendar", path: "/calendar" },
   { name: "stats", path: "/stats" },
   { name: "canvas-start", path: "/canvas" },
   { name: "canvas", path: "/canvas", canvas: true }, // a saved canvas with five windows // the demo's local user is the admin

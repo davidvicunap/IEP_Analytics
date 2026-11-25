@@ -4,8 +4,8 @@ import { checkRateLimit, clientIp } from "@/lib/ratelimit";
 
 // Reachable without an invite: the gate page and its login endpoint, the health check
 // (no market data), cron routes (they check CRON_SECRET themselves), SEC data (public domain,
-// not covered by the FMP license) and the Telegram webhook (it checks Telegram's secret itself).
-const OPEN_PATHS = ["/beta", "/api/beta", "/api/health", "/api/cron", "/api/sec", "/api/telegram/webhook"];
+// not covered by the FMP license).
+const OPEN_PATHS = ["/beta", "/api/beta", "/api/health", "/api/cron", "/api/sec"];
 
 function noindex(res: NextResponse): NextResponse {
   res.headers.set("X-Robots-Tag", "noindex, nofollow");

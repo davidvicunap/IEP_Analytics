@@ -3,24 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { isOn, type Feature } from "@/lib/features";
 import { useI18n } from "@/lib/i18n";
-import { CalendarIcon, ChartIcon, ChevronDownIcon, CloseIcon, ColumnsIcon, FileTextIcon, GridIcon, SearchIcon, TableIcon } from "./icons";
+import { ChevronDownIcon, CloseIcon, FileTextIcon, SearchIcon } from "./icons";
 
 /**
- * "More": what sits beside the research (the portfolio, how numbers are calculated) and any
- * tool left out of the MVP that features.ts switches back on. The research itself, the canvas,
- * the list and the screener are in the main navigation.
+ * "More": what sits beside the research: how numbers are calculated. The
+ * research itself, the canvas, the list and the screener are in the main navigation.
  */
-const ALL = [
-  { key: "portfolio", href: "/portfolio", Icon: TableIcon },
-  { key: "compare", href: "/compare", Icon: ColumnsIcon, feature: "compare" },
-  { key: "calendar", href: "/calendar", Icon: CalendarIcon, feature: "calendar" },
-  { key: "charts", href: "/charts", Icon: ChartIcon, feature: "charts" },
-  { key: "packs", href: "/charts/packs", Icon: GridIcon, feature: "chartPacks" },
+export const EXPLORE = [
   { key: "methodology", href: "/methodology", Icon: FileTextIcon },
-] as const satisfies readonly { key: string; href: string; Icon: unknown; feature?: Feature }[];
-export const EXPLORE = ALL.filter((e) => !("feature" in e) || isOn(e.feature));
+] as const;
 
 export const isExplorePath = (path: string) => EXPLORE.some((e) => path === e.href || path.startsWith(`${e.href}/`));
 

@@ -3,14 +3,13 @@
 // device's own settings merge with the account's the first time that device syncs, so nothing
 // you saved before is lost. Pure: storage is prefsStore.ts, the browser side prefsSync.ts.
 import { mergeCanvases, parseCanvases } from "./canvas";
-import { MAX_PACKS, parsePacks, type Pack } from "./chartPacks";
 import { parseStudies } from "./chartStudies";
 import { parseRisk } from "./planBuilder";
 import { parseColumns, parseTags, toggleTag, type Tags } from "./watchDashboard";
 import { WATCHLIST_LIMIT, sanitizeList } from "./watchlistShared";
 
 /** `risk`: the account size and % at risk the guided plan sizes positions with; `canvases`: Trading Canvas layouts; `chartstudies`: the indicators TradingView charts open with. */
-export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "chartpacks", "screens", "risk", "canvases", "chartstudies"] as const;
+export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "screens", "risk", "canvases", "chartstudies"] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 export const isPrefKey = (k: string): k is PrefKey => (PREF_KEYS as readonly string[]).includes(k);
 
@@ -45,7 +44,6 @@ const PARSE: Record<PrefKey, (raw: unknown) => unknown> = {
   watchlist: (raw) => sanitizeList(raw).slice(0, WATCHLIST_LIMIT),
   watchtags: parseTags,
   watchcols: parseColumns,
-  chartpacks: parsePacks,
   screens: parseScreens,
   risk: parseRisk,
   canvases: parseCanvases,
@@ -87,11 +85,6 @@ export function mergePref(key: PrefKey, account: unknown, device: unknown): unkn
     }
     case "watchcols":
       return parseColumns(account);
-    case "chartpacks": {
-      const mine = parsePacks(account);
-      const extra = parsePacks(device).filter((p) => !mine.some((m) => m.id === p.id));
-      return [...mine, ...extra].slice(0, MAX_PACKS) satisfies Pack[];
-    }
     case "screens":
       return parseScreens([...parseScreens(account), ...parseScreens(device)]);
     case "risk":

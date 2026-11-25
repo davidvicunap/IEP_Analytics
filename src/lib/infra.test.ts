@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { databaseUrl } from "@/db/client";
 import { isAuthorizedCron } from "./cron";
-import { crossedThreshold, providerDailyLimit, quotaKey, recordProviderCall } from "./quota";
+import { crossedThreshold, endpointsKey, providerDailyLimit, quotaKey, recordProviderCall, sortUsage } from "./quota";
 import { checkRateLimit, clientIp } from "./ratelimit";
 import { redisConfig } from "./redis";
 
@@ -59,6 +59,15 @@ describe("provider quota", () => {
     expect(providerDailyLimit({})).toBe(250);
     expect(providerDailyLimit({ FMP_DAILY_LIMIT: "100000" })).toBe(100000);
     expect(providerDailyLimit({ FMP_DAILY_LIMIT: "nope" })).toBe(250);
+  });
+
+  it("counts by endpoint per UTC day, most used first", () => {
+    expect(endpointsKey("fmp", new Date("2026-11-07T23:30:00Z"))).toBe("iep:quota:fmp:endpoints:2026-11-07");
+    expect(sortUsage({ quote: "12", "batch-quote": 3, profile: 12, bad: "x", zero: 0 })).toEqual([
+      { endpoint: "profile", calls: 12 },
+      { endpoint: "quote", calls: 12 },
+      { endpoint: "batch-quote", calls: 3 },
+    ]);
   });
 
   it("is a no-op without Redis", async () => {

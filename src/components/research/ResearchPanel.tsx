@@ -14,7 +14,6 @@ import { NumberField } from "../valuation/fields";
 import { PlanControls, PlanPreview, ThesisHistory, ThesisSummary, WatchEditor, type DraftCheck, type WatchValue } from "./Thesis";
 import { isWatched } from "@/lib/thesis";
 import type { Direction } from "@/lib/thesis";
-import type { Candle, Result } from "@/lib/types";
 
 // The guided plan loads with its text (deep dictionary) only when it's shown.
 const PlanBuilder = dynamic(() => import("./PlanBuilder"), { loading: () => <Skeleton className="h-96 w-full rounded-lg" /> });
@@ -65,7 +64,7 @@ const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((k) 
 export const signedPct = (v: number, lang: Lang) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${fmtNum(Math.abs(v) * 100, lang, 1)}%`;
 
 /** "My research" tab: thesis, bull and bear points, fair value and plan, dated notes. */
-export default function ResearchPanel({ symbol, price, history = null }: { symbol: string; price: number | null; history?: Promise<Result<Candle[]>> | null }) {
+export default function ResearchPanel({ symbol, price }: { symbol: string; price: number | null }) {
   const { t } = useI18n();
   const { state, retry } = useNote(symbol);
   if (state.status === "error") {
@@ -84,10 +83,10 @@ export default function ResearchPanel({ symbol, price, history = null }: { symbo
       </Panel>
     );
   }
-  return <Notebook symbol={symbol} note={shown} price={price} history={history} onReload={retry} />;
+  return <Notebook symbol={symbol} note={shown} price={price} onReload={retry} />;
 }
 
-function Notebook({ symbol, note, price, history, onReload }: { symbol: string; note: ResearchNote; price: number | null; history: Promise<Result<Candle[]>> | null; onReload: () => void }) {
+function Notebook({ symbol, note, price, onReload }: { symbol: string; note: ResearchNote; price: number | null; onReload: () => void }) {
   const { t, lang } = useI18n();
   const R = t.research;
   // A notebook with nothing in it opens on the guided plan, unless this device chose the form.
@@ -167,7 +166,6 @@ function Notebook({ symbol, note, price, history, onReload }: { symbol: string; 
               symbol={symbol}
               note={note}
               price={price}
-              history={history}
               onSaved={() => {
                 setMode("form");
                 setPlanned(true);

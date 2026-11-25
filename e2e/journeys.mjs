@@ -36,23 +36,20 @@ const assert = (cond, msg) => {
 };
 
 const browser = await chromium.launch();
-async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, onboarding = false, planMode = "form" } = {}) {
+async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, planMode = "form" } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: lang === "es" ? "es-US" : "en-US" });
   await ctx.addCookies([{ name: "lang", value: lang, url: base }]);
   await ctx.addInitScript(
-    ([theme, list, onboarding, planMode]) => {
+    ([theme, list, planMode]) => {
       if (!sessionStorage.getItem("seeded")) {
         // An empty notebook opens on the guided plan; journeys use the form unless they test the guide.
         if (planMode) localStorage.setItem("iep.planMode", planMode);
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
-        // The getting-started checklist is hidden except in its own journey.
-        if (!onboarding) localStorage.setItem("iep.onboarding", JSON.stringify({ hidden: true }));
-        localStorage.setItem("iep.chartView", "simple");
         sessionStorage.setItem("seeded", "1");
       }
     },
-    [theme, watchlist, onboarding, planMode],
+    [theme, watchlist, planMode],
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
@@ -189,11 +186,11 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   // A ticker and a section, in any order.
   await open();
   await box().fill("dcf msft");
-  await p.getByRole("option", { name: /MSFT · DCF/ }).waitFor();
+  await p.getByRole("option", { name: /MSFT · Reverse DCF/ }).waitFor();
   await axe(p);
   await p.keyboard.press("Enter");
-  await p.waitForURL(/\/stock\/MSFT\?tab=valuation&view=dcf$/);
-  await p.getByRole("button", { name: "DCF", pressed: true }).waitFor();
+  await p.waitForURL(/\/stock\/MSFT\?tab=valuation$/);
+  await p.getByRole("button", { name: "Comps", pressed: true }).waitFor();
   // A section alone means the stock on screen; arrows move, Enter runs.
   await open();
   await box().fill("insiders");
@@ -228,40 +225,7 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await p.context().close();
 });
 
-await test("getting started: own → exit → alerts → follow tick themselves off from what you do, and the list can be hidden", async () => {
-  const p = await page({ lang: "en", onboarding: true });
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
-  let trades = [];
-  await p.route(/\/api\/trades$/, (r) => (r.request().method() === "GET" ? r.fulfill(json({ ok: true, fetchedAt: "x", data: trades })) : r.continue()));
-  await p.goto(base + "/portfolio");
-  const box = p.locator("#getting-started");
-  await box.getByText("0 of 4 done").waitFor();
-  assert((await box.getByRole("link", { name: "Add a position" }).getAttribute("href")) === "#portfolio", "the first step points at the portfolio");
-  await axe(p);
-  // Following a stock: the home page becomes the briefing, with the checklist still there.
-  await p.evaluate(() => localStorage.setItem("iep.watchlist", JSON.stringify(["KO"])));
-  await p.reload();
-  await box.getByText("1 of 4 done").waitFor();
-  // Owning something ticks the first step, and "Set an exit" opens its guided plan.
-  trades = [{ id: "t1", symbol: "KO", side: "buy", date: "2026-11-02", shares: 10, price: 68, fees: 0, stop: null, note: "", createdAt: "2026-11-02T15:00:00.000Z" }];
-  await p.reload();
-  await box.getByText("2 of 4 done").waitFor();
-  assert((await box.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit step opens the held stock's plan");
-  assert((await box.getByRole("link", { name: "Choose" }).getAttribute("href")) === "/#push", "alerts step opens the channels");
-  // An alert channel turned on (remembered in this browser).
-  await p.evaluate(() => localStorage.setItem("iep.onboarding", JSON.stringify({ alerts: true })));
-  await p.reload();
-  await box.getByText("3 of 4 done").waitFor();
-  await box.getByRole("button", { name: "Hide" }).click();
-  await box.waitFor({ state: "detached" });
-  await p.reload();
-  await p.getByRole("heading", { level: 1 }).first().waitFor();
-  assert((await p.locator("#getting-started").count()) === 0, "hidden checklist came back");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("navigation: research, canvas, list and screener; More holds the portfolio and the method; a sheet on phones", async () => {
+await test("navigation: research, canvas, list and screener; More holds the method; the old portfolio address opens the hub; a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
@@ -269,11 +233,11 @@ await test("navigation: research, canvas, list and screener; More holds the port
   for (const name of ["Research", "Canvas", "Watchlist", "Screener"]) assert((await nav.getByRole("link", { name, exact: true }).count()) === 1, `${name} in the nav`);
   // Tools left out of the MVP aren't offered (their pages still open by URL).
   await nav.getByRole("button", { name: "More" }).click();
-  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).waitFor();
-  assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs/ }).count()) === 0, "hidden tools offered");
+  await p.getByRole("link", { name: /How we calculate\s*Where every number/ }).waitFor();
+  assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs|My portfolio/ }).count()) === 0, "removed tools offered");
   await axe(p);
-  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).click();
-  await p.waitForURL(/\/portfolio$/);
+  await p.goto(base + "/portfolio");
+  await p.waitForURL((u) => u.pathname === "/");
   await p.goto(base + "/research");
   await p.waitForURL((u) => u.pathname === "/");
   await p.context().close();
@@ -284,7 +248,7 @@ await test("navigation: research, canvas, list and screener; More holds the port
   for (const name of ["Mi análisis", "Lienzo", "Mi lista", "Buscador"]) await bar.getByRole("link", { name }).waitFor();
   await bar.getByRole("button", { name: "Más" }).click();
   const sheet = m.getByRole("dialog", { name: "Más" });
-  await sheet.getByRole("link", { name: /Mi cartera/ }).waitFor();
+  await sheet.getByRole("link", { name: /Cómo calculamos/ }).waitFor();
   await sheet.getByRole("button", { name: "Comandos y atajos" }).click();
   await m.getByRole("dialog", { name: "Comandos" }).waitFor();
   await m.context().close();
@@ -294,6 +258,7 @@ await test("research hub: how to start when empty; theses with today's price and
   const p = await page({ lang: "en" });
   let notes = [];
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
   await p.getByRole("heading", { name: "How it works" }).waitFor();
@@ -327,7 +292,6 @@ await test("chart indicators: chosen once, every TradingView chart opens with th
   await p.route(/tradingview\.com|tradingview-widget\.com/, (r) => r.abort());
   const embedded = () => p.evaluate(() => [...document.querySelectorAll(".tradingview-widget-container script")].map((s) => JSON.parse(s.textContent || "{}").studies ?? null));
   await p.goto(base + "/stock/AAPL");
-  await p.locator("#panel-overview").getByRole("button", { name: "TradingView", exact: true }).click();
   const box = p.getByRole("group", { name: "Saved indicators" });
   await box.getByRole("button", { name: "RSI", exact: true }).click();
   await box.getByRole("button", { name: "Bollinger Bands" }).click();
@@ -630,62 +594,9 @@ await test("chart: TradingView keeps its full height after its script resizes th
     }),
   );
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("button", { name: "TradingView", exact: true }).click();
   await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
   const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
   assert(h >= 400, `chart is ${h}px tall`);
-  await p.context().close();
-});
-
-// ---- Home briefing ------------------------------------------------------------------------------
-
-await test("home briefing: following stocks shows what changed, each row opening its place; empty lists say so", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
-  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // nor holdings
-  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
-  const snap = (symbol, o) => ({
-    symbol, cik: 320193,
-    quality: { ok: false, error: "not_found" },
-    filings: { ok: true, data: { report: null, latest: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
-    insiders: { ok: true, data: { from: "", to: "", bought: o.bought ?? 0, sold: o.sold ?? 0, buyers: 1, sellers: 0, pending: 0, checkedAt: "" } },
-  });
-  const data = {
-    AAPL: snap("AAPL", { recent: [{ accn: "0000320193-26-000099", form: "10-K", filed: day(-2), reportDate: null, primaryDocument: "a.htm", items: [] }], next: day(5) }),
-    MSFT: snap("MSFT", { bought: 2.5e6, sold: 1e6 }),
-    KO: snap("KO", { recent: [0, 1, 2].map((i) => ({ accn: `ko-${i}`, form: "DEFA14A", filed: day(-i), reportDate: null, primaryDocument: "a.htm", items: [] })) }),
-  };
-  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
-  await p.goto(base + "/portfolio");
-  await p.getByRole("heading", { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches)$/ }).waitFor();
-  await p.getByText("Lo nuevo de las acciones que sigues (3).", { exact: false }).waitFor();
-  const filing = p.getByRole("link", { name: /AAPL\s*Anuales \(10-K\)/ });
-  await filing.waitFor();
-  assert((await filing.getAttribute("href")) === "/stock/AAPL/report?accn=0000320193-26-000099", "10-K opens the reader");
-  await p.getByRole("link", { name: /AAPL\s*hacia el/ }).waitFor();
-  // Three proxy supplements are one row, in plain words, opening the stock's filings.
-  const proxy = p.getByRole("link", { name: /KO\s*Junta de accionistas · DEFA14A\s*3 presentaciones/ });
-  assert((await proxy.getAttribute("href")) === "/stock/KO?tab=filings", "grouped filings open the filings tab");
-  const ins = p.getByRole("link", { name: /MSFT\s*Compras \$2\.5M/ });
-  assert((await ins.getAttribute("href")) === "/stock/MSFT?tab=filings&view=insiders", "insiders link");
-  // Empty lists fold into one line; with no fair values yet it says how to add one.
-  await p.getByTestId("brief-quiet").getByText(/Sin novedades en: frente a tu valor razonable/).waitFor();
-  await p.getByText("Pon un valor razonable en «Mi análisis»", { exact: false }).waitFor();
-  assert((await p.getByRole("heading", { name: "Frente a tu valor razonable" }).count()) === 0, "an empty list still has its own box");
-  // Home is about what you own and follow: tools live under "Herramientas".
-  assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 0, "generic ideas left on a returning user's home");
-  await p.locator("#portfolio").getByText("Empieza por lo que ya tienes", { exact: false }).waitFor();
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("home briefing: SEC data that can't load is said once, the rest still shows", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT"] }); // demo: the SEC summaries answer "not configured"
-  await p.goto(base + "/portfolio");
-  await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
-  await p.getByTestId("brief-quiet").getByText(/nuevas presentaciones/).waitFor();
-  await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
   await p.context().close();
 });
 
@@ -774,64 +685,6 @@ async function withSeries(p, peers = ["MSFT", "GOOGL", "META", "AMZN"]) {
   await p.route(/\/api\/sec\/peers\//, (r) => r.fulfill(json({ ok: true, data: { symbol: "AAPL", sicDescription: "Computers", peers }, fetchedAt: new Date().toISOString() })));
 }
 
-await test("chart packs: a built-in pack opens for any company with growth readouts and a peer median", async () => {
-  const p = await page();
-  await withSeries(p);
-  await p.goto(base + "/charts/packs?s=AAPL");
-  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: AAPL" }).waitFor();
-  const cards = p.locator("main section, main [id]").filter({ has: p.locator("h2") });
-  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
-  await p.getByText("Las mayores empresas de su industria", { exact: false }).first().waitFor();
-  assert((await p.getByText("Mediana de pares").count()) > 0, "no peer median");
-  assert((await cards.count()) >= 8, `cards ${await cards.count()}`);
-  await p.getByLabel("Paquete", { exact: true }).selectOption("quarters");
-  await p.waitForURL(/p=quarters/);
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("chart packs: save a chart from the generator, open it for another company, reorder, remove, delete and undo", async () => {
-  const p = await page();
-  await withSeries(p);
-  await p.goto(base + "/charts?s=AAPL&m=roic&f=annual&k=line&r=10");
-  await p.locator("main svg").first().waitFor(); // the chart is drawn: the page's scripts are running
-  await p.getByRole("button", { name: "Mediana de pares" }).click();
-  await p.waitForURL(/p=1/);
-  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
-  await p.getByLabel("Nombre del nuevo paquete").fill("Mi foso");
-  await p.getByRole("button", { name: "Crear y guardar" }).click();
-  await p.getByText("Añadido a «Mi foso».").waitFor();
-  await p.goto(base + "/charts?s=AAPL&m=revenue&f=annual&k=bar&r=10");
-  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
-  await p.getByRole("button", { name: /^Mi foso/ }).click();
-  await p.getByText("Añadido a «Mi foso».").waitFor();
-  const packs = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
-  assert(packs.length === 1 && packs[0].charts.length === 2 && packs[0].charts[0].peers === true, JSON.stringify(packs));
-  await p.goto(base + `/charts/packs?s=MSFT&p=${packs[0].id}`);
-  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: MSFT" }).waitFor();
-  await p.getByRole("button", { name: "Mover antes" }).nth(1).click();
-  const order = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks"))[0].charts.map((c) => c.metrics[0]));
-  assert(order.join() === "revenue,roic", `order ${order}`);
-  await p.getByRole("button", { name: "Quitar este gráfico del paquete" }).first().click();
-  await p.getByRole("button", { name: "Borrar paquete" }).click();
-  await p.waitForURL(/p=essentials/);
-  await p.getByRole("button", { name: "Deshacer" }).click();
-  const back = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
-  assert(back.length === 1 && back[0].charts.length === 1, `after undo ${JSON.stringify(back)}`);
-  await p.context().close();
-});
-
-await test("chart packs: phone layout never scrolls sideways", async () => {
-  const p = await page({ width: 320, height: 640, touch: true });
-  await withSeries(p);
-  await p.goto(base + "/charts/packs?s=AAPL");
-  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
-  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  assert(over <= 0, `page overflows by ${over}px`);
-  await p.context().close();
-});
-
 await test("next earnings: a listed date with estimates, an SEC estimate labelled as such, nothing when unknown", async () => {
   const p = await page();
   let answer = { ok: true, data: { symbol: "AAPL", next: { kind: "listed", date: "2099-02-04", epsEstimate: 2.9, revenueEstimate: 156e9 }, fmpIssue: null }, fetchedAt: new Date().toISOString() };
@@ -871,7 +724,7 @@ await test("methodology: reachable from the footer, contents link to sections, i
 
 // ---- Stock page -------------------------------------------------------------------------------
 
-await test("stock: tabs are history entries; keyboard Home/End; chart settings in the URL", async () => {
+await test("stock: tabs are history entries; keyboard Home/End; old tab links land on the new place", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
   assert((await p.getByRole("tab").count()) === 5, "five tabs");
@@ -893,14 +746,6 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   await p.keyboard.press("Home");
   await p.waitForURL((u) => !u.search.includes("tab="));
   await p.waitForFunction(() => document.getElementById("tab-overview")?.getAttribute("aria-selected") === "true");
-  const overview = p.locator("#panel-overview");
-  await overview.getByRole("button", { name: "6M" }).click();
-  await p.waitForURL(/range=6M/);
-  await overview.getByRole("button", { name: /^Indicadores/ }).click();
-  await overview.getByRole("checkbox", { name: /^RSI/ }).click();
-  await p.waitForURL(/ind=sma%2Crsi%2Cvolume|ind=sma,rsi,volume/);
-  await p.reload();
-  assert((await p.locator("#panel-overview").getByRole("button", { name: "6M" }).getAttribute("aria-pressed")) === "true", "range lost on reload");
   // Links from before the merge land on the new place, without an extra history entry.
   await p.goto(base + "/stock/AAPL?tab=news");
   await p.waitForURL(/tab=filings&view=news/);
@@ -910,81 +755,10 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   await p.context().close();
 });
 
-await test("stock: chart keeps one canvas set through control and theme changes (no leaks)", async () => {
-  const p = await page();
-  await p.goto(base + "/stock/AAPL");
-  const fig = p.locator("#panel-overview figure");
-  await fig.locator("canvas").first().waitFor();
-  const count = () => p.locator("#panel-overview canvas").count();
-  const panesOf = async () => (await p.locator("#panel-overview table tr td canvas, #panel-overview canvas").count());
-  const before = await count();
-  const ov = p.locator("#panel-overview");
-  await p.waitForTimeout(300);
-  await ov.getByRole("button", { name: /^Indicadores/ }).click();
-  for (let i = 0; i < 3; i++) {
-    await ov.getByRole("button", { name: "Línea" }).click();
-    await ov.getByRole("button", { name: "Velas" }).click();
-    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
-    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
-    await p.getByRole("button", { name: /Tema/ }).click();
-  }
-  await p.waitForTimeout(500);
-  const after = await count();
-  assert(after === before, `canvases ${before} → ${after}`);
-  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
-  await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length > n, before);
-  const withPane = await panesOf();
-  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
-  await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length === n, before);
-  assert(withPane > before, `pane add/remove ${before} → ${withPane} → ${await count()}`);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("stock: the chart's numbers are available as a table and as a text summary", async () => {
-  const p = await page();
-  await p.goto(base + "/stock/AAPL");
-  const cap = await p.locator("#panel-overview figcaption").innerText();
-  assert(/Gráfico de precios/.test(cap), "no summary");
-  await p.locator("#panel-overview").getByText("Ver los datos del gráfico").click();
-  await p.locator("#panel-overview [role=region] tbody tr").first().waitFor();
-  const rows = await p.locator("#panel-overview [role=region] tbody tr").count();
-  assert(rows > 200, `table rows ${rows}`);
-  await p.context().close();
-});
-
 await test("stock: unknown ticker is a real 404", async () => {
   const p = await page();
   const res = await p.goto(base + "/stock/1NOPE");
   assert(res.status() === 404, `status ${res.status()}`);
-  await p.context().close();
-});
-
-await test("stock: negative and missing values in the 10-year bars are honest", async () => {
-  const p = await page();
-  const years = ["FY2022", "FY2023", "FY2024", "FY2025"].map((label, i) => ({ label, end: `${2022 + i}-12-31` }));
-  await p.route(/\/api\/sec\/quality\//, (r) =>
-    r.fulfill(
-      json({
-        ok: true,
-        fetchedAt: "2026-11-07T00:00:00Z",
-        data: {
-          symbol: "AAPL", cik: 1, name: "Test", businessType: "general", years, checks: [],
-          summary: { passed: 0, failed: 0, na: 0, level: "na" }, growth: [],
-          trends: [{ key: "netIncome", values: [1.2e9, -4e8, null, 9e8] }],
-          splitAdjusted: false, lastFiscal: null,
-        },
-      }),
-    ),
-  );
-  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
-  const card = p.locator("article", { hasText: "Beneficio neto" });
-  await card.waitFor();
-  assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
-  assert((await card.locator(".bg-series-1").count()) === 2, "two bars above zero");
-  await card.getByText("Ver los datos").click();
-  const cells = await card.locator("tbody td").allInnerTexts();
-  assert(cells.some((c) => c.startsWith("−$")) && cells.includes("—"), `cells ${cells.join(",")}`);
   await p.context().close();
 });
 
@@ -1029,10 +803,17 @@ function financialsPayload() {
 await test("financials: highlights in words, statements in one unit, three readings, phone width", async () => {
   const p = await page();
   await p.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
-  await p.goto(base + "/stock/AAPL?tab=business");
-  await p.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
-  await p.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
-  await p.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
+  // The overview shows the first three findings and opens the full view.
+  await p.goto(base + "/stock/AAPL");
+  const card = p.locator("#highlights-card");
+  await card.getByText(/^Los ingresos crecieron un 10% al año/).waitFor();
+  assert((await card.locator("li").count()) === 3, "three findings on the overview");
+  await card.getByRole("button", { name: "Ver todo lo esencial" }).click();
+  await p.waitForURL(/tab=business&view=highlights/);
+  const fin = p.getByRole("tabpanel", { name: "Finanzas" });
+  await fin.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
+  await fin.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
+  await fin.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
   await p.getByRole("button", { name: "Resultados" }).click();
   await p.waitForURL(/view=income/);
   await p.getByText("Cifras en miles de millones de dólares; negativos entre paréntesis.").waitFor();
@@ -1064,35 +845,10 @@ await test("financials: highlights in words, statements in one unit, three readi
   await phone.context().close();
 });
 
-await test("at a glance: five lines from SEC figures, each opening its tab; gaps said plainly", async () => {
-  const p = await page();
-  const answer = { ok: true, fetchedAt: new Date().toISOString(), data: { symbol: "AAPL", fiscal: "FY2026", industry: "Electronic Computers", priceAt: new Date().toISOString(), historyFrom: "2021-11-30", issues: {}, missing: ["growth"], points: [
-    { key: "quality", level: "good", passed: 7, judged: 8 },
-    { key: "profitability", level: "good", metric: "roic", value: 0.52, compare: 0.11, peers: 41 },
-    { key: "debt", level: "weak", metric: "debtToEquity", value: 1.45, compare: 0.42, peers: 41 },
-    { key: "valuation", level: "weak", metric: "pe", value: 35.2, compare: 28.4 },
-  ] } };
-  await p.route(/\/api\/verdict\//, (r) => r.fulfill(json(answer)));
-  await p.goto(base + "/stock/AAPL");
-  const card = p.locator("#glance");
-  await card.getByText("Un negocio de alta calidad según las pruebas de Buffett").waitFor();
-  await card.getByText("ROIC 52% · mediana de la industria 11%").waitFor();
-  await card.getByText("PER 35.2x · media de 5 años 28.4x").waitFor();
-  await card.getByText("Sin datos suficientes para: crecimiento.").waitFor();
-  await card.getByRole("button", { name: /Cotiza por encima de su media de 5 años/ }).click();
-  await p.waitForURL(/tab=valuation/);
-  await p.goBack();
-  await p.locator("#glance").getByRole("button", { name: /Más deuda que la mayoría/ }).click();
-  await p.waitForURL(/tab=business&view=summary/);
-  await p.goBack();
-  await axe(p);
-  await p.context().close();
-});
-
-await test("at a glance: when no source can answer, the card says why", async () => {
+await test("overview: Lo esencial says why when no source can answer", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL"); // demo: no SEC database
-  await p.locator("#glance").getByText("La fuente de datos no está configurada.").waitFor();
+  await p.locator("#highlights-card").getByText("La fuente de datos no está configurada.").waitFor();
   await p.context().close();
 });
 
@@ -1102,11 +858,11 @@ await test("data tabs: an expired beta session asks to sign in again and comes b
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
   await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
-  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
+  await p.goto(base + "/stock/AAPL?tab=business");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
   const href = await link.getAttribute("href");
-  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness%26view%3Dsummary", `href ${href}`);
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness", `href ${href}`);
   assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
   await axe(p);
   await p.context().close();
@@ -1244,7 +1000,8 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   // Step 2: levels from the price history, each with its reason; a tap fills the field.
   await guide.getByRole("heading", { name: "What would change your mind?" }).waitFor();
   const lists = guide.getByRole("list", { name: "Suggestions" });
-  await lists.first().getByRole("button").first().waitFor();
+  // The price history is asked for only on this step: wait for its suggestions, not the review dates.
+  await guide.getByRole("button", { name: /from the entry/ }).first().waitFor();
   const stop = lists.nth(0).getByRole("button").first();
   const stopText = await stop.innerText();
   assert(/from the entry/.test(stopText) && /(bounced|stalled|bad days|lowest price|highest price)/.test(stopText), `stop suggestion: ${stopText}`);
@@ -1353,7 +1110,7 @@ await test("installable app: the manifest, icons and service worker are served w
   assert(m.display === "standalone" && m.icons.some((i) => i.sizes === "512x512"), "manifest incomplete");
 });
 
-await test("track record: log a buy and a sell (an oversell is refused), see the position, the scorecard against the S&P 500, delete in order", async () => {
+await test("trades: log a buy and a sell on a thesis (an oversell is refused), see the position, delete in order", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/research");
   // The demo store outlives a run: start with no trades and a thesis on MU with a stop.
@@ -1388,78 +1145,42 @@ await test("track record: log a buy and a sell (an oversell is refused), see the
   await box.getByText("A later sell relies on that buy: delete the sell first.").waitFor();
   await axe(p);
 
-  // The track record is out of the MVP's navigation (features.ts) but its page still works.
-  assert((await box.getByRole("link", { name: "See my track record" }).count()) === 0, "track record offered");
-  await p.goto(base + "/research/results");
-  const score = p.getByTestId("scorecard");
-  await score.getByText("Closed trades").waitFor();
-  const text = await score.innerText();
-  assert(/Closed trades\s+1/.test(text) && /Hit rate\s+100%/.test(text) && /\+10(\.0)?%/.test(text) && /\+US\$ 1 on average/.test(text), `scorecard: ${text}`);
-  await score.getByText(/SPY fund, same buy and sell dates \(1 trade\)\. Source: simulated data \(demo\)/).waitFor();
-  await p.getByTestId("week").getByText("You logged 1 buy and 1 sell.").waitFor();
-  await p.getByTestId("closed-trades").getByText("MU").waitFor();
-  await p.getByText("No open positions.").waitFor();
-  await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
 
-// The broker import is out of the MVP (features.ts): the same trades go in through the API here.
-await test("my portfolio: add from the search list, trades with a split restated and a renamed and a delisted ticker flagged, totals in pesos, one tap to an exit", async () => {
+// Trades with a split, a renamed and a delisted ticker go in through the API here.
+await test("holdings on the hub: each held stock is a row, a split restated, a renamed and a delisted ticker flagged, the total with its source", async () => {
   const p = await page({ lang: "en", watchlist: [] });
-  await p.goto(base + "/portfolio");
+  await p.goto(base + "/");
   await p.evaluate(async () => {
     const all = await (await fetch("/api/trades")).json();
     for (const t of [...all.data].reverse()) await fetch(`/api/trades/${t.id}`, { method: "DELETE" });
     for (const s of ["KO", "NEWCO", "OLDCO"]) await fetch(`/api/research/${s}`, { method: "DELETE" });
-  });
-  await p.reload();
-  const box = p.locator("#portfolio");
-  await box.getByText("Start with what you already own", { exact: false }).waitFor();
-  await axe(p);
-  // One position: the company comes from the search list, the price is one tap away.
-  await box.getByRole("button", { name: "Add a position" }).click();
-  await box.getByRole("combobox", { name: "Company" }).fill("KO");
-  await p.getByRole("option", { name: /KO/ }).first().click();
-  await box.getByText("Picked: KO").waitFor();
-  await box.getByLabel("Shares").fill("10");
-  await box.getByRole("button", { name: /Use the current price/ }).click();
-  await box.getByRole("button", { name: "Add to my portfolio" }).click();
-  await box.getByText("KO is in your portfolio. We're following it for you.").waitFor();
-  assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("KO"), "owning it should follow it");
-  assert((await box.getByRole("button", { name: "Import from my broker" }).count()) === 0, "the import is out of the MVP");
-  await p.evaluate(async () => {
     const add = (symbol, date, shares, price) =>
       fetch("/api/trades", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol, side: "buy", date, shares, price, fees: 0 }) });
+    await add("KO", "2026-11-02", 10, 68);
     await add("SPLT", "2026-01-05", 2, 1000);
     await add("OLDCO", "2026-02-06", 3, 50);
     await add("GONE", "2026-02-07", 10, 5);
   });
   await p.reload();
-  // Each holding: one light and its reason, the most urgent first.
-  const holdings = box.getByTestId("holdings");
-  await holdings.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
-  await holdings.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
-  await holdings.getByTestId("holding-GONE").getByText("Look now").waitFor();
-  await holdings.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
-  const ko = holdings.getByTestId("holding-KO");
-  await ko.getByText(/No exit set/).waitFor();
-  assert((await ko.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit link");
-  assert((await holdings.locator("li").first().getAttribute("data-testid")) === "holding-GONE", "red first");
-  // In pesos: the total converted, with the rate's source and time.
-  await box.getByLabel("Your currency").selectOption("MXN");
-  await box.getByTestId("portfolio-local").getByText(/≈ MX\$ [\d,]+\.\d{2} · US\$1 = 18\.5 MXN \(demo exchange rate/).waitFor();
+  const list = p.getByTestId("theses");
+  await list.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
+  await list.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
+  await list.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
+  await list.getByTestId("holding-KO").getByText(/No exit set/).waitFor();
+  await list.getByTestId("thesis-KO").getByText("No thesis yet").waitFor();
+  await p.getByTestId("holdings-total").getByText(/You hold 4 positions worth/).waitFor();
+  assert((await p.getByText("To log what you own of a stock", { exact: false }).count()) === 0, "the how-to shows only with no holdings");
   await axe(p);
-  // The renamed ticker: one tap moves the notebook, alerts and trades.
-  await holdings.getByTestId("holding-OLDCO").getByRole("link", { name: "Move to NEWCO" }).click();
+  // The renamed ticker: its row opens the research tab, where one tap moves the notebook, alerts and trades.
+  await list.getByTestId("thesis-OLDCO").getByRole("link", { name: /OLDCO/ }).first().click();
   await p.waitForURL(/\/stock\/OLDCO\?tab=research/);
   await p.locator("#listing").getByRole("button", { name: "Move everything to NEWCO" }).click();
   await p.waitForURL(/\/stock\/NEWCO\?tab=research/);
   const symbols = await p.evaluate(async () => (await (await fetch("/api/trades")).json()).data.map((t) => t.symbol));
   assert(symbols.includes("NEWCO") && !symbols.includes("OLDCO"), `trades moved: ${symbols}`);
-  // "Set an exit" opens the guided plan on its levels.
-  await p.goto(base + "/stock/KO?tab=research&plan=1");
-  await p.locator("#plan-builder").getByRole("heading", { name: "What would change your mind?" }).waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
@@ -1555,31 +1276,6 @@ async function searchInside(scope, text) {
 }
 
 // Telegram alerts are out of the MVP's screens (features.ts); the service behind them still works.
-await test("telegram: no settings on screen; the API still links a chat with a one-time code, tests and disconnects; the webhook only listens to Telegram", async () => {
-  const p = await page({ lang: "en" });
-  await p.goto(base + "/");
-  await p.getByTestId("push-settings").waitFor();
-  assert((await p.getByTestId("telegram-settings").count()) === 0, "Telegram settings shown");
-  const api = (url, method, body) => p.evaluate(async ([url, method, body]) => {
-    const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-    return { status: r.status, body: await r.json().catch(() => null) };
-  }, [url, method, body]);
-  const link = await api("/api/telegram", "POST", { lang: "en" });
-  const href = link.body?.data?.url ?? "";
-  const code = href ? new URL(href).searchParams.get("start") : null;
-  assert(href.startsWith("https://t.me/iep_demo_bot?start=") && code, `link ${href}`);
-  // Without Telegram's secret the webhook refuses; with it, /start links this chat.
-  const hook = (secret) => fetch(base + "/api/telegram/webhook", { method: "POST", headers: { "content-type": "application/json", ...(secret ? { "x-telegram-bot-api-secret-token": secret } : {}) }, body: JSON.stringify({ message: { chat: { id: 777, type: "private" }, text: `/start ${code}`, from: { language_code: "en" } } }) });
-  assert((await hook(null)).status === 401, "webhook without secret");
-  assert((await hook("demo-webhook-secret")).ok, "webhook with secret");
-  assert((await api("/api/telegram", "GET")).body?.data?.linked === true, "linked");
-  assert((await api("/api/telegram/test", "POST")).status === 200, "test alert");
-  await api("/api/telegram", "DELETE");
-  assert((await api("/api/telegram", "GET")).body?.data?.linked === false, "disconnected");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
 await test("stats: the admin funnel counts first-party events (here, the demo's local user)", async () => {
   const p = await page({ lang: "en" });
   // A visit is recorded on arrival (once per device and day).
@@ -1699,47 +1395,6 @@ await test("live thesis: when the check fails, the home page says so and offers 
 
 // ---- Calendar (SEC summaries and notebooks answered with fixtures) ----------------------------
 
-await test("calendar: results, SEC deadlines and review dates by week; range, filters and .ics download", async () => {
-  const p = await page({ lang: "en", watchlist: ["AAPL", "MSFT"] });
-  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
-  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
-  const filing = (form, reportDate) => ({ accn: `${form}-${reportDate}`, form, filed: reportDate, reportDate, primaryDocument: "a.htm", items: [] });
-  const snap = (symbol, f) => ({ symbol, cik: 1, quality: { ok: false, error: "not_found" }, insiders: { ok: false, error: "not_found" }, filings: { ok: true, data: { report: null, annual: null, latest: null, recent: [], nextResults: null, ...f } } });
-  const data = {
-    AAPL: snap("AAPL", { nextResults: { date: day(10), basedOn: day(-355) } }),
-    MSFT: snap("MSFT", { report: filing("10-Q", day(-60)), annual: filing("10-K", day(-240)) }), // next 10-Q due in ~71 days
-  };
-  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [{ symbol: "KO", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: day(20), checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-01T00:00:00Z" }] })));
-  await p.route(/\/api\/theses/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: { items: [], skipped: 0 } })));
-  await p.goto(base + "/calendar");
-  await p.getByRole("heading", { name: "Calendar", level: 1 }).waitFor();
-  await p.getByRole("link", { name: /AAPL.*Results \(estimated\)/ }).waitFor();
-  await p.getByRole("link", { name: /KO.*Review your thesis/ }).waitFor();
-  assert((await p.getByText("10-Q due").count()) === 0, "a deadline beyond 60 days is shown");
-  await p.getByRole("button", { name: "90 days" }).click();
-  await p.getByRole("link", { name: /MSFT.*10-Q due/ }).waitFor();
-  await axe(p);
-  // Hide results; the download has what's on screen.
-  await p.getByRole("button", { name: "Results" }).click();
-  await p.getByRole("link", { name: /AAPL.*Results/ }).waitFor({ state: "detached" });
-  const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Add to my calendar (.ics)" }).click()]);
-  const ics = readFileSync(await download.path(), "utf8");
-  assert(ics.includes("SUMMARY:KO: review thesis") && ics.includes("SUMMARY:MSFT: 10-Q due") && !ics.includes("AAPL"), ics);
-  // Out of the MVP (features.ts): the portfolio's briefing no longer links here.
-  await p.goto(base + "/portfolio");
-  await p.getByRole("heading", { level: 1 }).first().waitFor();
-  assert((await p.getByRole("link", { name: "See calendar" }).count()) === 0, "calendar offered");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-
-  const empty = await page({ lang: "es" });
-  await empty.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
-  await empty.goto(base + "/calendar");
-  await empty.getByText("Sigue acciones o pon una fecha de revisión en «Mi análisis» para ver aquí sus fechas.").waitFor();
-  await empty.context().close();
-});
-
 // ---- AI explanation (its endpoint answered with fixtures: no Claude calls in tests) ------------
 
 const explainFacts = [
@@ -1795,72 +1450,6 @@ await test("AI explanation: written on request, every sentence links to the fact
   await busy.locator("#explain").getByRole("button", { name: "Write the explanation" }).click();
   await busy.locator("#explain").getByText(/You asked for several explanations in a row/).waitFor();
   await busy.context().close();
-});
-
-// ---- Compare (SEC and price endpoints answered with fixtures) ---------------------------------
-
-const verdictFix = (sym, growth) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, points: [
-  { key: "quality", level: "good", passed: 9, judged: 10 },
-  { key: "growth", level: growth, metric: "revenueGrowth", value: growth === "good" ? 0.15 : 0.04, compare: 0.06, peers: 40 },
-  { key: "profitability", level: "good", metric: "roic", value: 0.31, compare: 0.12 },
-  { key: "debt", level: "mid", metric: "debtToEquity", value: 0.6, compare: 0.6 },
-  { key: "valuation", level: "weak", metric: "pe", value: 34, compare: 27 },
-], missing: [], fiscal: "FY2025", industry: "SOFTWARE", priceAt: "2026-11-20T15:00:00Z", historyFrom: "2021-11-30", issues: {} } });
-const ratioRow = (key, better, value, percentile) => ({ key, group: "profitability", better, applicable: true, value, note: null, history: [], own: null, sector: { percentile, median: 0.1, n: 40, sicPrefix: "737" } });
-const ratiosFix = (sym, roic, debt) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, cik: 1, businessType: "general", sic: 7372, sicDescription: "SOFTWARE", period: { label: "FY2025", end: "2025-09-30" }, peersYear: 2025, ratios: [
-  ratioRow("revenueGrowth", "higher", 0.08, 60), ratioRow("roic", "higher", roic, roic > 0.3 ? 92 : 70), ratioRow("debtToEquity", "lower", debt, 40),
-] } });
-const valFix = (sym, pe) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: [{ key: "pe", applicable: true, higherIsCheaper: false, value: pe, note: null, own: { mean: 25 } }, { key: "fcfYield", applicable: false, higherIsCheaper: true, value: null, note: null, own: null }] } });
-const months = Array.from({ length: 24 }, (_, i) => `${2024 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
-const marketFix = (sym, start, step) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: "ok", monthly: { keys: months, ends: months.map((m) => `${m}-28`), values: { price: months.map((_, i) => start + i * step) } } } });
-
-await test("compare: companies side by side from the URL, add and remove, phone table scrolls inside its box", async () => {
-  const p = await page({ lang: "en" });
-  await p.route(/\/api\/verdict\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(verdictFix(s, s === "MSFT" ? "good" : "mid"))); });
-  await p.route(/\/api\/sec\/ratios\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(ratiosFix(s, s === "AAPL" ? 0.52 : 0.28, s === "AAPL" ? 1.5 : 0.4))); });
-  await p.route(/\/api\/valuation\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(valFix(s, s === "AAPL" ? 33.4 : 30))); });
-  await p.route(/\/api\/charts\/market\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(marketFix(s, 100, s === "AAPL" ? 2 : 1))); });
-  await p.goto(base + "/compare?s=aapl,msft");
-  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
-  const glance = p.getByRole("region", { name: "At a glance" });
-  await glance.getByText("ROIC 31% · industry median 12%").first().waitFor();
-  const ratios = p.getByRole("region", { name: "Against its industry" });
-  await ratios.getByText("above 92% of its industry").waitFor();
-  // Higher ROIC is better (AAPL); lower debt is better (MSFT): the best in each row is marked.
-  const roic = ratios.getByRole("row", { name: /ROIC/ });
-  await roic.getByText("best in the group").waitFor();
-  assert((await roic.getByRole("cell").nth(0).innerText()).includes("52.0%") || (await roic.getByRole("cell").nth(0).innerText()).includes("52%"), "AAPL ROIC");
-  const debtRow = ratios.getByRole("row", { name: /Debt/ });
-  assert((await debtRow.getByRole("cell").nth(1).innerText()).includes("●"), "lower debt not marked as best");
-  await p.getByRole("region", { name: "Valuation" }).getByText("33.4x").waitFor();
-  await p.getByRole("region", { name: "Valuation" }).getByText("Not applicable").first().waitFor();
-  await p.getByRole("group", { name: /Price performance: AAPL, MSFT/ }).waitFor();
-  await axe(p);
-  // Add a third company with the search, remove one: the URL follows.
-  await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "KO", name: "The Coca-Cola Company" }])));
-  await p.getByRole("combobox", { name: "Add a company" }).fill("coca");
-  await p.getByRole("option", { name: /KO/ }).click();
-  await p.waitForURL(/s=AAPL,MSFT,KO$/);
-  await p.getByRole("button", { name: "Remove MSFT from the comparison" }).click();
-  await p.waitForURL(/s=AAPL,KO$/);
-  await p.getByRole("heading", { name: "Compare: AAPL · KO" }).waitFor();
-  // Out of the MVP (features.ts): the stock page offers a canvas instead, but the URL still works.
-  await p.goto(base + "/stock/AAPL");
-  await p.getByRole("link", { name: "Work this company on a canvas" }).waitFor();
-  assert((await p.getByRole("link", { name: "Compare" }).count()) === 0, "compare offered");
-  await p.goto(base + "/compare?s=AAPL");
-  await p.getByText("Add at least one more company to compare.").waitFor();
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-
-  const m = await page({ lang: "es", width: 320, height: 700 });
-  await m.route(/\/api\/(verdict|sec\/ratios|valuation|charts\/market)\//, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
-  await m.goto(base + "/compare?s=AAPL,MSFT,GOOGL,NVDA");
-  await m.getByRole("heading", { name: "Comparar: AAPL · MSFT · GOOGL · NVDA" }).waitFor();
-  await m.getByText("Puedes comparar hasta 4 empresas.").waitFor();
-  await m.waitForTimeout(500);
-  assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 320, "page scrolls sideways at 320 px");
-  await m.context().close();
 });
 
 // ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------
@@ -1970,77 +1559,6 @@ async function chartsPage(opts) {
   return p;
 }
 
-await test("charts: URL state, legend toggle, keyboard readout and CSV", async () => {
-  const p = await chartsPage();
-  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual&k=bar&r=5");
-  const chart = p.locator("svg[aria-roledescription=chart]");
-  await chart.waitFor();
-  assert((await chart.locator("path[fill]").count()) === 10, "2 companies × 5 years of bars");
-  // Legend hides and shows a series, without repainting the other.
-  const legendA = p.getByRole("button", { name: "AAA", exact: true });
-  await legendA.click();
-  assert((await legendA.getAttribute("aria-pressed")) === "false", "legend toggle");
-  assert((await chart.locator("path[fill]").count()) === 5, "hidden series removed");
-  await legendA.click();
-  // Keyboard: focus the chart and step through periods.
-  await chart.focus();
-  await p.keyboard.press("Home");
-  const tip = p.locator("[role=status]", { hasText: "FY2021" });
-  await tip.waitFor();
-  assert((await tip.innerText()).includes("$100B"), `readout ${await tip.innerText()}`);
-  // Options update the URL (shareable), growth uses the period before.
-  await p.getByRole("group", { name: "Mostrar" }).getByRole("button", { name: "Crecimiento" }).click();
-  await p.waitForURL(/t=growth/);
-  await p.keyboard.press("Tab");
-  await chart.focus();
-  await p.keyboard.press("End");
-  await p.locator("[role=status]", { hasText: "+16.7%" }).or(p.locator("[role=status]", { hasText: "16.7%" })).first().waitFor();
-  // CSV export has a header and one row per period.
-  const [dl] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: /CSV/ }).click()]);
-  const csv = readFileSync(await dl.path(), "utf8").trim().split("\n");
-  assert(csv[0] === "Periodo,AAA (%),BBB (%)", `csv header ${csv[0]}`);
-  assert(csv.length === 6, `csv rows ${csv.length}`);
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("charts: a company without filings is reported; units can't be mixed without a transform", async () => {
-  const p = await chartsPage({ lang: "en" });
-  await p.goto(base + "/charts?s=AAA,ZZZ&m=revenue,netMargin&f=annual&k=line");
-  await p.locator("svg[aria-roledescription=chart]").waitFor();
-  await p.getByText(/ZZZ.*:/).first().waitFor();
-  assert(!p.url().includes("netMargin") || (await p.getByRole("button", { name: /Revenue/ }).first().innerText()) === "Revenue", "mixed units dropped");
-  await p.getByRole("button", { name: /^Revenue/ }).first().click();
-  const margin = p.getByRole("checkbox", { name: /Net margin/ });
-  assert(await margin.isDisabled(), "different unit is disabled while showing values");
-  await p.keyboard.press("Escape");
-  await p.getByRole("group", { name: "Show" }).getByRole("button", { name: "Index 100" }).click();
-  await p.getByRole("button", { name: /^Revenue/ }).first().click();
-  await p.getByRole("checkbox", { name: /Net margin/ }).check();
-  await p.waitForURL(/m=revenue,netMargin/);
-  await p.context().close();
-});
-
-await test("charts: phone layout uses compact selects and never scrolls sideways", async () => {
-  const p = await chartsPage({ width: 360, height: 780, touch: true });
-  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual");
-  await p.locator("svg[aria-roledescription=chart]").waitFor();
-  await p.getByRole("combobox", { name: "Periodicidad" }).selectOption("quarterly");
-  await p.waitForURL(/f=quarterly/);
-  assert((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "horizontal overflow");
-  await axe(p);
-  await p.context().close();
-});
-
-await test("charts: monthly prices in demo mode say they're unavailable instead of inventing them", async () => {
-  const p = await chartsPage();
-  await p.goto(base + "/charts?s=AAA&m=pe&f=monthly");
-  await p.getByText("El historial de precios no está disponible en este momento.").waitFor();
-  assert((await p.locator("svg[aria-roledescription=chart]").count()) === 0, "no chart without data");
-  await p.context().close();
-});
-
 // ---- Journeys in both languages and themes ------------------------------------------------
 
 for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
@@ -2054,7 +1572,7 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await box.press("Enter");
     await p.waitForURL(/\/stock\//);
     await p.getByRole("heading", { level: 1 }).waitFor();
-    await p.getByRole("heading", { name: lang === "es" ? "De un vistazo" : "At a glance" }).waitFor();
+    await p.getByRole("heading", { name: lang === "es" ? "Lo esencial" : "Highlights" }).first().waitFor();
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
@@ -2071,12 +1589,12 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
 await test("language switch loads the other dictionary and keeps the page working", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("heading", { name: "De un vistazo" }).waitFor();
+  await p.getByRole("heading", { name: "Lo esencial" }).first().waitFor();
   await p.getByRole("button", { name: /^ES,/ }).click();
-  await p.getByRole("heading", { name: "At a glance" }).waitFor();
+  await p.getByRole("heading", { name: "Highlights" }).first().waitFor();
   assert((await p.evaluate(() => document.documentElement.lang)) === "en", "html lang not updated");
   await p.reload();
-  await p.getByRole("heading", { name: "At a glance" }).waitFor(); // remembered (cookie)
+  await p.getByRole("heading", { name: "Highlights" }).first().waitFor(); // remembered (cookie)
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });

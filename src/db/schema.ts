@@ -234,7 +234,7 @@ export const splits = pgTable(
   (t) => [primaryKey({ columns: [t.symbol, t.date] })],
 );
 
-/** Telegram chats that receive a beta label's alerts (linked with a one-time code, see lib/telegram.ts). */
+/** Telegram chats linked to a beta label. Telegram alerts were retired; the table keeps existing rows until a migration drops it. */
 export const telegramChats = pgTable(
   "telegram_chats",
   {
@@ -246,7 +246,7 @@ export const telegramChats = pgTable(
   (t) => [index("telegram_chats_owner_idx").on(t.owner)],
 );
 
-/** One-time codes behind the "Connect Telegram" link: valid for a few minutes, used once. */
+/** One-time codes of the retired "Connect Telegram" link (kept until a migration drops the table). */
 export const telegramCodes = pgTable("telegram_codes", {
   code: text("code").primaryKey(),
   owner: text("owner").notNull(),

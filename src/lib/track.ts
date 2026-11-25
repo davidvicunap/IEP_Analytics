@@ -16,7 +16,7 @@ const localDay = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-/** One "visit" per device and day; and "alert_opened" when a notification or Telegram button opened the page. */
+/** One "visit" per device and day; and "alert_opened" when a notification opened the page. */
 export function trackArrival(): void {
   try {
     const day = localDay();

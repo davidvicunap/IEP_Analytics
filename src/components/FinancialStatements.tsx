@@ -6,7 +6,7 @@ import { fmtAsOf, fmtBig, fmtDate, fmtNum } from "@/lib/format";
 import { filingUrl, type Cell, type LineKey, type Period, type Split, type StatementKey } from "@/lib/secFinancials";
 import { filingDocUrl, xbrlViewerUrl, type Filing } from "@/lib/filingsShared";
 import {
-  checkColumn, projectStatements, projectionDefaults, ttmColumn, type CheckIssue, type Column, type ProjectionAssumptions,
+  checkColumn, ttmColumn, type CheckIssue, type Column,
 } from "@/lib/statements";
 import {
   STATEMENT_ROWS, cagr, commonBase, fmtPct, fmtPerShare, fmtScaled, notReportedSince, pickScale, shownValue, type Mode, type Row,
@@ -14,10 +14,9 @@ import {
 import { useFilings } from "./filingsHooks";
 import { useFinancials } from "./financialsHooks";
 import { IssueNote, Panel, Segmented, Skeleton } from "./ui";
-import { NumberField } from "./valuation/fields";
 
 type Lang = "es" | "en";
-type Kind = "actual" | "ttm" | "projected";
+type Kind = "actual" | "ttm";
 type Range = "5" | "10" | "all";
 const RANGES: Range[] = ["5", "10", "all"];
 const STATEMENTS: StatementKey[] = ["income", "balance", "cashflow"];
@@ -59,21 +58,6 @@ const columnOf = (lines: Partial<Record<LineKey, Cell[]>>, i: number): Column =>
   return out;
 };
 
-const PROJ_ROWS: (keyof ProjectionAssumptions)[] = [
-  "growth", "grossMargin", "opMargin", "interestPct", "otherPct", "taxRate", "daPct", "capexPct", "nwcPct", "payout", "buybackPct", "shareChange",
-];
-type Draft = { [K in keyof ProjectionAssumptions]: ProjectionAssumptions[K] extends number[] | null ? (number | null)[] | null : never };
-
-function complete(d: Draft): ProjectionAssumptions | null {
-  for (const k of PROJ_ROWS) {
-    const row = d[k];
-    if (row === null) {
-      if (k !== "grossMargin") return null;
-    } else if (row.some((x) => x === null)) return null;
-  }
-  return d as unknown as ProjectionAssumptions;
-}
-
 /**
  * One SEC statement as a printed annual report reads: one unit for the table, subtotals in
  * bold, negatives in parentheses, the latest year on the right next to its 5-year growth and
@@ -88,8 +72,6 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const [range, setRange] = useState<Range>("10");
   const [mode, setMode] = useState<Mode>("values");
-  const [projecting, setProjecting] = useState(false);
-  const [draft, setDraft] = useState<Draft | null>(null);
   const { state: filings } = useFilings(symbol);
   const { state, retry } = useFinancials(symbol);
 
@@ -99,12 +81,7 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
     return m;
   }, [filings]);
 
-  const defaults = useMemo(() => {
-    if (state.status !== "ok") return null;
-    return projectionDefaults(state.data.annual, state.data.shares.points.at(-1)?.value ?? null);
-  }, [state]);
-
-  // Every actual period (growth needs the one before the first shown), then TTM and projections.
+  // Every actual period (growth needs the one before the first shown), then the last 12 months.
   const { actual, extra } = useMemo(() => {
     const none = { actual: [] as DisplayColumn[], extra: [] as DisplayColumn[] };
     if (state.status !== "ok") return none;
@@ -120,19 +97,9 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
     if (period === "annual") {
       const ttm = ttmColumn(fin.quarterly, fin.annual.periods.at(-1)?.end ?? null);
       if (ttm) extra.push({ period: ttm.period, kind: "ttm", cells: ttm.cells, prev: null, checks: checkColumn(ttm.cells) });
-      const a = projecting && draft && defaults ? complete(draft) : null;
-      if (a && defaults) {
-        const p = projectStatements(defaults.base, a);
-        let prev = actual.at(-1)?.cells ?? null;
-        p.periods.forEach((pp, i) => {
-          const cells = columnOf(p.lines, i);
-          extra.push({ period: pp, kind: "projected", cells, prev, checks: null });
-          prev = cells;
-        });
-      }
     }
     return { actual, extra };
-  }, [state, period, projecting, draft, defaults]);
+  }, [state, period]);
 
   if (state.status === "loading") {
     return (
@@ -156,11 +123,6 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
   const shown = range === "all" ? actual : actual.slice(-Number(range) * perYear);
   const columns = [...shown, ...extra];
   const base = commonBase(statement);
-  const toggleProjection = () => {
-    if (!projecting && !draft && defaults) setDraft(defaults.assumptions as unknown as Draft);
-    setProjecting((x) => !x);
-    setPeriod("annual");
-  };
 
   const unitLine =
     mode === "common" ? t.fin.commonLine[base as "revenue" | "totalAssets"] : mode === "growth" ? t.fin.growthLine[period] : null;
@@ -174,10 +136,7 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
         <Segmented
           label={t.fin.periodLabel}
           value={period}
-          onChange={(p) => {
-            setPeriod(p);
-            if (p === "quarterly") setProjecting(false);
-          }}
+          onChange={setPeriod}
           options={[
             { value: "annual", label: t.fin.annual },
             { value: "quarterly", label: t.fin.quarterly },
@@ -190,24 +149,7 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
           onChange={setMode}
           options={MODES.map((m) => ({ value: m, label: m === "common" ? t.fin.modes.common[base as "revenue" | "totalAssets"] : t.fin.modes[m] }))}
         />
-        <button
-          type="button"
-          aria-pressed={projecting}
-          onClick={toggleProjection}
-          disabled={!defaults}
-          className={`h-11 sm:h-9 px-3 rounded-lg text-[13px] font-medium border transition-colors disabled:opacity-60 ${projecting ? "bg-panel-2 text-fg border-line-strong" : "border-line text-fg hover:bg-panel-2"}`}
-        >
-          {projecting ? t.fin.stopProject : t.fin.project}
-        </button>
       </div>
-
-      {projecting && period === "annual" && (
-        defaults && draft ? (
-          <ProjectionEditor symbol={symbol} draft={draft} setDraft={setDraft} defaults={defaults.assumptions} />
-        ) : (
-          <Panel><p className="text-sm text-muted">{t.fin.projNoData}</p></Panel>
-        )
-      )}
 
       <StatementTable
         key={`${period}-${statement}`}
@@ -216,7 +158,7 @@ export default function FinancialStatements({ symbol, statement: fixed }: { symb
         actual={actual}
         mode={mode}
         annual={period === "annual"}
-        summary={mode === "values" && !projecting}
+        summary={mode === "values"}
         splits={fin.shares.splits}
         unitLine={unitLine}
         cik={fin.cik}
@@ -265,11 +207,9 @@ function StatementTable({
 }) {
   const { t } = useI18n();
   const scroller = useRef<HTMLDivElement>(null);
-  const history = columns.filter((c) => c.kind !== "projected");
   const rows = STATEMENT_ROWS[statement].filter(
-    (r) => !(mode === "common" && r.kind) && history.some((c) => c.cells[r.key] && c.cells[r.key]!.value !== null),
+    (r) => !(mode === "common" && r.kind) && columns.some((c) => c.cells[r.key] && c.cells[r.key]!.value !== null),
   );
-  const firstProjected = columns.findIndex((c) => c.kind === "projected");
 
   // Newest period is on the right: start scrolled to it.
   useEffect(() => {
@@ -299,7 +239,7 @@ function StatementTable({
     })
     .join(t.fin.and);
 
-  const tone = (k: Kind) => (k === "projected" ? "bg-info-bg/40 italic" : k === "ttm" ? "bg-panel-2" : "");
+  const tone = (k: Kind) => (k === "ttm" ? "bg-panel-2" : "");
   const cellBase = "text-right pl-4 py-2 whitespace-nowrap";
   const sticky = "sticky left-0 z-10 bg-panel text-left pl-4 pr-3 shadow-[1px_0_0_var(--border)]";
   const caption = `${t.fin.statements[statement]} · ${annual ? t.fin.annual : t.fin.quarterly}`;
@@ -317,8 +257,8 @@ function StatementTable({
               <th scope="col" className={`${sticky} font-normal text-muted border-b border-line-strong`}>
                 <span className="sr-only">{t.fin.lineItem}</span>
               </th>
-              {columns.map((c, i) => (
-                <ColumnHeader key={`${c.kind}-${c.period.label}-${c.period.end}`} c={c} cik={cik} byAccn={byAccn} lang={lang} divider={i === firstProjected} />
+              {columns.map((c) => (
+                <ColumnHeader key={`${c.kind}-${c.period.label}-${c.period.end}`} c={c} cik={cik} byAccn={byAccn} lang={lang} />
               ))}
               {summary && annual && (
                 <th scope="col" className="text-right font-medium text-muted pl-6 pb-2 align-bottom border-b border-line-strong whitespace-nowrap" title={t.fin.cagrTitle}>
@@ -445,15 +385,13 @@ function Spark({ values }: { values: (number | null)[] }) {
   );
 }
 
-function ColumnHeader({ c, cik, byAccn, lang, divider }: { c: DisplayColumn; cik: number; byAccn: Map<string, Filing>; lang: Lang; divider: boolean }) {
+function ColumnHeader({ c, cik, byAccn, lang }: { c: DisplayColumn; cik: number; byAccn: Map<string, Filing>; lang: Lang }) {
   const { t } = useI18n();
   const f = c.period.accn ? byAccn.get(c.period.accn) : undefined;
   const docHref = f ? filingDocUrl(cik, f) : c.period.accn ? filingUrl(cik, c.period.accn) : null;
   return (
-    <th scope="col" className={`text-right font-semibold pl-4 pb-2 align-bottom whitespace-nowrap border-b border-line-strong ${divider ? "border-l-2 border-l-info" : ""} ${c.kind === "ttm" ? "bg-panel-2" : ""}`}>
-      {c.kind === "projected" ? (
-        <span className="text-info">{c.period.label}</span>
-      ) : docHref ? (
+    <th scope="col" className={`text-right font-semibold pl-4 pb-2 align-bottom whitespace-nowrap border-b border-line-strong ${c.kind === "ttm" ? "bg-panel-2" : ""}`}>
+      {docHref ? (
         <a href={docHref} target="_blank" rel="noopener noreferrer" className="link" title={`${t.fin.openFiling} · ${fmtDate(c.period.end, lang)}`}>
           {c.period.label}
         </a>
@@ -462,9 +400,7 @@ function ColumnHeader({ c, cik, byAccn, lang, divider }: { c: DisplayColumn; cik
       )}
       {/* The date lives in the title; the second line is the filing itself (or the TTM span). */}
       <span className="block text-[11px] font-normal text-muted">
-        {c.kind === "projected" ? (
-          t.fin.projectedSub
-        ) : c.kind === "ttm" ? (
+        {c.kind === "ttm" ? (
           fill(t.fin.ttmSub, { d: fmtDate(c.period.end, lang) })
         ) : f?.inlineXbrl ? (
           <a href={xbrlViewerUrl(cik, f)} target="_blank" rel="noopener noreferrer" className="link" title={t.fin.xbrlTitle}>
@@ -510,149 +446,4 @@ function cellTitle(c: Cell, fmt: (v: number | null) => string, altTitle: string,
   if (c.splitAdjusted) parts.push(fill(splitTitle, { k: String(+c.splitAdjusted.toFixed(4)) }));
   if (c.alt) parts.push(fill(altTitle, { v: fmt(c.alt.value), concept: `us-gaap:${c.alt.concept}` }));
   return parts.length ? parts.join("\n") : undefined;
-}
-
-// ---- Projection assumptions --------------------------------------------------------------
-
-interface SavedProjection {
-  name: string;
-  draft: Draft;
-}
-const projKey = (symbol: string) => `iep:proj:${symbol}`;
-function readProjections(symbol: string): SavedProjection[] {
-  try {
-    const raw = localStorage.getItem(projKey(symbol));
-    const list = raw ? (JSON.parse(raw) as SavedProjection[]) : [];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
-}
-function writeProjections(symbol: string, list: SavedProjection[]) {
-  try {
-    localStorage.setItem(projKey(symbol), JSON.stringify(list));
-  } catch {
-    /* storage blocked: scenarios last for this visit only */
-  }
-}
-
-function ProjectionEditor({
-  symbol,
-  draft,
-  setDraft,
-  defaults,
-}: {
-  symbol: string;
-  draft: Draft;
-  setDraft: (d: Draft) => void;
-  defaults: ProjectionAssumptions;
-}) {
-  const { t } = useI18n();
-  const [saved, setSaved] = useState<SavedProjection[]>(() => readProjections(symbol));
-  const [name, setName] = useState("");
-  const rows = PROJ_ROWS.filter((k) => draft[k] !== null);
-  const years = draft.growth!.length;
-  const ready = complete(draft) !== null;
-  const setCell = (k: keyof ProjectionAssumptions, i: number, v: number | null) =>
-    setDraft({ ...draft, [k]: draft[k]!.map((x, j) => (j === i ? v : x)) });
-
-  return (
-    <Panel title={t.fin.projTitle}>
-      <p className="text-xs text-muted mb-3">{t.fin.projIntro}</p>
-      <div className="relative overflow-x-auto -mx-4" tabIndex={0} aria-label={t.fin.projTitle}>
-        <table className="num text-sm w-max min-w-full border-separate border-spacing-0">
-          <caption className="sr-only">{t.fin.projTitle}</caption>
-          <thead>
-            <tr className="text-xs text-muted">
-              <th scope="col" className="sticky left-0 z-10 bg-panel text-left font-normal pl-4 pr-3 pb-2">
-                <span className="sr-only">{t.fin.assumption}</span>
-              </th>
-              {Array.from({ length: years }, (_, i) => (
-                <th key={i} scope="col" className="text-right font-normal px-1 pb-2">{fill(t.fin.year, { n: i + 1 })}</th>
-              ))}
-              <th scope="col" className="pr-4 pb-2"><span className="sr-only">{t.fin.projCopy}</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((k) => (
-              <tr key={k} className="border-t border-line">
-                <th scope="row" className="sticky left-0 z-10 bg-panel text-left font-sans font-medium pl-4 pr-3 py-1 text-xs">
-                  <span className="block w-40 whitespace-normal">{t.fin.rows[k]}</span>
-                </th>
-                {draft[k]!.map((x, i) => (
-                  <td key={i} className="px-1 py-1 w-24 min-w-24">
-                    <NumberField
-                      label={`${t.fin.rows[k]}, ${fill(t.fin.year, { n: i + 1 })}`}
-                      srLabel
-                      value={x}
-                      scale={100}
-                      digits={2}
-                      suffix="%"
-                      onChange={(v) => setCell(k, i, v)}
-                    />
-                  </td>
-                ))}
-                <td className="pr-4 pl-1">
-                  <button
-                    type="button"
-                    onClick={() => setDraft({ ...draft, [k]: draft[k]!.map(() => draft[k]![0]) })}
-                    aria-label={fill(t.fin.projCopy, { row: t.fin.rows[k] })}
-                    title={fill(t.fin.projCopy, { row: t.fin.rows[k] })}
-                    className="h-8 w-8 rounded-md border border-line bg-panel hover:bg-panel-2 text-muted"
-                  >
-                    →
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!ready && <p role="status" className="mt-2 text-xs text-warn">{t.fin.projBadInputs}</p>}
-
-      <form
-        className="mt-3 flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!ready) return;
-          const label = name.trim() || `${t.fin.projScenarios} ${saved.length + 1}`;
-          const next = [...saved.filter((s) => s.name !== label), { name: label, draft }];
-          setSaved(next);
-          writeProjections(symbol, next);
-          setName("");
-        }}
-      >
-        <div className="flex flex-col gap-1">
-          <label htmlFor="proj-name" className="text-[11px] text-muted">{t.fin.projName}</label>
-          <input id="proj-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="h-9 w-48 rounded-md border border-line bg-panel px-2 text-sm" />
-        </div>
-        <button type="submit" disabled={!ready} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50">{t.fin.projSave}</button>
-        <button type="button" onClick={() => setDraft(defaults as unknown as Draft)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
-          {t.fin.projReset}
-        </button>
-      </form>
-      {saved.length > 0 && (
-        <ul className="mt-3 divide-y divide-line" aria-label={t.fin.projScenarios}>
-          {saved.map((s) => (
-            <li key={s.name} className="flex items-center gap-2 py-1.5 text-sm">
-              <span className="font-medium mr-auto">{s.name}</span>
-              <button type="button" onClick={() => setDraft(s.draft)} className="h-8 px-2 rounded-md text-xs border border-line hover:bg-panel-2">{t.fin.projLoad}</button>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = saved.filter((x) => x.name !== s.name);
-                  setSaved(next);
-                  writeProjections(symbol, next);
-                }}
-                className="h-8 px-2 rounded-md text-xs border border-line hover:bg-panel-2"
-              >
-                {t.fin.projDelete}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-3 text-[11px] text-muted">{t.fin.projModel} {t.fin.projSaved}</p>
-    </Panel>
-  );
 }

@@ -7,15 +7,14 @@ import type { ValuationPayload } from "@/lib/valuationData";
 import { useResource } from "@/lib/useResource";
 import { IssueNote, Panel } from "./ui";
 import CompsView from "./valuation/CompsView";
-import DcfMaker from "./valuation/DcfMaker";
 import HistoryView from "./valuation/HistoryView";
 import PriceImplies from "./valuation/PriceImplies";
-import { ExpectationsPanel } from "./fundamentals/FundamentalsPanel";
+import { ExpectationsPanel } from "./valuation/AnalystsView";
 
-export type View = "comps" | "history" | "dcf" | "expectations";
-const VIEWS: View[] = ["comps", "history", "dcf", "expectations"];
+export type View = "comps" | "history" | "expectations";
+const VIEWS: View[] = ["comps", "history", "expectations"];
 
-/** Valuation screen: interactive comps, the company against its own history, and a DCF. */
+/** Valuation screen: what the price implies, interactive comps, the company against its own history, and analysts. */
 /** The view lives in the URL (`?view=`), so a link (or the command palette) can open it. */
 export default function ValuationPanel({ symbol, price, view, onView: setView }: { symbol: string; price: number | null; view: View; onView: (v: View) => void }) {
   const { t, lang } = useI18n();
@@ -42,7 +41,7 @@ export default function ValuationPanel({ symbol, price, view, onView: setView }:
         </div>
       </div>
 
-      {state.status === "ok" && <PriceImplies v={state.data} onAdjust={() => setView("dcf")} />}
+      {state.status === "ok" && <PriceImplies v={state.data} />}
 
       {view === "comps" && <CompsView symbol={symbol} />}
       {view === "expectations" && <ExpectationsPanel symbol={symbol} price={price} />}
@@ -57,13 +56,11 @@ export default function ValuationPanel({ symbol, price, view, onView: setView }:
           <Panel>
             <IssueNote issue={state.issue} onRetry={retry} />
           </Panel>
-        ) : view === "history" ? (
-          <HistoryView v={state.data} />
         ) : (
-          <DcfMaker v={state.data} />
+          <HistoryView v={state.data} />
         ))}
 
-      {state.status === "ok" && (view === "history" || view === "dcf") && (
+      {state.status === "ok" && view === "history" && (
         <p className="text-[11px] text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
       )}
     </div>

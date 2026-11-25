@@ -8,6 +8,7 @@ import { isDemo } from "@/lib/data";
 import { eventStore } from "@/lib/eventStore";
 import { funnel, type Funnel } from "@/lib/funnel";
 import { DeepI18n } from "@/lib/i18n";
+import { providerUsageToday } from "@/lib/quota";
 import { notebookOwner } from "@/lib/researchServer";
 
 export const metadata: Metadata = { title: "Stats", robots: { index: false } };
@@ -25,10 +26,11 @@ export default async function StatsPage() {
   const store = eventStore();
   let data: Funnel | null = null;
   if (store) data = funnel(await store.since(new Date(Date.now() - 90 * 86_400_000)), new Date());
+  const fmp = await providerUsageToday("fmp");
   return (
     <Suspense fallback={<Skeleton className="mx-auto h-96 max-w-3xl rounded-lg" />}>
       <DeepI18n>
-        <StatsView data={data} />
+        <StatsView data={data} fmp={fmp} />
       </DeepI18n>
     </Suspense>
   );

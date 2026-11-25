@@ -2,29 +2,25 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Component, Suspense, use, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, use, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { DeepI18n, fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
-import { technicalSignals } from "@/lib/scoring";
-import { parseChartSettings, writeChartSettings, type ChartSettings } from "@/lib/chartSettings";
-import ChartPlaceholder from "./ChartPlaceholder";
 import type { StockIdentity, StockSections } from "@/lib/data";
-import type { Candle, DataIssue, DataSource, Profile, Quote, Result } from "@/lib/types";
+import type { DataIssue, DataSource, Profile, Quote, Result } from "@/lib/types";
 import { useRecent } from "@/lib/watchlist";
-import AtAGlance from "./AtAGlance";
+import HighlightsCard from "./HighlightsCard";
 import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { CanvasIcon, ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
-import { isOn } from "@/lib/features";
-import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
+import { CanvasIcon, ClockIcon, ExternalIcon } from "./icons";
+import { Change, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
 const tabLoading = () => <Skeleton className="h-96" />;
-const ChartTab = dynamic(() => import("./ChartTab"), { loading: () => <Panel><ChartPlaceholder /></Panel> });
-const FundamentalsPanel = dynamic(() => import("./fundamentals/FundamentalsPanel"), { loading: tabLoading });
+const StockChart = dynamic(() => import("./StockChart"), { loading: () => <Skeleton className="h-[min(64vh,600px)] min-h-[400px]" /> });
+const RatiosPanel = dynamic(() => import("./RatiosPanel"), { loading: tabLoading });
 const ValuationPanel = dynamic(() => import("./ValuationPanel"), { loading: tabLoading });
 const FinancialStatements = dynamic(() => import("./FinancialStatements"), { loading: tabLoading });
 const FinancialHighlights = dynamic(() => import("./FinancialHighlights"), { loading: tabLoading });
@@ -35,12 +31,12 @@ const ResearchPanel = dynamic(() => import("./research/ResearchPanel"), { loadin
 
 type Tab = "overview" | "business" | "valuation" | "filings" | "research";
 const TABS: Tab[] = ["overview", "business", "valuation", "filings", "research"];
-type BusinessView = "highlights" | "income" | "balance" | "cashflow" | "summary";
+type BusinessView = "highlights" | "income" | "balance" | "cashflow";
 type FilingsView = "filings" | "insiders" | "news";
-const BUSINESS_VIEWS: BusinessView[] = ["highlights", "income", "balance", "cashflow", "summary"];
+const BUSINESS_VIEWS: BusinessView[] = ["highlights", "income", "balance", "cashflow"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
-type ValuationView = "comps" | "history" | "dcf" | "expectations";
-const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "dcf", "expectations"];
+type ValuationView = "comps" | "history" | "expectations";
+const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "expectations"];
 
 /** Links from before the tabs were merged keep working (bookmarks, shared links, journeys). */
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
@@ -52,7 +48,7 @@ const LEGACY: Record<string, { tab: Tab; view?: string }> = {
 };
 
 // ---- URL state -------------------------------------------------------------------------
-// The tab and its view are history entries (Back returns to the previous one); chart settings
+// The tab and its view are history entries (Back returns to the previous one).
 // replace the current entry (no history spam) but stay in the URL, so a link reproduces the view.
 function useStockUrlState() {
   const params = useSearchParams();
@@ -60,12 +56,12 @@ function useStockUrlState() {
   const raw = params.get("tab");
   const legacy = raw ? LEGACY[raw] : undefined;
   const tab: Tab = legacy ? legacy.tab : raw && (TABS as string[]).includes(raw) ? (raw as Tab) : "overview";
-  // "statements" was the single statements view before each statement had its own.
-  const rawView = legacy?.view ?? (params.get("view") === "statements" ? "income" : params.get("view"));
+  // Older views: "statements" (one view for all three statements) and "summary" (quality and ratios, now in highlights).
+  const OLD_VIEWS: Record<string, string> = { statements: "income", summary: "highlights" };
+  const rawView = legacy?.view ?? OLD_VIEWS[params.get("view") ?? ""] ?? params.get("view");
   const businessView: BusinessView = (BUSINESS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as BusinessView) : "highlights";
   const filingsView: FilingsView = (FILINGS_VIEWS as string[]).includes(rawView ?? "") ? (rawView as FilingsView) : "filings";
   const valuationView: ValuationView = (VALUATION_VIEWS as string[]).includes(rawView ?? "") ? (rawView as ValuationView) : "comps";
-  const chart = useMemo(() => parseChartSettings(new URLSearchParams(params.toString())), [params]);
 
   // Rewrite an old link to its new address once, without a history entry.
   useEffect(() => {
@@ -98,8 +94,7 @@ function useStockUrlState() {
     p.set("view", view);
     go(p, true);
   };
-  const setChart = (s: ChartSettings) => go(writeChartSettings(new URLSearchParams(window.location.search), s), false);
-  return { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart };
+  return { tab, setTab, businessView, filingsView, valuationView, setView };
 }
 
 /** A failed section shows a message; the rest of the page keeps working. */
@@ -141,7 +136,7 @@ export default function StockView({
   sections: StockSections;
 }) {
   const { t } = useI18n();
-  const { tab, setTab, businessView, filingsView, valuationView, setView, chart, setChart } = useStockUrlState();
+  const { tab, setTab, businessView, filingsView, valuationView, setView } = useStockUrlState();
   const [visited, setVisited] = useState<Set<Tab>>(() => new Set([tab]));
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { record } = useRecent();
@@ -195,24 +190,23 @@ export default function StockView({
         ))}
       </div>
 
-      {panel("overview", <Overview identity={identity} quote={quote} sections={sections} chart={chart} setChart={setChart} goTo={setTab} />)}
+      {panel("overview", <Overview identity={identity} quote={quote} goTo={setTab} />)}
       {panel(
         "business",
         <div className="space-y-4">
           <SubNav label={t.stock.tabs.business} value={businessView} onChange={setView} options={BUSINESS_VIEWS.map((v) => ({ value: v, label: t.stock.views[v] }))} />
-          {businessView === "summary" ? (
+          {businessView === "highlights" ? (
             <>
               <Section fallback={<Skeleton className="h-32" />}>
                 <About profile={sections.profile} />
               </Section>
               <Deep>
-                <FundamentalsPanel symbol={symbol} />
+                <FinancialHighlights symbol={symbol} />
+              </Deep>
+              <Deep>
+                <RatiosPanel symbol={symbol} />
               </Deep>
             </>
-          ) : businessView === "highlights" ? (
-            <Deep>
-              <FinancialHighlights symbol={symbol} />
-            </Deep>
           ) : (
             <Deep>
               <FinancialStatements symbol={symbol} statement={businessView} />
@@ -236,7 +230,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("research", <ResearchPanel symbol={symbol} price={quote?.price ?? null} history={sections.history} />)}
+      {panel("research", <ResearchPanel symbol={symbol} price={quote?.price ?? null} />)}
     </div>
   );
 }
@@ -310,28 +304,6 @@ function StockHeader({
             <CanvasIcon size={16} />
             <span className="hidden min-[360px]:inline">{t.stock.canvas}</span>
           </Link>
-          {isOn("chartPacks") && (
-            <Link
-              href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
-              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-              title={t.stock.packsTitle}
-              aria-label={t.stock.packsTitle}
-            >
-              <GridIcon size={16} />
-              <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
-            </Link>
-          )}
-          {isOn("compare") && (
-            <Link
-              href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
-              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-              title={t.compare.title}
-              aria-label={t.compare.title}
-            >
-              <ColumnsIcon size={16} />
-              <span className="hidden min-[360px]:inline">{t.compare.button}</span>
-            </Link>
-          )}
           <WatchButton symbol={identity.symbol} />
         </div>
       </div>
@@ -434,16 +406,10 @@ function KeyFacts({ quote: q }: { quote: Quote }) {
 function Overview({
   identity,
   quote,
-  sections,
-  chart,
-  setChart,
   goTo,
 }: {
   identity: StockIdentity;
   quote: Quote | null;
-  sections: StockSections;
-  chart: ChartSettings;
-  setChart: (s: ChartSettings) => void;
   goTo: (t: Tab, view?: string) => void;
 }) {
   return (
@@ -451,9 +417,7 @@ function Overview({
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-start">
       <div className="max-lg:contents lg:col-span-2 lg:space-y-4 min-w-0">
         <div className="order-2 min-w-0 scroll-mt-20" id="price">
-          <Section fallback={<Panel><ChartPlaceholder settings={chart} /></Panel>}>
-            <PriceSection symbol={identity.symbol} exchange={identity.exchange} history={sections.history} chart={chart} setChart={setChart} />
-          </Section>
+          <StockChart symbol={identity.symbol} exchange={identity.exchange} />
         </div>
         <div className="order-3 min-w-0">
           <QuarterCard symbol={identity.symbol} />
@@ -462,69 +426,17 @@ function Overview({
       </div>
       <div className="max-lg:contents lg:space-y-4 min-w-0">
         <div className="order-1">
-          <AtAGlance symbol={identity.symbol} onOpen={(tab, view) => goTo(tab, view)} />
+          <Section fallback={<Skeleton className="h-32" />}>
+            <DeepI18n>
+              <HighlightsCard symbol={identity.symbol} onOpen={() => goTo("business", "highlights")} />
+            </DeepI18n>
+          </Section>
         </div>
         <div className="order-4">
           <ResearchCard symbol={identity.symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />
         </div>
       </div>
     </div>
-  );
-}
-
-function PriceSection({
-  symbol,
-  exchange,
-  history,
-  chart,
-  setChart,
-}: {
-  symbol: string;
-  exchange?: string;
-  history: Promise<Result<Candle[]>>;
-  chart: ChartSettings;
-  setChart: (s: ChartSettings) => void;
-}) {
-  const h = use(history);
-  const candles = h.ok ? h.data : [];
-  return (
-    <ChartTab
-      symbol={symbol}
-      exchange={exchange}
-      history={candles}
-      historyIssue={h.ok ? (candles.length ? null : "not_found") : h.error}
-      chart={chart}
-      onChart={setChart}
-      signals={<SignalsList history={candles} />}
-    />
-  );
-}
-
-function SignalsList({ history }: { history: Candle[] }) {
-  const { t, lang } = useI18n();
-  const signals = useMemo(() => technicalSignals(history), [history]);
-  if (signals.length === 0) return null;
-  const ago = (days?: number) => (days === undefined ? "" : days === 0 ? t.ago.today : days === 1 ? t.ago.one : fill(t.ago.many, { n: days }));
-  const last = history[history.length - 1];
-  return (
-    <section aria-labelledby="signals-title">
-      <h3 id="signals-title" className="text-sm font-semibold">{t.stock.signalsTitle}</h3>
-      <ul className="mt-2 space-y-2">
-        {signals.map((s) => (
-          <li key={s.key} className="flex gap-2.5 text-sm">
-            <Dot level={s.level} />
-            <span>
-              {fill(t.signals[s.key], {
-                v: s.value !== undefined ? fmtNum(s.value, lang, 0) : "",
-                ago: ago(s.days),
-                date: s.date ? fmtDate(s.date, lang) : "",
-              })}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {last && <p className="mt-2 text-xs text-muted">{fill(t.stock.signalsBasis, { d: fmtDate(last.time, lang) })}</p>}
-    </section>
   );
 }
 
@@ -535,14 +447,14 @@ function About({ profile }: { profile: Promise<Result<Profile>> }) {
   const p = use(profile);
   if (!p.ok) {
     return (
-      <Panel title={t.stock.about}>
+      <Panel bare title={t.stock.about}>
         <IssueNote issue={p.error} />
       </Panel>
     );
   }
   const d = p.data;
   return (
-    <Panel title={t.stock.about}>
+    <Panel bare title={t.stock.about}>
       {d.description && <p className="max-w-[72ch] text-[15px] leading-7 line-clamp-4">{d.description}</p>}
       <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
         {d.industry && (
