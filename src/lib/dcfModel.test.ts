@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import reference from "./__fixtures__/dcf-reference.json";
 import {
-  cagr, impliedRevenueGrowth, makerDefaults, runDcf, sensitivity, waccOf, type MakerAssumptions, type MakerBase,
+  cagr, impliedRevenueGrowth, makerDefaults, runDcf, waccOf, type MakerAssumptions, type MakerBase,
 } from "./dcfModel";
 
 const TOLERANCE = 0.005; // acceptance criterion: within 0.5 % of the reference sheet
@@ -68,13 +68,6 @@ describe("model by hand", () => {
     expect(runDcf(base, { ...flat, waccOverride: 0 })).toEqual({ ok: false, issue: "badRate" });
     expect(runDcf(base, { ...flat, ebitMargin: [0.2, -0.5] })).toEqual({ ok: false, issue: "negativeTerminal" });
     expect(runDcf(base, { ...flat, growth: [0, NaN] })).toEqual({ ok: false, issue: "badInputs" });
-  });
-
-  it("sensitivity grid is centred on the current inputs", () => {
-    const s = sensitivity(base, flat, [-0.01, 0, 0.01], [-0.01, 0, 0.01]);
-    expect(s.waccs[1]).toBeCloseTo(0.1);
-    expect(s.grid[1][1]).toBeCloseTo(14.5);
-    expect(s.grid[0][1]!).toBeGreaterThan(s.grid[2][1]!); // lower WACC → higher value
   });
 });
 

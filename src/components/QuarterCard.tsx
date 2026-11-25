@@ -48,6 +48,8 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
   if (!r) return null;
   const release = filings.status === "ok" ? earningsRelease(filings.data.filings, r.end) : null;
   const revenue = r.rows.find((x) => x.key === "revenue");
+  // A figure the report doesn't give for this quarter would be a row of dashes: left out.
+  const rows = r.rows.filter((x) => x.now !== null);
   const cols: { label: string; pick: (x: QuarterRow) => number | null }[] = [];
   if (r.yearAgoLabel) cols.push({ label: fill(Q.cols.vs, { q: r.yearAgoLabel }), pick: (x) => x.vsYearAgo });
   if (r.priorLabel) cols.push({ label: fill(Q.cols.vs, { q: r.priorLabel }), pick: (x) => x.vsPrior });
@@ -71,7 +73,7 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
             </tr>
           </thead>
           <tbody>
-            {r.rows.map((x) => (
+            {rows.map((x) => (
               <tr key={x.key} className="border-b border-line last:border-0">
                 <th scope="row" className="py-2 pr-3 text-left font-sans font-normal">{Q.metrics[x.key]}</th>
                 <td className="py-2 px-2 text-right font-medium">{fmtValue(x.key, x.now, lang)}</td>

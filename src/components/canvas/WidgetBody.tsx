@@ -130,9 +130,7 @@ export default function WidgetBody({
 }
 
 function ValuationBody({ symbol, view, onView }: { symbol: string; view: ValuationView; onView: (v: ValuationView) => void }) {
-  const q = useQuotes([symbol]);
-  const price = q.items[0]?.quote?.price ?? null;
-  return <ValuationPanel symbol={symbol} price={price} view={view} onView={onView} />;
+  return <ValuationPanel symbol={symbol} view={view} onView={onView} />;
 }
 
 /** Your notebook for this company, read-only: thesis, levels against today's price, status. */

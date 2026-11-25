@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyInput, emptyNote, levelsBeforeSplit, splitAdjusted, type ResearchNote } from "./research";
-import { detectSplit, splitsBetween, totalRatio } from "./splits";
+import { detectSplit } from "./splits";
 import { listingOf } from "./listings";
 import { book, positions, type Trade } from "./trades";
 
@@ -14,16 +14,6 @@ describe("detecting a split from two quotes", () => {
     expect(detectSplit(prev, { price: 700, changePct: -0.5, at: "2026-11-20T15:00:00Z" })).toBeNull(); // no clean factor
     expect(detectSplit(prev, { price: 101, changePct: null, at: "2026-11-20T15:00:00Z" })).toBeNull(); // can't tell
     expect(detectSplit(prev, { price: 101, changePct: 1, at: "2026-12-20T15:00:00Z" })).toBeNull(); // too far apart
-  });
-
-  it("finds the splits after a date and combines them", () => {
-    const s = [
-      { symbol: "A", ratio: 2, date: "2026-01-10" },
-      { symbol: "A", ratio: 2, date: "2026-06-10" },
-      { symbol: "B", ratio: 10, date: "2026-03-01" },
-    ];
-    expect(totalRatio(splitsBetween(s, "A", "2026-01-01"))).toBe(4);
-    expect(splitsBetween(s, "A", "2026-01-10")).toHaveLength(1);
   });
 });
 

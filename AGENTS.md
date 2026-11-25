@@ -6,6 +6,7 @@ US stock analysis in plain language (ES/EN). Next.js 16 App Router on Vercel, Re
 
 ```bash
 npm run typecheck
+npm run lint
 npm test                                   # vitest, src/**/*.test.ts
 env -u DATABASE_URL -u FMP_API_KEY npm run build
 npm run start:demo                         # demo data on http://localhost:3123
@@ -13,7 +14,7 @@ npm run e2e                                # browser journeys (see e2e/README.md
 ```
 
 - Tests and browser checks run on **demo data**. Never point them at production or spend the FMP quota (250 calls/day on the current plan).
-- CI runs typecheck, tests and build on every PR.
+- CI runs typecheck, lint, tests and build on every PR. Lint warnings from the React Compiler rules are known (the app does not enable the compiler); errors fail the build.
 
 ## Where things are
 

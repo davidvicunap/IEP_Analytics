@@ -31,5 +31,3 @@ export interface FxRate {
   asOf: string;
 }
 
-export const toUsd = (amount: number, rate: FxRate) => amount / rate.perUsd;
-export const fromUsd = (usd: number, rate: FxRate) => usd * rate.perUsd;

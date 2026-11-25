@@ -38,9 +38,9 @@ const es: MethodologyText = {
     },
     {
       id: "glance",
-      title: "De un vistazo",
+      title: "Lo que dicen los datos",
       body: [
-        "Cinco frases en el resumen de cada acción, cada una medida igual que en el resto de la app, nunca con reglas fijas del tipo «un PER bajo es bueno»:",
+        "Cinco frases que el plan guiado de «Mi análisis» te ofrece como puntos a favor o en contra, cada una medida igual que en el resto de la app, nunca con reglas fijas del tipo «un PER bajo es bueno»:",
         {
           list: [
             "Calidad: las pruebas de Buffett (alta, media o baja; ver más abajo).",
@@ -117,10 +117,9 @@ const es: MethodologyText = {
       ],
     },
     {
-      id: "analysts",
-      title: "Analistas y próximos resultados",
+      id: "earnings",
+      title: "Próximos resultados",
       body: [
-        "El consenso de analistas (precio objetivo, estimaciones de ingresos y BPA) viene de FMP. El crecimiento esperado de los ingresos parte del último año presentado a la SEC; el del BPA parte de la cifra de los propios analistas, porque suelen estimar un BPA «ajustado» distinto del contable.",
         "Próximos resultados: la fecha que lista FMP (puede ser provisional hasta que la empresa la anuncie). Si FMP no puede responder, se estima con la SEC: 52 semanas después de la publicación de resultados (8-K, apartado 2.02) del mismo trimestre del año anterior, y se indica como estimación.",
       ],
     },
@@ -158,7 +157,7 @@ const es: MethodologyText = {
       id: "ai",
       title: "Explicado con IA",
       body: [
-        "Claude (Anthropic) escribe tres apartados (el último trimestre, a favor y en contra) a partir de una lista numerada de datos que ya mostramos: el trimestre frente al año anterior (10-Q o 10-K de la SEC) y las cinco líneas de «De un vistazo». No recibe noticias ni otras fuentes.",
+        "Claude (Anthropic) escribe tres apartados (el último trimestre, a favor y en contra) a partir de una lista numerada de datos que ya mostramos: el trimestre frente al año anterior (10-Q o 10-K de la SEC) y las cinco líneas de «Lo que dicen los datos». No recibe noticias ni otras fuentes.",
         "Cada frase debe citar los números de los datos en los que se apoya; las que no citan ninguno de los datos dados se descartan. La explicación se escribe una vez por empresa, idioma y conjunto de datos, y se vuelve a escribir solo cuando una nueva presentación cambia los datos. La IA puede equivocarse: cada cifra enlaza a su fuente para comprobarla. No es una recomendación.",
       ],
     },
@@ -176,7 +175,7 @@ const es: MethodologyText = {
         {
           list: [
             "Mi análisis (tesis, puntos a favor y en contra, valor razonable, notas): se guarda en la base de datos, ligado a tu invitación de la beta. Cada cambio de valor razonable queda registrado con el precio de ese momento.",
-            "Tesis vivas: una tesis abierta con stop, objetivo, valor razonable, fecha de revisión o condiciones propias se vigila al abrir la app, tres veces con el mercado abierto y una después del cierre, en días hábiles (precio de Financial Modeling Prep con su hora; «De un vistazo», informes y fechas de resultados de la SEC). El stop y el objetivo se juzgan según lo que esperas (que suba o que baje); el valor razonable, cuando el precio lo cruza desde el lado en que estaba al guardarlo (si lo pusiste por debajo del precio, te avisamos si baja hasta él). Una alerta salta una vez mientras su condición se cumple, no se repite en 24 horas y se apaga cuando deja de cumplirse. Si un dato no está disponible, lo decimos y no apagamos ni inventamos alertas. Al cerrar una tesis se guardan el resultado, lo aprendido y el precio de ese momento. Si activas los avisos en un teléfono o navegador, cada alerta nueva te llega también allí (Web Push; no guardamos más que la dirección que da tu navegador para recibirlos).",
+            "Tesis vivas: una tesis abierta con stop, objetivo, valor razonable, fecha de revisión o condiciones propias se vigila al abrir la app, tres veces con el mercado abierto y una después del cierre, en días hábiles (precio de Financial Modeling Prep con su hora; «Lo que dicen los datos», informes y fechas de resultados de la SEC). El stop y el objetivo se juzgan según lo que esperas (que suba o que baje); el valor razonable, cuando el precio lo cruza desde el lado en que estaba al guardarlo (si lo pusiste por debajo del precio, te avisamos si baja hasta él). Una alerta salta una vez mientras su condición se cumple, no se repite en 24 horas y se apaga cuando deja de cumplirse. Si un dato no está disponible, lo decimos y no apagamos ni inventamos alertas. Al cerrar una tesis se guardan el resultado, lo aprendido y el precio de ese momento. Si activas los avisos en un teléfono o navegador, cada alerta nueva te llega también allí (Web Push; no guardamos más que la dirección que da tu navegador para recibirlos).",
             "Lista, etiquetas, columnas, indicadores del gráfico y búsquedas guardadas: en tu cuenta, iguales en todos tus dispositivos. La primera vez que un dispositivo se sincroniza, lo que ya tenía guardado se suma a lo de tu cuenta, sin perder nada. Sin conexión se guardan en el navegador y se suben después.",
             "En cada navegador: acciones vistas recientemente y pares elegidos en Comparables.",
           ],
@@ -216,9 +215,9 @@ const en: MethodologyText = {
     },
     {
       id: "glance",
-      title: "At a glance",
+      title: "What the data says",
       body: [
-        "Five sentences at the top of every stock, each measured the same way as everywhere else in the app, never with fixed rules like “a low P/E is good”:",
+        "Five sentences the guided plan in “My research” offers as points for or against, each measured the same way as everywhere else in the app, never with fixed rules like “a low P/E is good”:",
         {
           list: [
             "Quality: the Buffett tests (high, mixed or low; see below).",
@@ -295,10 +294,9 @@ const en: MethodologyText = {
       ],
     },
     {
-      id: "analysts",
-      title: "Analysts and next results",
+      id: "earnings",
+      title: "Next results",
       body: [
-        "Analyst consensus (price target, revenue and EPS estimates) comes from FMP. Expected revenue growth starts from the last year filed with the SEC; EPS growth starts from the analysts' own figure, because they usually estimate an “adjusted” EPS that differs from the reported one.",
         "Next results: the date FMP lists (it may be provisional until the company announces it). If FMP can't answer, it's estimated from the SEC: 52 weeks after last year's results release (8-K, item 2.02) for the same quarter, and labelled as an estimate.",
       ],
     },
@@ -336,7 +334,7 @@ const en: MethodologyText = {
       id: "ai",
       title: "Explained by AI",
       body: [
-        "Claude (Anthropic) writes three sections (the latest quarter, for and against) from a numbered list of facts we already show: the quarter against a year earlier (the SEC 10-Q or 10-K) and the five lines of \"At a glance\". It is given no news or other sources.",
+        "Claude (Anthropic) writes three sections (the latest quarter, for and against) from a numbered list of facts we already show: the quarter against a year earlier (the SEC 10-Q or 10-K) and the five lines of \"What the data says\". It is given no news or other sources.",
         "Every sentence must cite the numbers of the facts it rests on; sentences that cite none of the given facts are dropped. An explanation is written once per company, language and set of facts, and written again only when a new filing changes the facts. AI can be wrong: every figure links to its source so you can check it. Not a recommendation.",
       ],
     },
@@ -354,7 +352,7 @@ const en: MethodologyText = {
         {
           list: [
             "Research (thesis, points for and against, fair value, notes): saved in the database, tied to your beta invite. Every fair-value change is logged with the price at that moment.",
-            "Live theses: an open thesis with a stop, target, fair value, review date or conditions of your own is checked when you open the app, three times while the market is open and once after the close, on weekdays (price from Financial Modeling Prep with its time; \"At a glance\", reports and results dates from the SEC). The stop and target follow what you expect (a rise or a fall); the fair value alerts when the price crosses it from the side it was on when you saved it (set below the price, it alerts if the price falls to it). An alert fires once while its condition holds, doesn't repeat within 24 hours and clears when the condition no longer holds. When some data is unavailable we say so, and we neither clear nor invent alerts. Closing a thesis records its outcome, what you learned and the price at that moment. If you turn alerts on for a phone or browser, each new alert also reaches you there (Web Push; we keep only the address your browser gives us to receive them).",
+            "Live theses: an open thesis with a stop, target, fair value, review date or conditions of your own is checked when you open the app, three times while the market is open and once after the close, on weekdays (price from Financial Modeling Prep with its time; \"What the data says\", reports and results dates from the SEC). The stop and target follow what you expect (a rise or a fall); the fair value alerts when the price crosses it from the side it was on when you saved it (set below the price, it alerts if the price falls to it). An alert fires once while its condition holds, doesn't repeat within 24 hours and clears when the condition no longer holds. When some data is unavailable we say so, and we neither clear nor invent alerts. Closing a thesis records its outcome, what you learned and the price at that moment. If you turn alerts on for a phone or browser, each new alert also reaches you there (Web Push; we keep only the address your browser gives us to receive them).",
             "Watchlist, tags, columns, chart indicators and saved screens: in your account, the same on all your devices. The first time a device syncs, what it already had is added to your account, so nothing is lost. Offline, they are kept in the browser and saved later.",
             "Kept in each browser: recently viewed stocks and chosen comps peers.",
           ],

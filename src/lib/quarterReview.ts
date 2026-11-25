@@ -1,7 +1,7 @@
 // The latest quarter at a glance: each key figure against the same quarter a year earlier
 // (the fair comparison for seasonal businesses) and against the quarter before. Built on the
 // same split-adjusted quarterly series as the chart generator. Pure.
-import { fundamentalSeries } from "./chartMetrics";
+import { fundamentalSeries } from "./periodSeries";
 import type { SharesHistory, StatementSet } from "./secFinancials";
 
 export const QUARTER_METRICS = ["revenue", "grossMargin", "operatingMargin", "netIncome", "eps", "freeCashFlow"] as const;

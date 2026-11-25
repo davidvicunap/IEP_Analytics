@@ -96,7 +96,7 @@ async function open(browser, page, width, lang, theme) {
     [theme, page.empty ? [] : WATCHLIST, page.canvas ? CANVASES : null],
   );
   // SEC/FMP-backed client sections have no data locally: answer them like an unconfigured server.
-  await ctx.route(/\/api\/(sec|analysts|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
+  await ctx.route(/\/api\/(sec|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   await ctx.route(/tradingview\.com|s3\.tradingview\.com/, (r) => r.abort());
   // Account sync off: the demo server keeps settings in shared memory across these contexts.
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));

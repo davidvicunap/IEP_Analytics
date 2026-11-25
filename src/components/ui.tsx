@@ -6,7 +6,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPct, fmtPrice } from "@/lib/format";
 import type { Level } from "@/lib/scoring";
 import { isRetryable, type ViewIssue } from "@/lib/resource";
-import type { DataSource, Quote } from "@/lib/types";
+import type { DataSource } from "@/lib/types";
 import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
 
@@ -82,15 +82,6 @@ export function buttonClass(variant: Variant = "secondary", compact = false, ext
   return `inline-flex items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
     compact ? "h-11 sm:h-9 px-3" : "h-11 px-4"
   } ${VARIANT[variant]} ${extra}`;
-}
-
-export function Button({
-  variant = "secondary",
-  compact = false,
-  className = "",
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; compact?: boolean }) {
-  return <button type="button" className={buttonClass(variant, compact, className)} {...props} />;
 }
 
 /**
@@ -283,24 +274,6 @@ export function Provenance({
   );
 }
 
-export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
-  const { lang } = useI18n();
-  return (
-    <Link
-      href={`/stock/${q.symbol}`}
-      prefetch={false}
-      className="block rounded-lg border border-line bg-panel hover:bg-panel-2 hover:border-line-strong transition-colors p-3 min-w-0"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold text-fg">{q.symbol}</span>
-        <span className="text-[11px] text-muted truncate">{label ?? q.name}</span>
-      </div>
-      <div className="num text-lg font-semibold mt-1">{fmtPrice(q.price, lang)}</div>
-      <Change pct={q.changePercent} className="text-sm" />
-    </Link>
-  );
-}
-
 // ---- Scores -----------------------------------------------------------------------------
 
 // Calm by default: only a level that needs attention gets full-strength text.
@@ -326,10 +299,6 @@ export function LevelBadge({ level }: { level: Level }) {
 export function LevelMark({ level, className = "" }: { level: Level; className?: string }) {
   const shape = level === "ok" ? "rounded-[2px]" : level === "bad" ? "rotate-45 rounded-[1px]" : "rounded-full";
   return <span className={`inline-block h-2 w-2 shrink-0 ${shape} ${LEVEL_DOT[level]} ${className}`} aria-hidden="true" />;
-}
-
-export function Dot({ level }: { level: Level }) {
-  return <LevelMark level={level} className="mt-[7px]" />;
 }
 
 /** Expandable "What is this?" explanation; works with touch and keyboard. */

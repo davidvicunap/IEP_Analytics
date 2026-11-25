@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import en from "./i18n/en";
 import es from "./i18n/es";
 import { holdingSignals } from "./holdingAlerts";
 import { uncheckedMessage } from "./push";

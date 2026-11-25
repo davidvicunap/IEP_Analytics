@@ -172,25 +172,6 @@ export function impliedRevenueGrowth(base: MakerBase, a: MakerAssumptions): { g:
   return { g: (lo + hi) / 2, bound: null };
 }
 
-/** Value per share for WACC × (terminal growth or exit multiple) around the current inputs. */
-export function sensitivity(base: MakerBase, a: MakerAssumptions, waccSteps: number[], secondSteps: number[]) {
-  const center = waccOf(base, a).wacc;
-  return {
-    waccs: waccSteps.map((d) => center + d),
-    seconds: secondSteps.map((d) => (a.terminal === "gordon" ? a.terminalGrowth + d : a.exitMultiple + d)),
-    grid: waccSteps.map((dw) =>
-      secondSteps.map((ds) => {
-        const r = runDcf(base, {
-          ...a,
-          waccOverride: center + dw,
-          ...(a.terminal === "gordon" ? { terminalGrowth: a.terminalGrowth + ds } : { exitMultiple: a.exitMultiple + ds }),
-        });
-        return r.ok ? r.result.perShare : null;
-      }),
-    ),
-  };
-}
-
 // ---- Defaults from the company's data ----------------------------------------------
 
 /** Compound annual growth between two positive values `years` apart. */

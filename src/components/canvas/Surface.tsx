@@ -13,7 +13,6 @@ export default function Surface({
   doc,
   view,
   setView,
-  size,
   surfaceRef,
   locked,
   busy,
@@ -24,7 +23,6 @@ export default function Surface({
   doc: CanvasDoc;
   view: View;
   setView: (v: View) => void;
-  size: { w: number; h: number };
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   /** A window is maximized: the surface stays put. */
   locked: boolean;

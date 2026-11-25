@@ -70,10 +70,12 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
 
   const results = search.term === company && search.status === "success" ? search.results.slice(0, 5) : [];
   const searching = !!company && (search.term !== company || search.status === "loading");
+  // Recomputed when the companies found change, not on every new (equal) results array.
+  const resultsKey = results.map((r) => r.symbol).join(",");
   const items = useMemo(
     () => commandsFor(q, { symbol, recent: recent.list, following: watch.list, results: results.map((r) => ({ symbol: r.symbol, name: r.name })) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, symbol, recent.list, watch.list, results.map((r) => r.symbol).join(",")],
+    [q, symbol, recent.list, watch.list, resultsKey],
   );
   useEffect(() => setActive((a) => Math.min(a, Math.max(0, items.length - 1))), [items.length]);
   useEffect(() => {

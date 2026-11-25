@@ -35,8 +35,8 @@ type BusinessView = "highlights" | "income" | "balance" | "cashflow";
 type FilingsView = "filings" | "insiders" | "news";
 const BUSINESS_VIEWS: BusinessView[] = ["highlights", "income", "balance", "cashflow"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
-type ValuationView = "comps" | "history" | "expectations";
-const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "expectations"];
+type ValuationView = "comps" | "history";
+const VALUATION_VIEWS: ValuationView[] = ["comps", "history"];
 
 /** Links from before the tabs were merged keep working (bookmarks, shared links, journeys). */
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
@@ -214,7 +214,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} view={valuationView} onView={setView} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={symbol} view={valuationView} onView={setView} /></Deep>)}
       {panel(
         "filings",
         <div className="space-y-4">

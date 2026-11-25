@@ -53,7 +53,7 @@ async function page({ width = 1280, height = 900, lang = "es", theme = "light", 
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
-  await ctx.route(/\/api\/(sec|analysts|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
+  await ctx.route(/\/api\/(sec|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   const p = await ctx.newPage();
   p.errors = [];
   p.on("pageerror", (e) => p.errors.push(e.message));
@@ -654,36 +654,6 @@ await test("account sync: when the account can't be reached, edits stay in this 
 // ---- Chart packs, earnings date, methodology ------------------------------------------------
 
 /** A company's SEC series for tests: steady growth, a seed per symbol so peers differ. */
-function packSeries(symbol) {
-  const seed = [...symbol].reduce((a, c) => a + c.charCodeAt(0), 0) % 7;
-  const years = Array.from({ length: 11 }, (_, i) => 2015 + i);
-  const rev = years.map((_, i) => 100e9 * (1 + 0.05 + seed / 100) ** i);
-  const annual = {
-    keys: years.map((y) => `FY${y}`),
-    ends: years.map((y) => `${y}-12-31`),
-    values: {
-      revenue: rev,
-      netIncome: rev.map((r) => r * 0.2),
-      grossMargin: rev.map((_, i) => 0.4 + seed / 100 + i / 500),
-      operatingMargin: rev.map(() => 0.25 + seed / 100),
-      netMargin: rev.map(() => 0.2),
-      freeCashFlow: rev.map((r) => r * 0.18),
-      eps: rev.map((r) => r / 1e10),
-      roic: rev.map((_, i) => 0.12 + seed / 50 + i / 200),
-      shares: rev.map((_, i) => 1e10 * (1 - i / 100)),
-      debtToEquity: rev.map(() => 0.5 + seed / 10),
-    },
-  };
-  return { symbol, name: `${symbol} Inc.`, annual, quarterly: { keys: [], ends: [], values: {} } };
-}
-
-async function withSeries(p, peers = ["MSFT", "GOOGL", "META", "AMZN"]) {
-  await p.route(/\/api\/sec\/series\//, (r) => {
-    const s = decodeURIComponent(r.request().url().split("/series/")[1]);
-    r.fulfill(json({ ok: true, data: packSeries(s), fetchedAt: new Date().toISOString() }));
-  });
-  await p.route(/\/api\/sec\/peers\//, (r) => r.fulfill(json({ ok: true, data: { symbol: "AAPL", sicDescription: "Computers", peers }, fetchedAt: new Date().toISOString() })));
-}
 
 await test("next earnings: a listed date with estimates, an SEC estimate labelled as such, nothing when unknown", async () => {
   const p = await page();
@@ -857,7 +827,7 @@ await test("overview: Lo esencial says why when no source can answer", async () 
 await test("data tabs: an expired beta session asks to sign in again and comes back to the same tab", async () => {
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
-  await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
+  await p.route(/\/api\/sec\/(quality|ratios)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
   await p.goto(base + "/stock/AAPL?tab=business");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
@@ -983,7 +953,7 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   await guide.getByText("Step 1 of 3").waitFor();
 
   // Step 1: a line from the data goes into the points with its figure and source; tapped again, it leaves.
-  const quality = guide.getByRole("button", { name: /A high-quality business/ });
+  const quality = guide.getByRole("button", { name: /Passes the quality tests/ });
   await quality.click();
   const bull = guide.getByLabel("For (one per line)");
   assert(/\(9 of 10 tests passed · 10 years of annual reports; SEC, FY2025\)$/.test(await bull.inputValue()), `bull: ${await bull.inputValue()}`);
@@ -1031,7 +1001,7 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   // Review, save: a watched thesis, and the form from then on.
   const summary = guide.getByTestId("plan-summary");
   await summary.getByText("Pricing power keeps margins up.").waitFor();
-  await summary.getByText(/A high-quality business/).waitFor();
+  await summary.getByText(/Passes the quality tests/).waitFor();
   await guide.getByRole("button", { name: "Save and watch" }).click();
   await p.getByText("Done: your thesis is being watched.").waitFor();
   await p.locator("#thesis-status").getByText("On track").waitFor();
@@ -1275,7 +1245,6 @@ async function searchInside(scope, text) {
   await scope.page().getByRole("option", { name: new RegExp(text) }).first().click();
 }
 
-// Telegram alerts are out of the MVP's screens (features.ts); the service behind them still works.
 await test("stats: the admin funnel counts first-party events (here, the demo's local user)", async () => {
   const p = await page({ lang: "en" });
   // A visit is recorded on arrival (once per device and day).
@@ -1435,12 +1404,14 @@ await test("AI explanation: written on request, every sentence links to the fact
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 
-  // Not turned on: it says so, with no button.
+  // Not turned on here: no panel at all, rather than one that says it's off.
   const off = await page({ lang: "es" });
   await off.route(/\/api\/explain\/AAPL/, (r) => r.fulfill(json({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { ...explainBase, lang: "es", canGenerate: false, why: "not_configured" } })));
+  const asked = off.waitForResponse((r) => /\/api\/explain\/AAPL/.test(r.url()));
   await off.goto(base + "/stock/AAPL");
-  await off.locator("#explain").getByText("Las explicaciones con IA aún no están activadas en este sitio.").waitFor();
-  assert((await off.locator("#explain").getByRole("button").count()) === 0, "button shown while off");
+  await asked;
+  await off.getByRole("heading", { name: "Último trimestre" }).waitFor();
+  assert((await off.locator("#explain").count()) === 0, "panel shown while the feature is off");
   await off.context().close();
 
   // Too many requests: the writing fails plainly and can be tried later.
@@ -1538,26 +1509,6 @@ await test("quarter in review: the latest quarter against a year ago and the qua
 });
 
 // ---- Chart generator --------------------------------------------------------------------------
-
-// Small synthetic series (test data only): two companies with different fiscal years.
-function seriesFixture(symbol, scale) {
-  const keys = ["FY2021", "FY2022", "FY2023", "FY2024", "FY2025"];
-  const revenue = [100, 110, 125, 120, 140].map((v) => v * scale * 1e9);
-  const netIncome = [10, 12, -3, 14, 18].map((v) => v * scale * 1e9);
-  const values = { revenue, netIncome, netMargin: netIncome.map((n, i) => n / revenue[i]) };
-  const q = { keys: [], ends: [], values: {} };
-  return { ok: true, fetchedAt: "2026-11-07T12:00:00Z", data: { symbol, name: `${symbol} Inc.`, annual: { keys, ends: keys.map((k) => `${k.slice(2)}-12-31`), values }, quarterly: q } };
-}
-async function chartsPage(opts) {
-  const p = await page(opts);
-  await p.route(/\/api\/sec\/series\/([A-Z.]+)/, (r) => {
-    const s = r.request().url().split("/").pop();
-    if (s === "AAA") return r.fulfill(json(seriesFixture("AAA", 1)));
-    if (s === "BBB") return r.fulfill(json(seriesFixture("BBB", 2)));
-    return r.fulfill(json({ ok: false, error: "not_found" }, 404));
-  });
-  return p;
-}
 
 // ---- Journeys in both languages and themes ------------------------------------------------
 

@@ -66,7 +66,7 @@ export default function PlanBuilder({
   onManual: () => void;
   onReload: () => void;
 }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const P = t.plan;
   const R = t.research;
   // From "Set an exit" (?plan=1) the guide opens on the levels.

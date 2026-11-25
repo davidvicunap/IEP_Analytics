@@ -1,6 +1,6 @@
 // Where account settings live: Postgres, one row per (owner, key). Demo mode without a database
 // keeps them in memory, like research notebooks. Last write wins per key.
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, type Db } from "@/db/client";
 import { userPrefs } from "@/db/schema";
 import { isDemo } from "./data";

@@ -36,10 +36,3 @@ export function detectSplit(prev: { price: number; at: string }, next: { price: 
 /** A price from before the split, in today's terms. */
 export const adjustPrice = (price: number, ratio: number) => Math.round((price / ratio) * 10_000) / 10_000;
 
-/** Splits of `symbol` that took effect after `date` (exclusive) and up to `until` (inclusive), oldest first. */
-export function splitsBetween(splits: Split[], symbol: string, date: string, until = "9999-12-31"): Split[] {
-  return splits.filter((s) => s.symbol === symbol && s.date > date && s.date <= until).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/** The combined ratio of several splits (two 2-for-1 splits make 4). */
-export const totalRatio = (splits: Split[]) => splits.reduce((r, s) => r * s.ratio, 1);

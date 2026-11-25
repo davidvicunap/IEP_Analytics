@@ -433,7 +433,7 @@ function Workspace({ stored, all, select, startNew }: { stored: CanvasDoc; all: 
         </div>
       </div>
       <div className="relative min-h-0 flex-1">
-        <Surface doc={doc} view={view} setView={setView} size={size} surfaceRef={surfaceRef} locked={!!maxed} busy={busy} setBusy={setBusy} onKey={onKey}>
+        <Surface doc={doc} view={view} setView={setView} surfaceRef={surfaceRef} locked={!!maxed} busy={busy} setBusy={setBusy} onKey={onKey}>
           {doc.widgets.map((w) => (
             <CanvasWindow
               key={w.id}
