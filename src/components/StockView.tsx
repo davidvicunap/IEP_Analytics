@@ -17,8 +17,7 @@ import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
 import { FairValueLine, ResearchCard } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
-import { CanvasIcon, ClockIcon, ColumnsIcon, ExternalIcon, GridIcon } from "./icons";
-import { isOn } from "@/lib/features";
+import { CanvasIcon, ClockIcon, ExternalIcon } from "./icons";
 import { Change, Dot, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
 
 // Tabs other than the overview load their code on first visit (then stay mounted).
@@ -310,28 +309,6 @@ function StockHeader({
             <CanvasIcon size={16} />
             <span className="hidden min-[360px]:inline">{t.stock.canvas}</span>
           </Link>
-          {isOn("chartPacks") && (
-            <Link
-              href={`/charts/packs?s=${encodeURIComponent(identity.symbol)}`}
-              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-              title={t.stock.packsTitle}
-              aria-label={t.stock.packsTitle}
-            >
-              <GridIcon size={16} />
-              <span className="hidden min-[360px]:inline">{t.stock.packs}</span>
-            </Link>
-          )}
-          {isOn("compare") && (
-            <Link
-              href={`/compare?s=${encodeURIComponent(identity.symbol)}`}
-              className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
-              title={t.compare.title}
-              aria-label={t.compare.title}
-            >
-              <ColumnsIcon size={16} />
-              <span className="hidden min-[360px]:inline">{t.compare.button}</span>
-            </Link>
-          )}
           <WatchButton symbol={identity.symbol} />
         </div>
       </div>

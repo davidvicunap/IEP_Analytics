@@ -8,8 +8,6 @@ import { useI18n } from "@/lib/i18n";
 import { disablePush, enablePush, readPushStatus, resyncPush, sendTestPush, type PushIssue, type PushStatus } from "@/lib/pushClient";
 import { markStep } from "@/lib/onboarding";
 import { track } from "@/lib/track";
-import TelegramSettings from "./TelegramSettings";
-import { isOn } from "@/lib/features";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "./ui";
 
 type Busy = null | "enable" | "disable" | "test";
@@ -102,14 +100,6 @@ export default function PushSettings({ variant = "panel" }: { variant?: "panel" 
   return (
     <Panel title={P.channelsTitle} description={P.intro} id="push">
       <div className="space-y-6">
-        {isOn("telegram") && (
-          <section aria-labelledby="alerts-telegram">
-            <h3 id="alerts-telegram" className="mb-2 text-sm font-semibold">
-              {t.telegram.title}
-            </h3>
-            <TelegramSettings />
-          </section>
-        )}
         <section aria-labelledby="alerts-device">
           <h3 id="alerts-device" className="mb-2 text-sm font-semibold">
             {P.deviceTitle}

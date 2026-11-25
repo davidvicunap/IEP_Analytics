@@ -232,10 +232,6 @@ export interface StockSections {
  * failure resolves to a typed Result.
  */
 /** Daily candles for up to 5 years (oldest first): FMP, or simulated in demo mode. */
-export function getDailyHistory(symbol: string): Promise<Result<Candle[]>> {
-  return isDemo() ? demoResult("history", mock.mockHistory(symbol)) : fmp.fmpHistory(symbol);
-}
-
 export function getStockSections(symbol: string): StockSections {
   for (const k of ["profile", "history"] as const) trace(k, symbol);
   if (isDemo()) {

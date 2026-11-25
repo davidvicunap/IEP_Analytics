@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAST_STOP_R, book, closeOn, lastWeek, parseTradeInput, positions, scorecard, type Trade } from "./trades";
+import { book, parseTradeInput, positions, type Trade } from "./trades";
 
 let n = 0;
 const t = (symbol: string, side: "buy" | "sell", date: string, shares: number, price: number, extra: Partial<Trade> = {}): Trade => ({
@@ -63,57 +63,5 @@ describe("matching sells to buys (first in, first out)", () => {
     const b = book([t("X", "sell", "2026-01-02", 1, 11), t("X", "buy", "2026-01-02", 1, 10)]);
     expect(b.oversold).toEqual([]);
     expect(b.closed[0].pnl).toBe(1);
-  });
-});
-
-describe("the scorecard", () => {
-  const spy = [
-    { time: "2026-01-02", close: 500 },
-    { time: "2026-03-02", close: 520 },
-    { time: "2026-05-01", close: 510 },
-  ];
-
-  it("hit rate, average result, R, stops respected and the S&P 500 over the same dates", () => {
-    const trades = [
-      t("A", "buy", "2026-01-02", 10, 100, { stop: 90 }),
-      t("A", "sell", "2026-03-02", 10, 120), // +20 %, +2 R
-      t("B", "buy", "2026-03-02", 10, 50, { stop: 45 }),
-      t("B", "sell", "2026-05-01", 10, 40), // −20 %, −2 R: held past the stop
-      t("C", "buy", "2026-03-04", 1, 10),
-      t("C", "sell", "2026-05-01", 1, 11), // +10 %, no stop
-    ];
-    const s = scorecard(book(trades).closed, spy);
-    expect(s).toMatchObject({ closed: 3, wins: 2, withStop: 2, pastStop: 1 });
-    expect(s.winRate).toBeCloseTo(2 / 3);
-    expect(s.realized).toBeCloseTo(200 - 100 + 1);
-    expect(s.avgReturn).toBeCloseTo((0.2 - 0.2 + 0.1) / 3);
-    expect(s.avgR).toBeCloseTo(0);
-    expect(-2).toBeLessThan(PAST_STOP_R);
-    // SPY: +4 % (Jan→Mar), −1.92 % (Mar→May), and from the 4 March close on or before (520) → 510.
-    expect(s.benchmark.covered).toBe(3);
-    expect(s.benchmark.avgReturn).toBeCloseTo((0.04 + (510 / 520 - 1) * 2) / 3);
-  });
-
-  it("says nothing it can't know: no trades, no benchmark history", () => {
-    const s = scorecard([], null);
-    expect(s).toMatchObject({ closed: 0, winRate: null, avgReturn: null, avgR: null, avgDays: null, benchmark: { avgReturn: null, covered: 0 } });
-    // A trade older than the benchmark's history isn't compared.
-    const old = book([t("A", "buy", "2020-01-02", 1, 1), t("A", "sell", "2026-03-02", 1, 2)]).closed;
-    expect(scorecard(old, spy).benchmark.covered).toBe(0);
-  });
-
-  it("finds the last close on or before a date", () => {
-    expect(closeOn(spy, "2026-03-01")).toBe(500);
-    expect(closeOn(spy, "2026-03-02")).toBe(520);
-    expect(closeOn(spy, "2025-12-31")).toBeNull();
-  });
-});
-
-describe("the last 7 days", () => {
-  it("counts the trades logged and the positions closed", () => {
-    const trades = [t("A", "buy", "2026-11-10", 1, 10), t("A", "sell", "2026-11-18", 1, 12), t("B", "buy", "2026-11-20", 1, 5)];
-    const w = lastWeek(trades, book(trades).closed, "2026-11-21");
-    expect(w).toMatchObject({ from: "2026-11-15", buys: 1, sells: 1, realized: 2 });
-    expect(w.closed).toHaveLength(1);
   });
 });

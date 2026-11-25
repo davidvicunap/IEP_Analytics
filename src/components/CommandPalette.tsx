@@ -5,11 +5,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fill, useI18n } from "@/lib/i18n";
 import { PAGES, commandsFor, hrefFor, parse, type Command } from "@/lib/commands";
-import { compareHref } from "@/lib/compare";
 import { markStep } from "@/lib/onboarding";
 import { SearchController, normalizeTerm, type SearchState } from "@/lib/search";
 import { useRecent, useWatchlist } from "@/lib/watchlist";
-import { ChartIcon, ChevronRightIcon, ColumnsIcon, GridIcon, MoonIcon, SearchIcon, StarIcon, SunIcon } from "./icons";
+import { ChevronRightIcon, GridIcon, MoonIcon, SearchIcon, StarIcon, SunIcon } from "./icons";
 import { applyTheme } from "./Toggles";
 import { toast } from "./ui";
 
@@ -88,7 +87,6 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
     onClose();
     if (c.type === "stock") router.push(hrefFor(c));
     else if (c.type === "page") router.push(PAGES[c.page].href);
-    else if (c.type === "compare") router.push(compareHref(c.symbols));
     else if (c.type === "setting") {
       if (c.setting === "dark" || c.setting === "light") applyTheme(c.setting);
       else if (c.setting !== lang) setLang(c.setting);
@@ -103,7 +101,6 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
     if (c.type === "stock") return { main: c.section === "overview" ? c.symbol : `${c.symbol} · ${P.sections[c.section]}`, sub: c.name };
     if (c.type === "follow") return { main: fill(c.on ? P.follow : P.unfollow, { s: c.symbol }), sub: c.name };
     if (c.type === "page") return { main: P.pages[c.page] };
-    if (c.type === "compare") return { main: fill(P.compare, { s: c.symbols.join(" · ") }) };
     return { main: P.settings[c.setting] };
   };
 
@@ -218,7 +215,5 @@ function KindIcon({ c }: { c: Command }) {
   if (c.type === "follow") return <StarIcon size={15} />;
   if (c.type === "setting") return c.setting === "dark" ? <MoonIcon size={15} /> : c.setting === "light" ? <SunIcon size={15} /> : <span className="text-[11px] font-semibold">{c.setting.toUpperCase()}</span>;
   if (c.type === "page") return <GridIcon size={15} />;
-  if (c.type === "compare") return <ColumnsIcon size={15} />;
-  if (c.section === "chart" || c.section === "packs") return <ChartIcon size={15} />;
   return <span className="text-[10px] font-semibold">{c.symbol.slice(0, 4)}</span>;
 }

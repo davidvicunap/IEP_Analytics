@@ -18,8 +18,6 @@ import { useTrades } from "@/lib/tradesClient";
 import { book, positions } from "@/lib/trades";
 import { useQuotes } from "@/lib/useQuotes";
 import AddPosition from "./AddPosition";
-import ImportTrades from "./ImportTrades";
-import { isOn } from "@/lib/features";
 import { Badge, IssueNote, Panel, Provenance, Skeleton, StatusMessage, buttonClass } from "../ui";
 
 type Lang = "es" | "en";
@@ -44,7 +42,7 @@ export default function Portfolio() {
   const { t, lang } = useI18n();
   const P = t.portfolio;
   const { state, retry } = useTrades();
-  const [mode, setMode] = useState<null | "add" | "import">(null);
+  const [mode, setMode] = useState<null | "add">(null);
   const [done, setDoneState] = useState<string | null>(takeHandover);
   const setDone = (msg: string) => {
     handover = msg;
@@ -63,11 +61,6 @@ export default function Portfolio() {
       <button type="button" onClick={() => setMode(mode === "add" ? null : "add")} aria-expanded={mode === "add"} className={buttonClass(open.length ? "secondary" : "primary", true)}>
         {P.add}
       </button>
-      {isOn("portfolioImport") && (
-        <button type="button" onClick={() => setMode(mode === "import" ? null : "import")} aria-expanded={mode === "import"} className={buttonClass("secondary", true)}>
-          {P.import}
-        </button>
-      )}
     </div>
   );
   const forms =
@@ -76,14 +69,6 @@ export default function Portfolio() {
         onDone={(s) => {
           setMode(null);
           setDone(fill(P.added, { s }));
-        }}
-        onCancel={() => setMode(null)}
-      />
-    ) : mode === "import" ? (
-      <ImportTrades
-        onDone={(n) => {
-          setMode(null);
-          setDone(fill(P.imported, { n }));
         }}
         onCancel={() => setMode(null)}
       />

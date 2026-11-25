@@ -22,7 +22,7 @@ function isAfterClose(request: Request, now: Date): boolean {
 
 /**
  * Weekdays, three times while the US market is open and once after the close: checks everyone's
- * live theses and holdings, so alerts are recorded (and sent to phones and Telegram) even when
+ * live theses and holdings, so alerts are recorded (and sent to phones) even when
  * nobody opens the app (scheduled in vercel.json). Stocks shared by several people load once per run.
  */
 export async function GET(request: Request) {

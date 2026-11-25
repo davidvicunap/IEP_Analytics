@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { commandsFor, hrefFor, normalize, parse, type Command, type Context } from "./commands";
 
 const ctx = (over: Partial<Context> = {}): Context => ({ recent: [], following: [], results: [], ...over });
-const hrefs = (cs: Command[]) => cs.map((c) => (c.type === "stock" ? hrefFor(c) : c.type === "page" ? `page:${c.page}` : c.type === "setting" ? `set:${c.setting}` : c.type === "compare" ? `compare:${c.symbols.join(",")}` : `${c.on ? "follow" : "unfollow"}:${c.symbol}`));
+const hrefs = (cs: Command[]) => cs.map((c) => (c.type === "stock" ? hrefFor(c) : c.type === "page" ? `page:${c.page}` : c.type === "setting" ? `set:${c.setting}` : `${c.on ? "follow" : "unfollow"}:${c.symbol}`));
 
 describe("reading a line", () => {
   it("ignores case and accents", () => {
@@ -28,7 +28,6 @@ describe("reading a line", () => {
   it("keeps a ticker beside an action, even one that starts a section word", () => {
     expect(parse("follow dis")).toMatchObject({ action: "follow", section: null, rest: "dis" });
     expect(parse("dis seguir")).toMatchObject({ action: "follow", section: null, rest: "dis" });
-    expect(parse("compare dis aapl")).toMatchObject({ action: "compare", rest: "dis aapl" });
     expect(hrefs(commandsFor("follow dis", ctx({ symbol: "MSFT" })))).toEqual(["follow:DIS"]);
   });
 });
@@ -55,9 +54,6 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("apple valoracion", ctx({ results, following: ["AAPL"] })))).toEqual(["/stock/AAPL?tab=valuation", "/stock/APLE?tab=valuation"]);
     expect(hrefs(commandsFor("aapl", ctx()))).toEqual(["/stock/AAPL"]);
     expect(hrefs(commandsFor("nvda 10-k", ctx()))).toEqual(["/stock/NVDA/report"]);
-    // The chart generator and packs are out of the MVP (features.ts): the company itself opens.
-    expect(hrefs(commandsFor("graficos nvda", ctx()))).toEqual(["/stock/NVDA"]);
-    expect(hrefs(commandsFor("pack nvda", ctx()))).toEqual(["/stock/NVDA"]);
   });
 
   it("uses the stock on screen when only a section or an action is typed", () => {
@@ -69,8 +65,7 @@ describe("commands for a line", () => {
     expect(hrefs(commandsFor("dis", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation&view=dcf", "/stock/DIS"]);
   });
 
-  it("offers neither comparing nor the pages left out of the MVP", () => {
-    expect(commandsFor("compare aapl msft", ctx()).some((x) => x.type === "compare")).toBe(false);
+  it("offers the product's places, not tools it no longer has", () => {
     for (const q of ["comparar", "calendario", "generador", "aciertos"]) {
       expect(hrefs(commandsFor(q, ctx())).filter((h) => h.startsWith("page:"))).toEqual([]);
     }

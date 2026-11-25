@@ -5,10 +5,10 @@
 export const EVENT_NAMES = [
   "visit", // once per day per device
   "position_added",
-  "import_done",
+  "import_done", // retired with the broker import; kept so earlier rows still count
   "plan_saved", // the guided plan saved a watched thesis
   "alerts_push_on",
-  "alerts_telegram_on",
+  "alerts_telegram_on", // retired with Telegram alerts; kept so earlier rows still count
   "alert_sent", // server side, per delivery
   "alert_opened", // a page opened from a notification or a Telegram button
 ] as const;

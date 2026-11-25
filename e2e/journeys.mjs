@@ -774,64 +774,6 @@ async function withSeries(p, peers = ["MSFT", "GOOGL", "META", "AMZN"]) {
   await p.route(/\/api\/sec\/peers\//, (r) => r.fulfill(json({ ok: true, data: { symbol: "AAPL", sicDescription: "Computers", peers }, fetchedAt: new Date().toISOString() })));
 }
 
-await test("chart packs: a built-in pack opens for any company with growth readouts and a peer median", async () => {
-  const p = await page();
-  await withSeries(p);
-  await p.goto(base + "/charts/packs?s=AAPL");
-  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: AAPL" }).waitFor();
-  const cards = p.locator("main section, main [id]").filter({ has: p.locator("h2") });
-  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
-  await p.getByText("Las mayores empresas de su industria", { exact: false }).first().waitFor();
-  assert((await p.getByText("Mediana de pares").count()) > 0, "no peer median");
-  assert((await cards.count()) >= 8, `cards ${await cards.count()}`);
-  await p.getByLabel("Paquete", { exact: true }).selectOption("quarters");
-  await p.waitForURL(/p=quarters/);
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("chart packs: save a chart from the generator, open it for another company, reorder, remove, delete and undo", async () => {
-  const p = await page();
-  await withSeries(p);
-  await p.goto(base + "/charts?s=AAPL&m=roic&f=annual&k=line&r=10");
-  await p.locator("main svg").first().waitFor(); // the chart is drawn: the page's scripts are running
-  await p.getByRole("button", { name: "Mediana de pares" }).click();
-  await p.waitForURL(/p=1/);
-  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
-  await p.getByLabel("Nombre del nuevo paquete").fill("Mi foso");
-  await p.getByRole("button", { name: "Crear y guardar" }).click();
-  await p.getByText("Añadido a «Mi foso».").waitFor();
-  await p.goto(base + "/charts?s=AAPL&m=revenue&f=annual&k=bar&r=10");
-  await p.locator("summary", { hasText: "Guardar en un paquete" }).click();
-  await p.getByRole("button", { name: /^Mi foso/ }).click();
-  await p.getByText("Añadido a «Mi foso».").waitFor();
-  const packs = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
-  assert(packs.length === 1 && packs[0].charts.length === 2 && packs[0].charts[0].peers === true, JSON.stringify(packs));
-  await p.goto(base + `/charts/packs?s=MSFT&p=${packs[0].id}`);
-  await p.getByRole("heading", { level: 1, name: "Paquetes de gráficos: MSFT" }).waitFor();
-  await p.getByRole("button", { name: "Mover antes" }).nth(1).click();
-  const order = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks"))[0].charts.map((c) => c.metrics[0]));
-  assert(order.join() === "revenue,roic", `order ${order}`);
-  await p.getByRole("button", { name: "Quitar este gráfico del paquete" }).first().click();
-  await p.getByRole("button", { name: "Borrar paquete" }).click();
-  await p.waitForURL(/p=essentials/);
-  await p.getByRole("button", { name: "Deshacer" }).click();
-  const back = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.chartpacks")));
-  assert(back.length === 1 && back[0].charts.length === 1, `after undo ${JSON.stringify(back)}`);
-  await p.context().close();
-});
-
-await test("chart packs: phone layout never scrolls sideways", async () => {
-  const p = await page({ width: 320, height: 640, touch: true });
-  await withSeries(p);
-  await p.goto(base + "/charts/packs?s=AAPL");
-  await p.getByText("al año en 9 años", { exact: false }).first().waitFor();
-  const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  assert(over <= 0, `page overflows by ${over}px`);
-  await p.context().close();
-});
-
 await test("next earnings: a listed date with estimates, an SEC estimate labelled as such, nothing when unknown", async () => {
   const p = await page();
   let answer = { ok: true, data: { symbol: "AAPL", next: { kind: "listed", date: "2099-02-04", epsEstimate: 2.9, revenueEstimate: 156e9 }, fmpIssue: null }, fetchedAt: new Date().toISOString() };
@@ -1353,7 +1295,7 @@ await test("installable app: the manifest, icons and service worker are served w
   assert(m.display === "standalone" && m.icons.some((i) => i.sizes === "512x512"), "manifest incomplete");
 });
 
-await test("track record: log a buy and a sell (an oversell is refused), see the position, the scorecard against the S&P 500, delete in order", async () => {
+await test("trades: log a buy and a sell on a thesis (an oversell is refused), see the position, delete in order", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/research");
   // The demo store outlives a run: start with no trades and a thesis on MU with a stop.
@@ -1388,23 +1330,11 @@ await test("track record: log a buy and a sell (an oversell is refused), see the
   await box.getByText("A later sell relies on that buy: delete the sell first.").waitFor();
   await axe(p);
 
-  // The track record is out of the MVP's navigation (features.ts) but its page still works.
-  assert((await box.getByRole("link", { name: "See my track record" }).count()) === 0, "track record offered");
-  await p.goto(base + "/research/results");
-  const score = p.getByTestId("scorecard");
-  await score.getByText("Closed trades").waitFor();
-  const text = await score.innerText();
-  assert(/Closed trades\s+1/.test(text) && /Hit rate\s+100%/.test(text) && /\+10(\.0)?%/.test(text) && /\+US\$ 1 on average/.test(text), `scorecard: ${text}`);
-  await score.getByText(/SPY fund, same buy and sell dates \(1 trade\)\. Source: simulated data \(demo\)/).waitFor();
-  await p.getByTestId("week").getByText("You logged 1 buy and 1 sell.").waitFor();
-  await p.getByTestId("closed-trades").getByText("MU").waitFor();
-  await p.getByText("No open positions.").waitFor();
-  await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
 
-// The broker import is out of the MVP (features.ts): the same trades go in through the API here.
+// Trades with a split, a renamed and a delisted ticker go in through the API here.
 await test("my portfolio: add from the search list, trades with a split restated and a renamed and a delisted ticker flagged, totals in pesos, one tap to an exit", async () => {
   const p = await page({ lang: "en", watchlist: [] });
   await p.goto(base + "/portfolio");
@@ -1555,31 +1485,6 @@ async function searchInside(scope, text) {
 }
 
 // Telegram alerts are out of the MVP's screens (features.ts); the service behind them still works.
-await test("telegram: no settings on screen; the API still links a chat with a one-time code, tests and disconnects; the webhook only listens to Telegram", async () => {
-  const p = await page({ lang: "en" });
-  await p.goto(base + "/");
-  await p.getByTestId("push-settings").waitFor();
-  assert((await p.getByTestId("telegram-settings").count()) === 0, "Telegram settings shown");
-  const api = (url, method, body) => p.evaluate(async ([url, method, body]) => {
-    const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-    return { status: r.status, body: await r.json().catch(() => null) };
-  }, [url, method, body]);
-  const link = await api("/api/telegram", "POST", { lang: "en" });
-  const href = link.body?.data?.url ?? "";
-  const code = href ? new URL(href).searchParams.get("start") : null;
-  assert(href.startsWith("https://t.me/iep_demo_bot?start=") && code, `link ${href}`);
-  // Without Telegram's secret the webhook refuses; with it, /start links this chat.
-  const hook = (secret) => fetch(base + "/api/telegram/webhook", { method: "POST", headers: { "content-type": "application/json", ...(secret ? { "x-telegram-bot-api-secret-token": secret } : {}) }, body: JSON.stringify({ message: { chat: { id: 777, type: "private" }, text: `/start ${code}`, from: { language_code: "en" } } }) });
-  assert((await hook(null)).status === 401, "webhook without secret");
-  assert((await hook("demo-webhook-secret")).ok, "webhook with secret");
-  assert((await api("/api/telegram", "GET")).body?.data?.linked === true, "linked");
-  assert((await api("/api/telegram/test", "POST")).status === 200, "test alert");
-  await api("/api/telegram", "DELETE");
-  assert((await api("/api/telegram", "GET")).body?.data?.linked === false, "disconnected");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
 await test("stats: the admin funnel counts first-party events (here, the demo's local user)", async () => {
   const p = await page({ lang: "en" });
   // A visit is recorded on arrival (once per device and day).
@@ -1699,47 +1604,6 @@ await test("live thesis: when the check fails, the home page says so and offers 
 
 // ---- Calendar (SEC summaries and notebooks answered with fixtures) ----------------------------
 
-await test("calendar: results, SEC deadlines and review dates by week; range, filters and .ics download", async () => {
-  const p = await page({ lang: "en", watchlist: ["AAPL", "MSFT"] });
-  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
-  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
-  const filing = (form, reportDate) => ({ accn: `${form}-${reportDate}`, form, filed: reportDate, reportDate, primaryDocument: "a.htm", items: [] });
-  const snap = (symbol, f) => ({ symbol, cik: 1, quality: { ok: false, error: "not_found" }, insiders: { ok: false, error: "not_found" }, filings: { ok: true, data: { report: null, annual: null, latest: null, recent: [], nextResults: null, ...f } } });
-  const data = {
-    AAPL: snap("AAPL", { nextResults: { date: day(10), basedOn: day(-355) } }),
-    MSFT: snap("MSFT", { report: filing("10-Q", day(-60)), annual: filing("10-K", day(-240)) }), // next 10-Q due in ~71 days
-  };
-  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [{ symbol: "KO", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: day(20), checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-01T00:00:00Z" }] })));
-  await p.route(/\/api\/theses/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: { items: [], skipped: 0 } })));
-  await p.goto(base + "/calendar");
-  await p.getByRole("heading", { name: "Calendar", level: 1 }).waitFor();
-  await p.getByRole("link", { name: /AAPL.*Results \(estimated\)/ }).waitFor();
-  await p.getByRole("link", { name: /KO.*Review your thesis/ }).waitFor();
-  assert((await p.getByText("10-Q due").count()) === 0, "a deadline beyond 60 days is shown");
-  await p.getByRole("button", { name: "90 days" }).click();
-  await p.getByRole("link", { name: /MSFT.*10-Q due/ }).waitFor();
-  await axe(p);
-  // Hide results; the download has what's on screen.
-  await p.getByRole("button", { name: "Results" }).click();
-  await p.getByRole("link", { name: /AAPL.*Results/ }).waitFor({ state: "detached" });
-  const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Add to my calendar (.ics)" }).click()]);
-  const ics = readFileSync(await download.path(), "utf8");
-  assert(ics.includes("SUMMARY:KO: review thesis") && ics.includes("SUMMARY:MSFT: 10-Q due") && !ics.includes("AAPL"), ics);
-  // Out of the MVP (features.ts): the portfolio's briefing no longer links here.
-  await p.goto(base + "/portfolio");
-  await p.getByRole("heading", { level: 1 }).first().waitFor();
-  assert((await p.getByRole("link", { name: "See calendar" }).count()) === 0, "calendar offered");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-
-  const empty = await page({ lang: "es" });
-  await empty.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
-  await empty.goto(base + "/calendar");
-  await empty.getByText("Sigue acciones o pon una fecha de revisión en «Mi análisis» para ver aquí sus fechas.").waitFor();
-  await empty.context().close();
-});
-
 // ---- AI explanation (its endpoint answered with fixtures: no Claude calls in tests) ------------
 
 const explainFacts = [
@@ -1795,72 +1659,6 @@ await test("AI explanation: written on request, every sentence links to the fact
   await busy.locator("#explain").getByRole("button", { name: "Write the explanation" }).click();
   await busy.locator("#explain").getByText(/You asked for several explanations in a row/).waitFor();
   await busy.context().close();
-});
-
-// ---- Compare (SEC and price endpoints answered with fixtures) ---------------------------------
-
-const verdictFix = (sym, growth) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, points: [
-  { key: "quality", level: "good", passed: 9, judged: 10 },
-  { key: "growth", level: growth, metric: "revenueGrowth", value: growth === "good" ? 0.15 : 0.04, compare: 0.06, peers: 40 },
-  { key: "profitability", level: "good", metric: "roic", value: 0.31, compare: 0.12 },
-  { key: "debt", level: "mid", metric: "debtToEquity", value: 0.6, compare: 0.6 },
-  { key: "valuation", level: "weak", metric: "pe", value: 34, compare: 27 },
-], missing: [], fiscal: "FY2025", industry: "SOFTWARE", priceAt: "2026-11-20T15:00:00Z", historyFrom: "2021-11-30", issues: {} } });
-const ratioRow = (key, better, value, percentile) => ({ key, group: "profitability", better, applicable: true, value, note: null, history: [], own: null, sector: { percentile, median: 0.1, n: 40, sicPrefix: "737" } });
-const ratiosFix = (sym, roic, debt) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, cik: 1, businessType: "general", sic: 7372, sicDescription: "SOFTWARE", period: { label: "FY2025", end: "2025-09-30" }, peersYear: 2025, ratios: [
-  ratioRow("revenueGrowth", "higher", 0.08, 60), ratioRow("roic", "higher", roic, roic > 0.3 ? 92 : 70), ratioRow("debtToEquity", "lower", debt, 40),
-] } });
-const valFix = (sym, pe) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: [{ key: "pe", applicable: true, higherIsCheaper: false, value: pe, note: null, own: { mean: 25 } }, { key: "fcfYield", applicable: false, higherIsCheaper: true, value: null, note: null, own: null }] } });
-const months = Array.from({ length: 24 }, (_, i) => `${2024 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
-const marketFix = (sym, start, step) => ({ ok: true, fetchedAt: "2026-11-20T15:00:00Z", data: { symbol: sym, multiples: "ok", monthly: { keys: months, ends: months.map((m) => `${m}-28`), values: { price: months.map((_, i) => start + i * step) } } } });
-
-await test("compare: companies side by side from the URL, add and remove, phone table scrolls inside its box", async () => {
-  const p = await page({ lang: "en" });
-  await p.route(/\/api\/verdict\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(verdictFix(s, s === "MSFT" ? "good" : "mid"))); });
-  await p.route(/\/api\/sec\/ratios\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(ratiosFix(s, s === "AAPL" ? 0.52 : 0.28, s === "AAPL" ? 1.5 : 0.4))); });
-  await p.route(/\/api\/valuation\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(valFix(s, s === "AAPL" ? 33.4 : 30))); });
-  await p.route(/\/api\/charts\/market\/(AAPL|MSFT|KO)/, (r) => { const s = r.request().url().split("/").pop(); r.fulfill(json(marketFix(s, 100, s === "AAPL" ? 2 : 1))); });
-  await p.goto(base + "/compare?s=aapl,msft");
-  await p.getByRole("heading", { name: "Compare: AAPL · MSFT" }).waitFor();
-  const glance = p.getByRole("region", { name: "At a glance" });
-  await glance.getByText("ROIC 31% · industry median 12%").first().waitFor();
-  const ratios = p.getByRole("region", { name: "Against its industry" });
-  await ratios.getByText("above 92% of its industry").waitFor();
-  // Higher ROIC is better (AAPL); lower debt is better (MSFT): the best in each row is marked.
-  const roic = ratios.getByRole("row", { name: /ROIC/ });
-  await roic.getByText("best in the group").waitFor();
-  assert((await roic.getByRole("cell").nth(0).innerText()).includes("52.0%") || (await roic.getByRole("cell").nth(0).innerText()).includes("52%"), "AAPL ROIC");
-  const debtRow = ratios.getByRole("row", { name: /Debt/ });
-  assert((await debtRow.getByRole("cell").nth(1).innerText()).includes("●"), "lower debt not marked as best");
-  await p.getByRole("region", { name: "Valuation" }).getByText("33.4x").waitFor();
-  await p.getByRole("region", { name: "Valuation" }).getByText("Not applicable").first().waitFor();
-  await p.getByRole("group", { name: /Price performance: AAPL, MSFT/ }).waitFor();
-  await axe(p);
-  // Add a third company with the search, remove one: the URL follows.
-  await p.route(/\/api\/search/, (r) => r.fulfill(json([{ symbol: "KO", name: "The Coca-Cola Company" }])));
-  await p.getByRole("combobox", { name: "Add a company" }).fill("coca");
-  await p.getByRole("option", { name: /KO/ }).click();
-  await p.waitForURL(/s=AAPL,MSFT,KO$/);
-  await p.getByRole("button", { name: "Remove MSFT from the comparison" }).click();
-  await p.waitForURL(/s=AAPL,KO$/);
-  await p.getByRole("heading", { name: "Compare: AAPL · KO" }).waitFor();
-  // Out of the MVP (features.ts): the stock page offers a canvas instead, but the URL still works.
-  await p.goto(base + "/stock/AAPL");
-  await p.getByRole("link", { name: "Work this company on a canvas" }).waitFor();
-  assert((await p.getByRole("link", { name: "Compare" }).count()) === 0, "compare offered");
-  await p.goto(base + "/compare?s=AAPL");
-  await p.getByText("Add at least one more company to compare.").waitFor();
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-
-  const m = await page({ lang: "es", width: 320, height: 700 });
-  await m.route(/\/api\/(verdict|sec\/ratios|valuation|charts\/market)\//, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
-  await m.goto(base + "/compare?s=AAPL,MSFT,GOOGL,NVDA");
-  await m.getByRole("heading", { name: "Comparar: AAPL · MSFT · GOOGL · NVDA" }).waitFor();
-  await m.getByText("Puedes comparar hasta 4 empresas.").waitFor();
-  await m.waitForTimeout(500);
-  assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 320, "page scrolls sideways at 320 px");
-  await m.context().close();
 });
 
 // ---- Screener and quarter in review (SEC endpoints answered with fixtures) ----------------------
@@ -1969,77 +1767,6 @@ async function chartsPage(opts) {
   });
   return p;
 }
-
-await test("charts: URL state, legend toggle, keyboard readout and CSV", async () => {
-  const p = await chartsPage();
-  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual&k=bar&r=5");
-  const chart = p.locator("svg[aria-roledescription=chart]");
-  await chart.waitFor();
-  assert((await chart.locator("path[fill]").count()) === 10, "2 companies × 5 years of bars");
-  // Legend hides and shows a series, without repainting the other.
-  const legendA = p.getByRole("button", { name: "AAA", exact: true });
-  await legendA.click();
-  assert((await legendA.getAttribute("aria-pressed")) === "false", "legend toggle");
-  assert((await chart.locator("path[fill]").count()) === 5, "hidden series removed");
-  await legendA.click();
-  // Keyboard: focus the chart and step through periods.
-  await chart.focus();
-  await p.keyboard.press("Home");
-  const tip = p.locator("[role=status]", { hasText: "FY2021" });
-  await tip.waitFor();
-  assert((await tip.innerText()).includes("$100B"), `readout ${await tip.innerText()}`);
-  // Options update the URL (shareable), growth uses the period before.
-  await p.getByRole("group", { name: "Mostrar" }).getByRole("button", { name: "Crecimiento" }).click();
-  await p.waitForURL(/t=growth/);
-  await p.keyboard.press("Tab");
-  await chart.focus();
-  await p.keyboard.press("End");
-  await p.locator("[role=status]", { hasText: "+16.7%" }).or(p.locator("[role=status]", { hasText: "16.7%" })).first().waitFor();
-  // CSV export has a header and one row per period.
-  const [dl] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: /CSV/ }).click()]);
-  const csv = readFileSync(await dl.path(), "utf8").trim().split("\n");
-  assert(csv[0] === "Periodo,AAA (%),BBB (%)", `csv header ${csv[0]}`);
-  assert(csv.length === 6, `csv rows ${csv.length}`);
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("charts: a company without filings is reported; units can't be mixed without a transform", async () => {
-  const p = await chartsPage({ lang: "en" });
-  await p.goto(base + "/charts?s=AAA,ZZZ&m=revenue,netMargin&f=annual&k=line");
-  await p.locator("svg[aria-roledescription=chart]").waitFor();
-  await p.getByText(/ZZZ.*:/).first().waitFor();
-  assert(!p.url().includes("netMargin") || (await p.getByRole("button", { name: /Revenue/ }).first().innerText()) === "Revenue", "mixed units dropped");
-  await p.getByRole("button", { name: /^Revenue/ }).first().click();
-  const margin = p.getByRole("checkbox", { name: /Net margin/ });
-  assert(await margin.isDisabled(), "different unit is disabled while showing values");
-  await p.keyboard.press("Escape");
-  await p.getByRole("group", { name: "Show" }).getByRole("button", { name: "Index 100" }).click();
-  await p.getByRole("button", { name: /^Revenue/ }).first().click();
-  await p.getByRole("checkbox", { name: /Net margin/ }).check();
-  await p.waitForURL(/m=revenue,netMargin/);
-  await p.context().close();
-});
-
-await test("charts: phone layout uses compact selects and never scrolls sideways", async () => {
-  const p = await chartsPage({ width: 360, height: 780, touch: true });
-  await p.goto(base + "/charts?s=AAA,BBB&m=revenue&f=annual");
-  await p.locator("svg[aria-roledescription=chart]").waitFor();
-  await p.getByRole("combobox", { name: "Periodicidad" }).selectOption("quarterly");
-  await p.waitForURL(/f=quarterly/);
-  assert((await p.evaluate(() => document.documentElement.scrollWidth - innerWidth)) <= 0, "horizontal overflow");
-  await axe(p);
-  await p.context().close();
-});
-
-await test("charts: monthly prices in demo mode say they're unavailable instead of inventing them", async () => {
-  const p = await chartsPage();
-  await p.goto(base + "/charts?s=AAA&m=pe&f=monthly");
-  await p.getByText("El historial de precios no está disponible en este momento.").waitFor();
-  assert((await p.locator("svg[aria-roledescription=chart]").count()) === 0, "no chart without data");
-  await p.context().close();
-});
 
 // ---- Journeys in both languages and themes ------------------------------------------------
 

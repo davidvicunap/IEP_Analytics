@@ -2,7 +2,6 @@
 // stock sections, actions and settings are matched here in both languages (accents optional);
 // only company names go to the search (the SEC list, no FMP quota). "aapl valoración",
 // "dcf msft", "seguir ko", "oscuro" and, on a stock page, just "insiders" all work.
-import { isOn, type Feature } from "./features";
 import { TICKER } from "./search";
 
 export const SECTIONS = {
@@ -19,8 +18,6 @@ export const SECTIONS = {
   news: { words: ["noticias", "news"], path: "?tab=filings&view=news" },
   research: { words: ["analisis", "research", "tesis", "thesis", "notas", "notes"], path: "?tab=research" },
   report: { words: ["10-k", "10k", "informe", "report", "lector", "reader", "leer", "read"], path: "/report" },
-  chart: { words: ["grafico", "graficos", "chart", "charts"], path: null },
-  packs: { words: ["paquete", "paquetes", "pack", "packs"], path: null },
 } as const;
 export type SectionId = keyof typeof SECTIONS;
 
@@ -29,22 +26,12 @@ export const PAGES = {
   portfolio: { words: ["cartera", "portfolio", "posiciones", "positions", "holdings"], href: "/portfolio" },
   watchlist: { words: ["lista", "watchlist", "list", "favoritos"], href: "/watchlist" },
   screener: { words: ["buscador", "screener", "filtrar", "filter", "screen"], href: "/screener" },
-  charts: { words: ["graficos", "charts", "generador", "generator"], href: "/charts" },
-  packs: { words: ["paquetes", "packs"], href: "/charts/packs" },
   research: { words: ["analisis", "research", "tesis", "theses", "cuaderno", "notebook"], href: "/" },
   methodology: { words: ["metodologia", "methodology", "como", "how", "calculamos"], href: "/methodology" },
-  compare: { words: ["comparar", "compare", "comparador", "comparison"], href: "/compare" },
-  calendar: { words: ["calendario", "calendar", "agenda", "fechas", "dates"], href: "/calendar" },
-  results: { words: ["resultados", "results", "historial", "record", "operaciones", "trades", "aciertos"], href: "/research/results" },
   canvas: { words: ["canvas", "lienzo", "mesa", "workspace", "trading", "ventanas", "windows"], href: "/canvas" },
 } as const;
 export type PageId = keyof typeof PAGES;
 
-/** Pages and sections out of the MVP (features.ts) are not offered; their URLs still work. */
-const PAGE_FEATURE: Partial<Record<PageId, Feature>> = { charts: "charts", packs: "chartPacks", compare: "compare", calendar: "calendar", results: "trackRecord" };
-const SECTION_FEATURE: Partial<Record<SectionId, Feature>> = { chart: "charts", packs: "chartPacks" };
-const offeredPage = (p: PageId) => !PAGE_FEATURE[p] || isOn(PAGE_FEATURE[p]!);
-const offeredSection = (s: SectionId | null) => (s && SECTION_FEATURE[s] && !isOn(SECTION_FEATURE[s]!) ? null : s);
 
 export const SETTINGS = {
   dark: { words: ["oscuro", "dark", "noche", "night", "tema", "theme"] },
@@ -57,14 +44,12 @@ export type SettingId = keyof typeof SETTINGS;
 const ACTIONS = {
   follow: ["seguir", "follow", "anadir", "add", "guardar", "save"],
   unfollow: ["dejar", "unfollow", "quitar", "remove", "eliminar"],
-  compare: ["comparar", "compare", "vs", "versus", "contra"],
 } as const;
 type ActionId = keyof typeof ACTIONS;
 
 export type Command =
   | { type: "stock"; symbol: string; name?: string; section: SectionId }
   | { type: "follow"; symbol: string; name?: string; on: boolean }
-  | { type: "compare"; symbols: string[] }
   | { type: "page"; page: PageId }
   | { type: "setting"; setting: SettingId };
 
@@ -86,8 +71,6 @@ const anyWord = (token: string, words: readonly string[]) => words.some((w) => m
 /** The href a stock command opens. */
 export function hrefFor(c: Extract<Command, { type: "stock" }>): string {
   const s = encodeURIComponent(c.symbol);
-  if (c.section === "chart") return `/charts?s=${s}`;
-  if (c.section === "packs") return `/charts/packs?s=${s}`;
   return `/stock/${s}${SECTIONS[c.section].path}`;
 }
 
@@ -174,10 +157,7 @@ export function commandsFor(q: string, ctx: Context): Command[] {
     return out;
   }
 
-  const parsed = parse(q);
-  const { rest, alt } = parsed;
-  const section = offeredSection(parsed.section);
-  const action = parsed.action === "compare" && !isOn("compare") ? null : parsed.action;
+  const { section, action, rest, alt } = parse(q);
   const tokens = norm.split(" ");
 
   // Pages and settings whose words cover everything typed. Typed in full ("dark", "lista"), they
@@ -185,23 +165,11 @@ export function commandsFor(q: string, ctx: Context): Command[] {
   const covers = (words: readonly string[]) => tokens.every((tok) => anyWord(tok, words));
   const whole = (words: readonly string[]) => tokens.every((tok) => exactly(tok, words));
   const others: { c: Command; exact: boolean }[] = [
-    ...(Object.keys(PAGES) as PageId[]).filter((p) => offeredPage(p) && covers(PAGES[p].words)).map((p) => ({ c: { type: "page", page: p } as Command, exact: whole(PAGES[p].words) })),
+    ...(Object.keys(PAGES) as PageId[]).filter((p) => covers(PAGES[p].words)).map((p) => ({ c: { type: "page", page: p } as Command, exact: whole(PAGES[p].words) })),
     ...(Object.keys(SETTINGS) as SettingId[]).filter((k) => covers(SETTINGS[k].words)).map((k) => ({ c: { type: "setting", setting: k } as Command, exact: whole(SETTINGS[k].words) })),
   ];
   const found = ctx.results.some((r) => r.symbol === rest.toUpperCase());
   if (!found) for (const o of others) if (o.exact) push(o.c);
-
-  // "compare aapl msft", "aapl vs msft", or "compare msft" on a stock page: up to four tickers.
-  if (action === "compare") {
-    const typed = rest
-      .split(" ")
-      .map((w) => w.toUpperCase())
-      .filter((w) => TICKER.test(w));
-    const symbols = [...new Set([...(ctx.symbol && !typed.includes(ctx.symbol) ? [ctx.symbol] : []), ...typed])].slice(0, 4);
-    if (symbols.length) push({ type: "compare", symbols });
-    for (const o of others) push(o.c);
-    return out;
-  }
 
   // A company was named: its section (or the overview), or the action on it.
   if (rest) {

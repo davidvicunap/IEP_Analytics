@@ -1,6 +1,5 @@
 "use client";
 
-import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -132,13 +131,6 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
           hideEmpty
           items={brief?.results ?? []}
           note={brief?.results.length ? B.results.note : undefined}
-          more={
-            isOn("calendar") ? (
-              <Link href="/calendar" prefetch={false} className="link text-xs">
-                {t.calendar.open}
-              </Link>
-            ) : undefined
-          }
         >
           {(r) => (
             <Row key={r.symbol} symbol={r.symbol} href={`/stock/${encodeURIComponent(r.symbol)}`}>
@@ -171,12 +163,6 @@ export default function Briefing({ list, search, portfolio }: { list: string[]; 
       {quiet.length > 0 && (
         <p className="text-sm text-muted" data-testid="brief-quiet">
           {fill(B.quiet, { list: quiet.map((q) => q.charAt(0).toLowerCase() + q.slice(1)).join(" · ") })}{" "}
-          {/* The calendar link sits here only when the results list is folded (otherwise it's under the list). */}
-          {quiet.includes(B.results.title) && isOn("calendar") && (
-            <Link href="/calendar" prefetch={false} className="link">
-              {t.calendar.open}
-            </Link>
-          )}
           {fair.size === 0 && notes.state.status === "ok" && <span className="mt-1 block text-xs">{B.fairValueTip}</span>}
         </p>
       )}

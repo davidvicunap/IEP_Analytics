@@ -1,83 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import en from "./i18n/en";
 import es from "./i18n/es";
 import { holdingSignals } from "./holdingAlerts";
 import { uncheckedMessage } from "./push";
 import { applyInput, emptyNote } from "./research";
 import { memoryStore } from "./researchStore";
-import { linkUrl, newLinkCode, parseUpdate, telegramMessage } from "./telegram";
-import { ensureWebhook, memoryTelegram, sendTelegram, telegramConfig, type TelegramApi } from "./telegramServer";
 import { memoryAlerts } from "./thesisAlertStore";
 import { checkHoldings, checkThesis } from "./thesesData";
 import type { ThesisFacts } from "./thesis";
-
-describe("Telegram: what the bot receives", () => {
-  const msg = (text: string, extra: Record<string, unknown> = {}) => ({ message: { chat: { id: 12345, type: "private" }, text, from: { language_code: "es-MX" }, ...extra } });
-  it("reads /start with its code, /stop and anything else; ignores groups and non-text", () => {
-    expect(parseUpdate(msg("/start abcdef123456"))).toEqual({ chatId: "12345", command: { kind: "start", code: "abcdef123456" }, lang: "es" });
-    expect(parseUpdate(msg("/start"))).toMatchObject({ command: { kind: "start", code: null } });
-    expect(parseUpdate(msg("/stop"))).toMatchObject({ command: { kind: "stop" } });
-    expect(parseUpdate(msg("hola"))).toMatchObject({ command: { kind: "other" } });
-    expect(parseUpdate({ message: { chat: { id: 1, type: "group" }, text: "/start x" } })).toBeNull();
-    expect(parseUpdate({ message: { chat: { id: 1 } } })).toBeNull();
-    expect(parseUpdate(null)).toBeNull();
-  });
-
-  it("writes alerts as escaped HTML with a button that opens the page and marks it as from an alert", () => {
-    const m = telegramMessage({ title: "AAPL: <1 aviso>", body: "Tocó tu stop & más", url: "/stock/AAPL?tab=research", tag: "x" }, "https://iep.example", "Abrir");
-    expect(m.text).toBe("<b>AAPL: &lt;1 aviso&gt;</b>\nTocó tu stop &amp; más");
-    expect(m.reply_markup.inline_keyboard[0][0]).toEqual({ text: "Abrir", url: "https://iep.example/stock/AAPL?tab=research&src=alert" });
-    expect(linkUrl("iep_bot", "abc")).toBe("https://t.me/iep_bot?start=abc");
-    expect(newLinkCode(() => "11111111-2222-3333-4444-555555555555")).toBe("111111112222333344445555");
-  });
-});
-
-describe("Telegram: linking and sending", () => {
-  it("is off without a bot; the webhook secret comes from the token unless set", () => {
-    expect(telegramConfig({})).toBeNull();
-    const c = telegramConfig({ TELEGRAM_BOT_TOKEN: "123:abc", TELEGRAM_BOT_USERNAME: "@iep_bot" })!;
-    expect(c.username).toBe("iep_bot");
-    expect(c.secret).toMatch(/^[0-9a-f]{48}$/);
-    expect(telegramConfig({ TELEGRAM_BOT_TOKEN: "1", TELEGRAM_BOT_USERNAME: "b", TELEGRAM_WEBHOOK_SECRET: "s" })!.secret).toBe("s");
-  });
-
-  it("a code links once and expires", async () => {
-    const store = memoryTelegram();
-    const now = new Date("2026-11-21T15:00:00Z");
-    const code = await store.createCode("ana", "es", now);
-    expect(await store.takeCode(code, now)).toEqual({ owner: "ana", lang: "es" });
-    expect(await store.takeCode(code, now)).toBeNull(); // spent
-    const late = await store.createCode("ana", "es", now);
-    expect(await store.takeCode(late, new Date(now.getTime() + 16 * 60_000))).toBeNull(); // expired
-  });
-
-  it("sends in each chat's language; a chat that blocked the bot is unlinked", async () => {
-    const store = memoryTelegram();
-    const now = new Date();
-    await store.link("1", "ana", "es", now);
-    await store.link("2", "ana", "en", now);
-    const sent: { chat: unknown; text: string }[] = [];
-    const api: TelegramApi = async (_m, body) => {
-      sent.push({ chat: body.chat_id, text: String(body.text) });
-      return { status: body.chat_id === "2" ? 403 : 200 };
-    };
-    const config = { token: "t", username: "b", secret: "s" };
-    const r = await sendTelegram("ana", (t) => [{ title: t.push.msgTestTitle, body: t.push.msgTestBody, url: "/research", tag: "t" }], { store, config, api, site: "https://x" });
-    expect(r).toEqual({ devices: 2, sent: 1, failed: 0, gone: 1 });
-    expect(sent.find((s) => s.chat === "1")!.text).toContain(es.push.msgTestBody);
-    expect(sent.find((s) => s.chat === "2")!.text).toContain(en.push.msgTestBody);
-    expect(await store.chats("ana")).toEqual([{ chatId: "1", lang: "es" }]);
-  });
-
-  it("registers the webhook once with its secret", async () => {
-    const api = vi.fn<TelegramApi>(async () => ({ status: 200 }));
-    const config = { token: "t", username: "b", secret: "sec" };
-    await ensureWebhook(config, api, "https://iep.example");
-    await ensureWebhook(config, api, "https://iep.example");
-    expect(api).toHaveBeenCalledTimes(1);
-    expect(api).toHaveBeenCalledWith("setWebhook", expect.objectContaining({ url: "https://iep.example/api/telegram/webhook", secret_token: "sec" }));
-  });
-});
 
 describe("alerts for what you own", () => {
   const facts = (over: Partial<ThesisFacts> = {}): ThesisFacts => ({ nextResults: { date: "2026-11-24" }, report: { accn: "a1", form: "10-Q", filed: "2026-11-20" }, ...over });

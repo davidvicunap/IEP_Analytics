@@ -1,34 +1,27 @@
-// Where alerts go: every phone/browser with push turned on and every linked Telegram chat of the
-// beta label, each in its own language. A channel that isn't set up is skipped; failures are
-// counted and logged, never thrown into the check that raised the alert.
+// Where alerts go: every phone/browser with push turned on for the beta label, each in its own
+// language. Without push set up nothing is sent; failures are counted and logged, never thrown
+// into the check that raised the alert.
 import { recordEvent } from "./eventStore";
 import type { Lang } from "./format";
 import type { CoreDict } from "./i18n/es";
 import type { PushMessage } from "./push";
 import { pushStore, sendToOwner, type PushStore, type SendResult, type Sender } from "./pushServer";
-import { sendTelegram, telegramConfig, telegramStore, type TelegramApi, type TelegramConfig, type TelegramStore } from "./telegramServer";
 
 export interface Channels {
   push?: PushStore | null;
   sender?: Sender;
-  telegram?: { store: TelegramStore; config: TelegramConfig; api?: TelegramApi } | null;
 }
 
 export function defaultChannels(): Channels {
-  const config = telegramConfig();
-  const store = config ? telegramStore() : null;
-  return { push: pushStore(), telegram: config && store ? { store, config } : null };
+  return { push: pushStore() };
 }
 
 const EMPTY: SendResult = { devices: 0, sent: 0, failed: 0, gone: 0 };
 
-export async function deliver(owner: string, build: (t: CoreDict, lang: Lang) => PushMessage[], channels: Channels = defaultChannels(), now = new Date()): Promise<{ push: SendResult; telegram: SendResult }> {
-  const [push, telegram] = await Promise.all([
-    channels.push ? sendToOwner(owner, build, { store: channels.push, sender: channels.sender, now }).catch((e) => fail("push", e)) : EMPTY,
-    channels.telegram ? sendTelegram(owner, build, channels.telegram).catch((e) => fail("telegram", e)) : EMPTY,
-  ]);
-  for (const [channel, r] of [["push", push], ["telegram", telegram]] as const) if (r.sent > 0) await recordEvent(owner, "alert_sent", { channel, n: r.sent }, now);
-  return { push, telegram };
+export async function deliver(owner: string, build: (t: CoreDict, lang: Lang) => PushMessage[], channels: Channels = defaultChannels(), now = new Date()): Promise<{ push: SendResult }> {
+  const push = channels.push ? await sendToOwner(owner, build, { store: channels.push, sender: channels.sender, now }).catch((e: unknown) => fail("push", e)) : EMPTY;
+  if (push.sent > 0) await recordEvent(owner, "alert_sent", { channel: "push", n: push.sent }, now);
+  return { push };
 }
 
 function fail(channel: string, e: unknown): SendResult {

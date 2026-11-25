@@ -1,6 +1,5 @@
 "use client";
 
-import { isOn } from "@/lib/features";
 import Link from "next/link";
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -16,7 +15,7 @@ import { COLUMNS, TAGS_PER_STOCK, cleanTag, nextSort, sortRows, tagCounts, type 
 import { useHydrated, useWatchColumns, useWatchlist, useWatchTags, WATCHLIST_LIMIT } from "@/lib/watchlist";
 import SyncNote from "./SyncNote";
 import TickerSearch from "./TickerSearch";
-import { ChartIcon, CloseIcon, ColumnsIcon, FileTextIcon, RefreshIcon, StarIcon, TagIcon } from "./icons";
+import { CloseIcon, ColumnsIcon, FileTextIcon, RefreshIcon, StarIcon, TagIcon } from "./icons";
 import { QuoteRowsSkeleton } from "./QuoteList";
 import { Badge, Change, EmptyState, Panel, Provenance, Skeleton, StatusMessage, buttonClass, toast } from "./ui";
 
@@ -128,15 +127,6 @@ export default function WatchlistView() {
                   </button>
                 )}
                 <ColumnsMenu columns={columns} onToggle={toggleColumn} />
-                {list.length > 1 && isOn("charts") && (
-                  <Link
-                    href={`/charts?s=${shown.slice(0, 5).map(encodeURIComponent).join(",")}&m=revenue&f=annual&t=growth&k=line&r=10`}
-                    className={buttonClass("ghost", true, "text-muted")}
-                  >
-                    <ChartIcon size={16} />
-                    {t.ux.compareList}
-                  </Link>
-                )}
                 <button type="button" onClick={q.refresh} disabled={q.refreshing || q.loading} className={buttonClass("ghost", true, "text-muted")}>
                   <RefreshIcon size={16} className={q.refreshing ? "animate-spin motion-reduce:animate-none" : ""} />
                   {q.refreshing ? t.ux.refreshing : t.ux.refresh}
