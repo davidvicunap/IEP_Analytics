@@ -84,7 +84,7 @@ export async function fetchFmp(path: string, params: Record<string, string>): Pr
   const key = process.env.FMP_API_KEY;
   if (!key) throw logged(new ProviderError("not_configured"), path);
   const qs = new URLSearchParams({ ...params, apikey: key });
-  await recordProviderCall("fmp"); // counts real upstream calls only (cache hits never get here)
+  await recordProviderCall("fmp", path); // counts real upstream calls only (cache hits never get here)
 
   let res: Response;
   try {
@@ -208,6 +208,34 @@ export function fmpQuote(symbol: string): Promise<Result<Quote>> {
     if (!q || num(q.price) === undefined) throw new ProviderError("not_found");
     return { data: mapQuote(q), fetchedAt };
   });
+}
+
+/** Batch quotes are a paid-plan endpoint: one remembered "not in the plan" covers every symbol set. */
+const BATCH_PLAN_KEY = rememberKey("batch-quote", {});
+
+/**
+ * Quotes for several symbols in one call (FMP's batch-quote). Resolves to null when the batch
+ * can't answer (not in the plan, a failure): the caller then asks per symbol, so each symbol keeps
+ * its own typed error and stored-price fallback. A symbol missing from the answer is "not_found".
+ */
+export async function fmpQuotes(symbols: string[]): Promise<Map<string, Result<Quote>> | null> {
+  const list = [...new Set(symbols)].sort(); // one cache entry per set, whatever the order
+  if (list.length === 0) return new Map();
+  if (await rememberedIssue(BATCH_PLAN_KEY)) return null;
+  try {
+    const { rows, fetchedAt } = await get("batch-quote", { symbols: list.join(",") }, await currentQuoteTtl());
+    const by = new Map(rows.filter((r) => num(r.price) !== undefined).map((r) => [String(r.symbol), r]));
+    return new Map(
+      list.map((s): [string, Result<Quote>] => {
+        const q = by.get(s);
+        return [s, q ? { ok: true, data: mapQuote(q), fetchedAt } : { ok: false, error: "not_found" }];
+      }),
+    );
+  } catch (e) {
+    if (isProviderError(e) && e.kind === "plan_restricted") await rememberIssue(BATCH_PLAN_KEY, "plan_restricted");
+    else if (!isProviderError(e)) console.error(JSON.stringify({ event: "provider_parse_error", provider: "fmp", endpoint: "batch-quote", message: e instanceof Error ? e.message : String(e) }));
+    return null;
+  }
 }
 
 /** Earnings dates with analysts' estimates (past rows carry the actual figures). Cached a day. */

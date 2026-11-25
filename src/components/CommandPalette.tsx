@@ -5,7 +5,6 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fill, useI18n } from "@/lib/i18n";
 import { PAGES, commandsFor, hrefFor, parse, type Command } from "@/lib/commands";
-import { markStep } from "@/lib/onboarding";
 import { SearchController, normalizeTerm, type SearchState } from "@/lib/search";
 import { useRecent, useWatchlist } from "@/lib/watchlist";
 import { ChevronRightIcon, GridIcon, MoonIcon, SearchIcon, StarIcon, SunIcon } from "./icons";

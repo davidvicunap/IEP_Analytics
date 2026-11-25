@@ -4,14 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { ChevronDownIcon, CloseIcon, FileTextIcon, SearchIcon, TableIcon } from "./icons";
+import { ChevronDownIcon, CloseIcon, FileTextIcon, SearchIcon } from "./icons";
 
 /**
- * "More": what sits beside the research: the portfolio and how numbers are calculated. The
+ * "More": what sits beside the research: how numbers are calculated. The
  * research itself, the canvas, the list and the screener are in the main navigation.
  */
 export const EXPLORE = [
-  { key: "portfolio", href: "/portfolio", Icon: TableIcon },
   { key: "methodology", href: "/methodology", Icon: FileTextIcon },
 ] as const;
 

@@ -11,7 +11,7 @@ export const SECTIONS = {
   valuation: { words: ["valoracion", "valuation"], path: "?tab=valuation" },
   comps: { words: ["comparables", "comps", "peers", "pares"], path: "?tab=valuation&view=comps" },
   history: { words: ["historia", "history", "multiplos", "multiples"], path: "?tab=valuation&view=history" },
-  dcf: { words: ["dcf", "descontado", "discounted"], path: "?tab=valuation&view=dcf" },
+  dcf: { words: ["dcf", "descontado", "discounted"], path: "?tab=valuation" },
   expectations: { words: ["expectativas", "expectations", "implied", "implicito"], path: "?tab=valuation&view=expectations" },
   filings: { words: ["filings", "presentaciones", "sec"], path: "?tab=filings" },
   insiders: { words: ["insiders", "directivos", "form4"], path: "?tab=filings&view=insiders" },
@@ -22,8 +22,7 @@ export const SECTIONS = {
 export type SectionId = keyof typeof SECTIONS;
 
 export const PAGES = {
-  home: { words: ["inicio", "home", "portada"], href: "/" },
-  portfolio: { words: ["cartera", "portfolio", "posiciones", "positions", "holdings"], href: "/portfolio" },
+  home: { words: ["inicio", "home", "portada", "cartera", "portfolio", "posiciones", "positions", "holdings"], href: "/" },
   watchlist: { words: ["lista", "watchlist", "list", "favoritos"], href: "/watchlist" },
   screener: { words: ["buscador", "screener", "filtrar", "filter", "screen"], href: "/screener" },
   research: { words: ["analisis", "research", "tesis", "theses", "cuaderno", "notebook"], href: "/" },

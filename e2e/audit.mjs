@@ -40,7 +40,6 @@ const CANVASES = [
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "portfolio", path: "/portfolio" },
   { name: "stock", path: "/stock/AAPL" },
   { name: "business", path: "/stock/AAPL", tab: "business" },
   { name: "valuation", path: "/stock/AAPL", tab: "valuation" },

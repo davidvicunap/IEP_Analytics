@@ -4,9 +4,10 @@
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtNum } from "@/lib/format";
 import { FUNNEL_STEPS, type Funnel } from "@/lib/funnel";
+import type { ProviderUsage } from "@/lib/quota";
 import { EmptyState, Panel, StatusMessage } from "./ui";
 
-export default function StatsView({ data }: { data: Funnel | null }) {
+export default function StatsView({ data, fmp }: { data: Funnel | null; fmp: ProviderUsage | null }) {
   const { t, lang } = useI18n();
   const S = t.stats;
   const pct = (a: number, b: number) => (b > 0 ? `${fmtNum((a / b) * 100, lang, 0)}%` : "—");
@@ -16,6 +17,7 @@ export default function StatsView({ data }: { data: Funnel | null }) {
         <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.02em]">{S.title}</h1>
         <p className="mt-1 text-[15px] text-muted">{S.intro}</p>
       </div>
+      <Usage fmp={fmp} />
       {!data ? (
         <StatusMessage tone="warn">{S.unavailable}</StatusMessage>
       ) : data.people === 0 ? (
@@ -67,5 +69,46 @@ export default function StatsView({ data }: { data: Funnel | null }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Today's FMP calls against the plan's daily limit, and which endpoints spent them. */
+function Usage({ fmp }: { fmp: ProviderUsage | null }) {
+  const { t, lang } = useI18n();
+  const U = t.stats.usage;
+  return (
+    <Panel title={U.title} id="fmp-usage">
+      {!fmp ? (
+        <p className="text-sm text-muted">{U.unavailable}</p>
+      ) : (
+        <>
+          <p className="num text-sm" data-testid="fmp-calls">
+            {fill(U.line, { n: fmtNum(fmp.calls, lang, 0), l: fmtNum(fmp.limit, lang, 0) })}
+          </p>
+          {fmp.byEndpoint.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">{U.none}</p>
+          ) : (
+            <table className="num mt-3 w-full max-w-md text-sm">
+              <caption className="sr-only">{U.title}</caption>
+              <thead>
+                <tr className="text-xs text-muted">
+                  <th scope="col" className="pb-1.5 text-left font-normal">{U.endpoint}</th>
+                  <th scope="col" className="pb-1.5 text-right font-normal">{U.calls}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line border-y border-line">
+                {fmp.byEndpoint.map((e) => (
+                  <tr key={e.endpoint}>
+                    <th scope="row" className="py-1.5 text-left font-mono text-[13px] font-normal">{e.endpoint}</th>
+                    <td className="py-1.5 text-right">{fmtNum(e.calls, lang, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="mt-2 text-xs text-muted">{U.note}</p>
+        </>
+      )}
+    </Panel>
   );
 }

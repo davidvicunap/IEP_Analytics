@@ -194,7 +194,7 @@ export async function recentPrices(symbols: string[], maxAgeMs: number, now = Da
     if (st && now - Date.parse(st.fetchedAt) <= maxAgeMs) out.set(s, { price: st.quote.price, at: st.fetchedAt, stored: true });
     else ask.push(s);
   }
-  const results = await mapLimit(ask, QUOTE_CONCURRENCY, getQuote);
+  const results = await quoteMany(ask);
   ask.forEach((s, i) => {
     const r = results[i];
     const st = stored.get(s);
@@ -204,10 +204,27 @@ export async function recentPrices(symbols: string[], maxAgeMs: number, now = Da
   return out;
 }
 
+/**
+ * Several quotes: one FMP batch call when the plan has it (a 20-stock list is 1 call, not 20),
+ * otherwise one cached call per symbol. Same order as `symbols`.
+ */
+async function quoteMany(symbols: string[]): Promise<Result<Quote>[]> {
+  if (symbols.length > 1 && !isDemo()) {
+    trace("quote", symbols.join(","));
+    const batch = await fmp.fmpQuotes(symbols);
+    if (batch) {
+      const results = symbols.map((s) => batch.get(s) ?? ({ ok: false, error: "not_found" } as const));
+      await Promise.all(results.map((r) => (r.ok ? keepQuote(r.data, r.fetchedAt) : null)));
+      return results;
+    }
+  }
+  return mapLimit(symbols, QUOTE_CONCURRENCY, getQuote);
+}
+
 export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { skipped?: string[] }> {
   const all = [...new Set(symbols.map(normalizeSymbol).filter((s): s is string => !!s))];
   const list = all.slice(0, QUOTES_PER_REQUEST);
-  const results = await mapLimit(list, QUOTE_CONCURRENCY, getQuote);
+  const results = await quoteMany(list);
   // A symbol FMP can't answer now shows its last stored price, marked as such.
   const stored = await readStored(list.filter((_, i) => !results[i].ok));
   const entries: QuoteEntry[] & { skipped?: string[] } = list.map((symbol, i) => {
@@ -223,7 +240,6 @@ export async function getQuotes(symbols: string[]): Promise<QuoteEntry[] & { ski
 export interface StockSections {
   source: DataSource;
   profile: Promise<Result<Profile>>;
-  history: Promise<Result<Candle[]>>; // oldest -> newest
 }
 
 /**
@@ -231,22 +247,19 @@ export interface StockSections {
  * each section of the page waits only for its own data. The promises never reject; a
  * failure resolves to a typed Result.
  */
-/** Daily candles for up to 5 years (oldest first): FMP, or simulated in demo mode. */
 export function getStockSections(symbol: string): StockSections {
-  for (const k of ["profile", "history"] as const) trace(k, symbol);
-  if (isDemo()) {
-    return {
-      source: "DEMO",
-      profile: demoResult("profile", mock.mockProfile(symbol)),
-      history: demoResult("history", mock.mockHistory(symbol)),
-    };
-  }
-  // News comes from TradingView and SEC 8-K filings in the browser, not from FMP's quota.
-  return {
-    source: "FMP",
-    profile: fmp.fmpProfile(symbol),
-    history: fmp.fmpHistory(symbol),
-  };
+  trace("profile", symbol);
+  if (isDemo()) return { source: "DEMO", profile: demoResult("profile", mock.mockProfile(symbol)) };
+  // News comes from TradingView and SEC 8-K filings in the browser, and price history only
+  // where it's used (/api/history), not from every page view's share of the FMP quota.
+  return { source: "FMP", profile: fmp.fmpProfile(symbol) };
+}
+
+/** Daily candles for up to 5 years (oldest first): FMP, or simulated in demo mode. */
+export function getDailyHistory(symbol: string): Promise<Result<Candle[]>> {
+  trace("history", symbol);
+  if (isDemo()) return demoResult("history", mock.mockHistory(symbol));
+  return fmp.fmpHistory(symbol);
 }
 
 export async function searchSymbols(query: string): Promise<Result<SearchResult[]>> {

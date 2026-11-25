@@ -19,7 +19,7 @@ export const KIND_GROUPS: { key: "market" | "company" | "value" | "yours"; kinds
 /** Chart intervals offered (TradingView's codes). */
 export const INTERVALS = ["5", "15", "60", "240", "D", "W", "M"] as const;
 export type Interval = (typeof INTERVALS)[number];
-export const VALUATION_VIEWS = ["history", "comps", "dcf", "expectations"] as const;
+export const VALUATION_VIEWS = ["history", "comps", "expectations"] as const;
 export type ValuationView = (typeof VALUATION_VIEWS)[number];
 
 /** Symbol link groups: windows in the same group always show the same company. 0 = not linked. */

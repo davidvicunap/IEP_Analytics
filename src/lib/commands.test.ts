@@ -57,19 +57,19 @@ describe("commands for a line", () => {
   });
 
   it("uses the stock on screen when only a section or an action is typed", () => {
-    expect(hrefs(commandsFor("dcf", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation&view=dcf"]);
+    expect(hrefs(commandsFor("dcf", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation"]);
     expect(hrefs(commandsFor("seguir", ctx({ symbol: "KO" })))).toEqual(["follow:KO"]);
     expect(hrefs(commandsFor("dejar de seguir ko", ctx()))).toEqual(["unfollow:KO"]);
     expect(hrefs(commandsFor("de", ctx()))).toEqual(["/stock/DE"]); // alone, a little word is a ticker (Deere)
     // "dis" on a stock page: its DCF, or Disney.
-    expect(hrefs(commandsFor("dis", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation&view=dcf", "/stock/DIS"]);
+    expect(hrefs(commandsFor("dis", ctx({ symbol: "MSFT" })))).toEqual(["/stock/MSFT?tab=valuation", "/stock/DIS"]);
   });
 
   it("offers the product's places, not tools it no longer has", () => {
     for (const q of ["comparar", "calendario", "generador", "aciertos"]) {
       expect(hrefs(commandsFor(q, ctx())).filter((h) => h.startsWith("page:"))).toEqual([]);
     }
-    expect(hrefs(commandsFor("cartera", ctx()))[0]).toBe("page:portfolio");
+    expect(hrefs(commandsFor("cartera", ctx()))[0]).toBe("page:home");
     expect(hrefs(commandsFor("lienzo", ctx()))[0]).toBe("page:canvas");
   });
 

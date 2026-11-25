@@ -36,22 +36,20 @@ const assert = (cond, msg) => {
 };
 
 const browser = await chromium.launch();
-async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, onboarding = false, planMode = "form" } = {}) {
+async function page({ width = 1280, height = 900, lang = "es", theme = "light", watchlist = [], touch = false, planMode = "form" } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: lang === "es" ? "es-US" : "en-US" });
   await ctx.addCookies([{ name: "lang", value: lang, url: base }]);
   await ctx.addInitScript(
-    ([theme, list, onboarding, planMode]) => {
+    ([theme, list, planMode]) => {
       if (!sessionStorage.getItem("seeded")) {
         // An empty notebook opens on the guided plan; journeys use the form unless they test the guide.
         if (planMode) localStorage.setItem("iep.planMode", planMode);
         localStorage.setItem("iep.theme", theme);
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
-        // The getting-started checklist is hidden except in its own journey.
-        if (!onboarding) localStorage.setItem("iep.onboarding", JSON.stringify({ hidden: true }));
         sessionStorage.setItem("seeded", "1");
       }
     },
-    [theme, watchlist, onboarding, planMode],
+    [theme, watchlist, planMode],
   );
   await ctx.route(/tradingview\.com/, (r) => r.abort());
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
@@ -188,11 +186,11 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   // A ticker and a section, in any order.
   await open();
   await box().fill("dcf msft");
-  await p.getByRole("option", { name: /MSFT · DCF/ }).waitFor();
+  await p.getByRole("option", { name: /MSFT · Reverse DCF/ }).waitFor();
   await axe(p);
   await p.keyboard.press("Enter");
-  await p.waitForURL(/\/stock\/MSFT\?tab=valuation&view=dcf$/);
-  await p.getByRole("button", { name: "DCF", pressed: true }).waitFor();
+  await p.waitForURL(/\/stock\/MSFT\?tab=valuation$/);
+  await p.getByRole("button", { name: "Comps", pressed: true }).waitFor();
   // A section alone means the stock on screen; arrows move, Enter runs.
   await open();
   await box().fill("insiders");
@@ -227,40 +225,7 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await p.context().close();
 });
 
-await test("getting started: own → exit → alerts → follow tick themselves off from what you do, and the list can be hidden", async () => {
-  const p = await page({ lang: "en", onboarding: true });
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
-  let trades = [];
-  await p.route(/\/api\/trades$/, (r) => (r.request().method() === "GET" ? r.fulfill(json({ ok: true, fetchedAt: "x", data: trades })) : r.continue()));
-  await p.goto(base + "/portfolio");
-  const box = p.locator("#getting-started");
-  await box.getByText("0 of 4 done").waitFor();
-  assert((await box.getByRole("link", { name: "Add a position" }).getAttribute("href")) === "#portfolio", "the first step points at the portfolio");
-  await axe(p);
-  // Following a stock: the home page becomes the briefing, with the checklist still there.
-  await p.evaluate(() => localStorage.setItem("iep.watchlist", JSON.stringify(["KO"])));
-  await p.reload();
-  await box.getByText("1 of 4 done").waitFor();
-  // Owning something ticks the first step, and "Set an exit" opens its guided plan.
-  trades = [{ id: "t1", symbol: "KO", side: "buy", date: "2026-11-02", shares: 10, price: 68, fees: 0, stop: null, note: "", createdAt: "2026-11-02T15:00:00.000Z" }];
-  await p.reload();
-  await box.getByText("2 of 4 done").waitFor();
-  assert((await box.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit step opens the held stock's plan");
-  assert((await box.getByRole("link", { name: "Choose" }).getAttribute("href")) === "/#push", "alerts step opens the channels");
-  // An alert channel turned on (remembered in this browser).
-  await p.evaluate(() => localStorage.setItem("iep.onboarding", JSON.stringify({ alerts: true })));
-  await p.reload();
-  await box.getByText("3 of 4 done").waitFor();
-  await box.getByRole("button", { name: "Hide" }).click();
-  await box.waitFor({ state: "detached" });
-  await p.reload();
-  await p.getByRole("heading", { level: 1 }).first().waitFor();
-  assert((await p.locator("#getting-started").count()) === 0, "hidden checklist came back");
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("navigation: research, canvas, list and screener; More holds the portfolio and the method; a sheet on phones", async () => {
+await test("navigation: research, canvas, list and screener; More holds the method; the old portfolio address opens the hub; a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
@@ -268,11 +233,11 @@ await test("navigation: research, canvas, list and screener; More holds the port
   for (const name of ["Research", "Canvas", "Watchlist", "Screener"]) assert((await nav.getByRole("link", { name, exact: true }).count()) === 1, `${name} in the nav`);
   // Tools left out of the MVP aren't offered (their pages still open by URL).
   await nav.getByRole("button", { name: "More" }).click();
-  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).waitFor();
-  assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs/ }).count()) === 0, "hidden tools offered");
+  await p.getByRole("link", { name: /How we calculate\s*Where every number/ }).waitFor();
+  assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs|My portfolio/ }).count()) === 0, "removed tools offered");
   await axe(p);
-  await p.getByRole("link", { name: /My portfolio\s*Your positions/ }).click();
-  await p.waitForURL(/\/portfolio$/);
+  await p.goto(base + "/portfolio");
+  await p.waitForURL((u) => u.pathname === "/");
   await p.goto(base + "/research");
   await p.waitForURL((u) => u.pathname === "/");
   await p.context().close();
@@ -283,7 +248,7 @@ await test("navigation: research, canvas, list and screener; More holds the port
   for (const name of ["Mi análisis", "Lienzo", "Mi lista", "Buscador"]) await bar.getByRole("link", { name }).waitFor();
   await bar.getByRole("button", { name: "Más" }).click();
   const sheet = m.getByRole("dialog", { name: "Más" });
-  await sheet.getByRole("link", { name: /Mi cartera/ }).waitFor();
+  await sheet.getByRole("link", { name: /Cómo calculamos/ }).waitFor();
   await sheet.getByRole("button", { name: "Comandos y atajos" }).click();
   await m.getByRole("dialog", { name: "Comandos" }).waitFor();
   await m.context().close();
@@ -293,6 +258,7 @@ await test("research hub: how to start when empty; theses with today's price and
   const p = await page({ lang: "en" });
   let notes = [];
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
   await p.getByRole("heading", { name: "How it works" }).waitFor();
@@ -631,58 +597,6 @@ await test("chart: TradingView keeps its full height after its script resizes th
   await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
   const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
   assert(h >= 400, `chart is ${h}px tall`);
-  await p.context().close();
-});
-
-// ---- Home briefing ------------------------------------------------------------------------------
-
-await test("home briefing: following stocks shows what changed, each row opening its place; empty lists say so", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
-  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // nor holdings
-  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
-  const snap = (symbol, o) => ({
-    symbol, cik: 320193,
-    quality: { ok: false, error: "not_found" },
-    filings: { ok: true, data: { report: null, latest: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
-    insiders: { ok: true, data: { from: "", to: "", bought: o.bought ?? 0, sold: o.sold ?? 0, buyers: 1, sellers: 0, pending: 0, checkedAt: "" } },
-  });
-  const data = {
-    AAPL: snap("AAPL", { recent: [{ accn: "0000320193-26-000099", form: "10-K", filed: day(-2), reportDate: null, primaryDocument: "a.htm", items: [] }], next: day(5) }),
-    MSFT: snap("MSFT", { bought: 2.5e6, sold: 1e6 }),
-    KO: snap("KO", { recent: [0, 1, 2].map((i) => ({ accn: `ko-${i}`, form: "DEFA14A", filed: day(-i), reportDate: null, primaryDocument: "a.htm", items: [] })) }),
-  };
-  await p.route(/\/api\/sec\/snapshot\//, (r) => r.fulfill(json({ ok: true, data: data[decodeURIComponent(r.request().url().split("/snapshot/")[1])], fetchedAt: new Date().toISOString() })));
-  await p.goto(base + "/portfolio");
-  await p.getByRole("heading", { level: 1, name: /^(Buenos días|Buenas tardes|Buenas noches)$/ }).waitFor();
-  await p.getByText("Lo nuevo de las acciones que sigues (3).", { exact: false }).waitFor();
-  const filing = p.getByRole("link", { name: /AAPL\s*Anuales \(10-K\)/ });
-  await filing.waitFor();
-  assert((await filing.getAttribute("href")) === "/stock/AAPL/report?accn=0000320193-26-000099", "10-K opens the reader");
-  await p.getByRole("link", { name: /AAPL\s*hacia el/ }).waitFor();
-  // Three proxy supplements are one row, in plain words, opening the stock's filings.
-  const proxy = p.getByRole("link", { name: /KO\s*Junta de accionistas · DEFA14A\s*3 presentaciones/ });
-  assert((await proxy.getAttribute("href")) === "/stock/KO?tab=filings", "grouped filings open the filings tab");
-  const ins = p.getByRole("link", { name: /MSFT\s*Compras \$2\.5M/ });
-  assert((await ins.getAttribute("href")) === "/stock/MSFT?tab=filings&view=insiders", "insiders link");
-  // Empty lists fold into one line; with no fair values yet it says how to add one.
-  await p.getByTestId("brief-quiet").getByText(/Sin novedades en: frente a tu valor razonable/).waitFor();
-  await p.getByText("Pon un valor razonable en «Mi análisis»", { exact: false }).waitFor();
-  assert((await p.getByRole("heading", { name: "Frente a tu valor razonable" }).count()) === 0, "an empty list still has its own box");
-  // Home is about what you own and follow: tools live under "Herramientas".
-  assert((await p.getByRole("heading", { name: "Explorar otras empresas" }).count()) === 0, "generic ideas left on a returning user's home");
-  await p.locator("#portfolio").getByText("Empieza por lo que ya tienes", { exact: false }).waitFor();
-  await axe(p);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("home briefing: SEC data that can't load is said once, the rest still shows", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT"] }); // demo: the SEC summaries answer "not configured"
-  await p.goto(base + "/portfolio");
-  await p.getByText("No pudimos revisar 2 de 2 acciones (sin fuente de datos).").waitFor();
-  await p.getByTestId("brief-quiet").getByText(/nuevas presentaciones/).waitFor();
-  await p.locator("#mini-watchlist").getByText("AAPL").first().waitFor();
   await p.context().close();
 });
 
@@ -1086,7 +1000,8 @@ await test("guided plan: reasons from the data, suggested levels with their reas
   // Step 2: levels from the price history, each with its reason; a tap fills the field.
   await guide.getByRole("heading", { name: "What would change your mind?" }).waitFor();
   const lists = guide.getByRole("list", { name: "Suggestions" });
-  await lists.first().getByRole("button").first().waitFor();
+  // The price history is asked for only on this step: wait for its suggestions, not the review dates.
+  await guide.getByRole("button", { name: /from the entry/ }).first().waitFor();
   const stop = lists.nth(0).getByRole("button").first();
   const stopText = await stop.innerText();
   assert(/from the entry/.test(stopText) && /(bounced|stalled|bad days|lowest price|highest price)/.test(stopText), `stop suggestion: ${stopText}`);
@@ -1235,61 +1150,37 @@ await test("trades: log a buy and a sell on a thesis (an oversell is refused), s
 });
 
 // Trades with a split, a renamed and a delisted ticker go in through the API here.
-await test("my portfolio: add from the search list, trades with a split restated and a renamed and a delisted ticker flagged, totals in pesos, one tap to an exit", async () => {
+await test("holdings on the hub: each held stock is a row, a split restated, a renamed and a delisted ticker flagged, the total with its source", async () => {
   const p = await page({ lang: "en", watchlist: [] });
-  await p.goto(base + "/portfolio");
+  await p.goto(base + "/");
   await p.evaluate(async () => {
     const all = await (await fetch("/api/trades")).json();
     for (const t of [...all.data].reverse()) await fetch(`/api/trades/${t.id}`, { method: "DELETE" });
     for (const s of ["KO", "NEWCO", "OLDCO"]) await fetch(`/api/research/${s}`, { method: "DELETE" });
-  });
-  await p.reload();
-  const box = p.locator("#portfolio");
-  await box.getByText("Start with what you already own", { exact: false }).waitFor();
-  await axe(p);
-  // One position: the company comes from the search list, the price is one tap away.
-  await box.getByRole("button", { name: "Add a position" }).click();
-  await box.getByRole("combobox", { name: "Company" }).fill("KO");
-  await p.getByRole("option", { name: /KO/ }).first().click();
-  await box.getByText("Picked: KO").waitFor();
-  await box.getByLabel("Shares").fill("10");
-  await box.getByRole("button", { name: /Use the current price/ }).click();
-  await box.getByRole("button", { name: "Add to my portfolio" }).click();
-  await box.getByText("KO is in your portfolio. We're following it for you.").waitFor();
-  assert((await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")))).includes("KO"), "owning it should follow it");
-  assert((await box.getByRole("button", { name: "Import from my broker" }).count()) === 0, "the import is out of the MVP");
-  await p.evaluate(async () => {
     const add = (symbol, date, shares, price) =>
       fetch("/api/trades", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol, side: "buy", date, shares, price, fees: 0 }) });
+    await add("KO", "2026-11-02", 10, 68);
     await add("SPLT", "2026-01-05", 2, 1000);
     await add("OLDCO", "2026-02-06", 3, 50);
     await add("GONE", "2026-02-07", 10, 5);
   });
   await p.reload();
-  // Each holding: one light and its reason, the most urgent first.
-  const holdings = box.getByTestId("holdings");
-  await holdings.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
-  await holdings.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
-  await holdings.getByTestId("holding-GONE").getByText("Look now").waitFor();
-  await holdings.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
-  const ko = holdings.getByTestId("holding-KO");
-  await ko.getByText(/No exit set/).waitFor();
-  assert((await ko.getByRole("link", { name: "Set an exit" }).getAttribute("href")) === "/stock/KO?tab=research&plan=1", "exit link");
-  assert((await holdings.locator("li").first().getAttribute("data-testid")) === "holding-GONE", "red first");
-  // In pesos: the total converted, with the rate's source and time.
-  await box.getByLabel("Your currency").selectOption("MXN");
-  await box.getByTestId("portfolio-local").getByText(/≈ MX\$ [\d,]+\.\d{2} · US\$1 = 18\.5 MXN \(demo exchange rate/).waitFor();
+  const list = p.getByTestId("theses");
+  await list.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
+  await list.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
+  await list.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
+  await list.getByTestId("holding-KO").getByText(/No exit set/).waitFor();
+  await list.getByTestId("thesis-KO").getByText("No thesis yet").waitFor();
+  await p.getByTestId("holdings-total").getByText(/You hold 4 positions worth/).waitFor();
+  assert((await p.getByText("To log what you own of a stock", { exact: false }).count()) === 0, "the how-to shows only with no holdings");
   await axe(p);
-  // The renamed ticker: one tap moves the notebook, alerts and trades.
-  await holdings.getByTestId("holding-OLDCO").getByRole("link", { name: "Move to NEWCO" }).click();
+  // The renamed ticker: its row opens the research tab, where one tap moves the notebook, alerts and trades.
+  await list.getByTestId("thesis-OLDCO").getByRole("link", { name: /OLDCO/ }).first().click();
   await p.waitForURL(/\/stock\/OLDCO\?tab=research/);
   await p.locator("#listing").getByRole("button", { name: "Move everything to NEWCO" }).click();
   await p.waitForURL(/\/stock\/NEWCO\?tab=research/);
   const symbols = await p.evaluate(async () => (await (await fetch("/api/trades")).json()).data.map((t) => t.symbol));
   assert(symbols.includes("NEWCO") && !symbols.includes("OLDCO"), `trades moved: ${symbols}`);
-  // "Set an exit" opens the guided plan on its levels.
-  await p.goto(base + "/stock/KO?tab=research&plan=1");
-  await p.locator("#plan-builder").getByRole("heading", { name: "What would change your mind?" }).waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });

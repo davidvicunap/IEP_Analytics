@@ -6,7 +6,6 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { disablePush, enablePush, readPushStatus, resyncPush, sendTestPush, type PushIssue, type PushStatus } from "@/lib/pushClient";
-import { markStep } from "@/lib/onboarding";
 import { track } from "@/lib/track";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "./ui";
 
@@ -43,7 +42,6 @@ export default function PushSettings({ variant = "panel" }: { variant?: "panel" 
       setStatus("on");
       setEnabledHere(true);
       track("alerts_push_on");
-      markStep("alerts");
     } else if (r.issue === "denied") setStatus("denied");
     else if (r.issue !== "dismissed") setNote({ kind: "issue", issue: r.issue, retry: enable });
   };

@@ -4,7 +4,7 @@
 // the stock's own data, then a review. Every suggestion says why it was suggested; the user picks
 // or types each value, and saving creates a watched thesis. Text: `plan` in the deep dictionary.
 import Link from "next/link";
-import { Suspense, use, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { capitalInUsd, useFx } from "@/lib/fxClient";
@@ -16,7 +16,7 @@ import { saveNote, type SaveIssue } from "@/lib/researchClient";
 import { riskStore, useRisk } from "@/lib/riskClient";
 import { track } from "@/lib/track";
 import type { Direction } from "@/lib/thesis";
-import type { Candle, Result } from "@/lib/types";
+import type { Candle } from "@/lib/types";
 import { useResource } from "@/lib/useResource";
 import type { EarningsPayload } from "@/lib/earningsData";
 import type { VerdictPoint } from "@/lib/verdict";
@@ -25,7 +25,7 @@ import { Mark, verdictEvidence } from "./VerdictText";
 import { CheckIcon } from "../icons";
 import { Explain, IssueNote, Panel, Segmented, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
-import MoneySettings from "../portfolio/MoneySettings";
+import MoneySettings from "./MoneySettings";
 import { PlanPreview } from "./Thesis";
 
 type Lang = "es" | "en";
@@ -55,7 +55,6 @@ export default function PlanBuilder({
   symbol,
   note,
   price,
-  history,
   onSaved,
   onManual,
   onReload,
@@ -63,7 +62,6 @@ export default function PlanBuilder({
   symbol: string;
   note: ResearchNote;
   price: number | null;
-  history: Promise<Result<Candle[]>> | null;
   onSaved: () => void;
   onManual: () => void;
   onReload: () => void;
@@ -144,7 +142,7 @@ export default function PlanBuilder({
       </h3>
 
       {step === 0 && <WhyStep symbol={symbol} draft={draft} set={set} />}
-      {step === 1 && <LevelsStep symbol={symbol} draft={draft} set={set} price={price} history={history} />}
+      {step === 1 && <LevelsStep symbol={symbol} draft={draft} set={set} price={price} />}
       {step === 2 && <SizeStep draft={draft} />}
       {step === 3 && (
         <div className="space-y-4">
@@ -304,7 +302,7 @@ function Reasons({ symbol, draft, set }: { symbol: string; draft: Draft; set: Se
 
 // ---- Step 2: what would change your mind -----------------------------------------------------------
 
-function LevelsStep({ symbol, draft, set, price, history }: { symbol: string; draft: Draft; set: Setter; price: number | null; history: Promise<Result<Candle[]>> | null }) {
+function LevelsStep({ symbol, draft, set, price }: { symbol: string; draft: Draft; set: Setter; price: number | null }) {
   const { t, lang } = useI18n();
   const P = t.plan;
   const R = t.research;
@@ -320,21 +318,12 @@ function LevelsStep({ symbol, draft, set, price, history }: { symbol: string; dr
           </button>
         )}
       </div>
-      <Suspense
-        fallback={
-          <div className="space-y-2" aria-hidden="true">
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-          </div>
-        }
-      >
-        <LevelPickers draft={draft} set={set} history={history} />
-      </Suspense>
+      <LevelPickers symbol={symbol} draft={draft} set={set} />
       <div>
         <p className="text-sm font-medium">{P.fairValueTitle}</p>
         <p className="mb-1.5 text-xs text-muted">
           {P.fairValueHint}{" "}
-          <Link href={`/stock/${encodeURIComponent(symbol)}?tab=valuation&view=dcf`} prefetch={false} className="link">
+          <Link href={`/stock/${encodeURIComponent(symbol)}?tab=valuation`} prefetch={false} className="link">
             {P.dcfLink}
           </Link>
         </p>
@@ -346,19 +335,27 @@ function LevelsStep({ symbol, draft, set, price, history }: { symbol: string; dr
   );
 }
 
-function LevelPickers({ draft, set, history }: { draft: Draft; set: Setter; history: Promise<Result<Candle[]>> | null }) {
+/** Suggested stops and targets from the price history, fetched only once this step is open. */
+function LevelPickers({ symbol, draft, set }: { symbol: string; draft: Draft; set: Setter }) {
   const { t, lang } = useI18n();
   const P = t.plan;
   const R = t.research;
-  const h = history ? use(history) : null;
-  const levels = useMemo(() => (h?.ok && h.data.length ? keyLevels(h.data) : null), [h]);
+  const { state, retry } = useResource<Candle[]>(`/api/history/${encodeURIComponent(symbol)}`, { shared: true });
+  const candles = state.status === "ok" ? state.data : null;
+  const levels = useMemo(() => (candles?.length ? keyLevels(candles) : null), [candles]);
   const entry = draft.entry ?? 0;
   const stops = useMemo(() => stopOptions(levels, entry, draft.direction), [levels, entry, draft.direction]);
   const targets = useMemo(() => targetOptions(levels, entry, draft.direction, draft.fairValue), [levels, entry, draft.direction, draft.fairValue]);
   return (
     <>
-      {h && !h.ok && <IssueNote issue={h.error} />}
-      {h?.ok && !stops.length && !targets.length && <p className="text-sm text-muted">{P.noLevels}</p>}
+      {state.status === "loading" && (
+        <div className="space-y-2" aria-hidden="true">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      )}
+      {state.status === "error" && <IssueNote issue={state.issue} onRetry={retry} />}
+      {candles && !stops.length && !targets.length && <p className="text-sm text-muted">{P.noLevels}</p>}
       <LevelChoice title={P.stopTitle} label={R.stop} value={draft.stop} options={stops} describe={(o) => basisText(o, "stop", P, lang)} onChange={set("stop")} />
       <LevelChoice title={P.targetTitle} label={R.target} value={draft.target} options={targets} describe={(o) => basisText(o, "target", P, lang)} onChange={set("target")} />
     </>

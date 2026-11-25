@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
 import {
-  fmpAnalystEstimates, fmpEquityRiskPremium, fmpGrades, fmpPriceTarget, fmpQuote, fmpSearch, fmpTreasury10y,
+  fmpAnalystEstimates, fmpEquityRiskPremium, fmpGrades, fmpPriceTarget, fmpQuote, fmpQuotes, fmpSearch, fmpTreasury10y,
   kindFromMessage, kindFromStatus,
 } from "./fmp";
 
@@ -190,3 +190,36 @@ describe("analysts", () => {
   });
 });
 
+
+describe("batch quotes", () => {
+  const row = (symbol: string, price: number) => ({ symbol, name: `${symbol} Inc.`, price, change: 1, changePercentage: 0.5, timestamp: 1764000000 });
+
+  it("asks once for the whole set, in a stable order, and maps each symbol", async () => {
+    const fetchMock = respond(200, [row("MSFT", 400), row("AAPL", 230)]);
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await fmpQuotes(["MSFT", "AAPL", "ZZZZ", "AAPL"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = String((fetchMock.mock.calls[0] as unknown[])[0]);
+    expect(url).toContain("/batch-quote?");
+    expect(new URL(url).searchParams.get("symbols")).toBe("AAPL,MSFT,ZZZZ");
+    expect(r!.get("AAPL")).toMatchObject({ ok: true, data: { symbol: "AAPL", price: 230 } });
+    expect(r!.get("MSFT")).toMatchObject({ ok: true, data: { price: 400 } });
+    expect(r!.get("ZZZZ")).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("gives way to per-symbol quotes when the plan doesn't include it or the call fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", respond(402, "Restricted Endpoint"));
+    expect(await fmpQuotes(["AAPL", "MSFT"])).toBeNull();
+    vi.stubGlobal("fetch", respond(500, "oops"));
+    expect(await fmpQuotes(["AAPL", "MSFT"])).toBeNull();
+    expect(logs.join(" ")).not.toContain(KEY);
+  });
+
+  it("makes no call for an empty list", async () => {
+    const fetchMock = respond(200, []);
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await fmpQuotes([]))?.size).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
