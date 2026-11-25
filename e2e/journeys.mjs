@@ -848,34 +848,6 @@ await test("stock: unknown ticker is a real 404", async () => {
   await p.context().close();
 });
 
-await test("stock: negative and missing values in the 10-year bars are honest", async () => {
-  const p = await page();
-  const years = ["FY2022", "FY2023", "FY2024", "FY2025"].map((label, i) => ({ label, end: `${2022 + i}-12-31` }));
-  await p.route(/\/api\/sec\/quality\//, (r) =>
-    r.fulfill(
-      json({
-        ok: true,
-        fetchedAt: "2026-11-07T00:00:00Z",
-        data: {
-          symbol: "AAPL", cik: 1, name: "Test", businessType: "general", years, checks: [],
-          summary: { passed: 0, failed: 0, na: 0, level: "na" }, growth: [],
-          trends: [{ key: "netIncome", values: [1.2e9, -4e8, null, 9e8] }],
-          splitAdjusted: false, lastFiscal: null,
-        },
-      }),
-    ),
-  );
-  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
-  const card = p.locator("article", { hasText: "Beneficio neto" });
-  await card.waitFor();
-  assert((await card.locator(".bg-down").count()) === 1, "one bar below zero");
-  assert((await card.locator(".bg-series-1").count()) === 2, "two bars above zero");
-  await card.getByText("Ver los datos").click();
-  const cells = await card.locator("tbody td").allInnerTexts();
-  assert(cells.some((c) => c.startsWith("−$")) && cells.includes("—"), `cells ${cells.join(",")}`);
-  await p.context().close();
-});
-
 // Six fiscal years shaped like the SEC statements API answers (lib/financials.ts).
 function financialsPayload() {
   const years = [2020, 2021, 2022, 2023, 2024, 2025];
@@ -917,10 +889,17 @@ function financialsPayload() {
 await test("financials: highlights in words, statements in one unit, three readings, phone width", async () => {
   const p = await page();
   await p.route(/\/api\/sec\/financials\//, (r) => r.fulfill(json(financialsPayload())));
-  await p.goto(base + "/stock/AAPL?tab=business");
-  await p.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
-  await p.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
-  await p.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
+  // The overview shows the first three findings and opens the full view.
+  await p.goto(base + "/stock/AAPL");
+  const card = p.locator("#highlights-card");
+  await card.getByText(/^Los ingresos crecieron un 10% al año/).waitFor();
+  assert((await card.locator("li").count()) === 3, "three findings on the overview");
+  await card.getByRole("button", { name: "Ver todo lo esencial" }).click();
+  await p.waitForURL(/tab=business&view=highlights/);
+  const fin = p.getByRole("tabpanel", { name: "Finanzas" });
+  await fin.getByText(/^Los ingresos crecieron un 10% al año entre FY2020 y FY2025/).waitFor();
+  await fin.getByText("Por cada dólar de beneficio generó $1.42 de flujo de caja libre en los últimos 5 años.").waitFor();
+  await fin.getByText(/^Tiene más caja que deuda: caja neta de \$10B al cierre de FY2025\./).waitFor();
   await p.getByRole("button", { name: "Resultados" }).click();
   await p.waitForURL(/view=income/);
   await p.getByText("Cifras en miles de millones de dólares; negativos entre paréntesis.").waitFor();
@@ -952,35 +931,10 @@ await test("financials: highlights in words, statements in one unit, three readi
   await phone.context().close();
 });
 
-await test("at a glance: five lines from SEC figures, each opening its tab; gaps said plainly", async () => {
-  const p = await page();
-  const answer = { ok: true, fetchedAt: new Date().toISOString(), data: { symbol: "AAPL", fiscal: "FY2026", industry: "Electronic Computers", priceAt: new Date().toISOString(), historyFrom: "2021-11-30", issues: {}, missing: ["growth"], points: [
-    { key: "quality", level: "good", passed: 7, judged: 8 },
-    { key: "profitability", level: "good", metric: "roic", value: 0.52, compare: 0.11, peers: 41 },
-    { key: "debt", level: "weak", metric: "debtToEquity", value: 1.45, compare: 0.42, peers: 41 },
-    { key: "valuation", level: "weak", metric: "pe", value: 35.2, compare: 28.4 },
-  ] } };
-  await p.route(/\/api\/verdict\//, (r) => r.fulfill(json(answer)));
-  await p.goto(base + "/stock/AAPL");
-  const card = p.locator("#glance");
-  await card.getByText("Un negocio de alta calidad según las pruebas de Buffett").waitFor();
-  await card.getByText("ROIC 52% · mediana de la industria 11%").waitFor();
-  await card.getByText("PER 35.2x · media de 5 años 28.4x").waitFor();
-  await card.getByText("Sin datos suficientes para: crecimiento.").waitFor();
-  await card.getByRole("button", { name: /Cotiza por encima de su media de 5 años/ }).click();
-  await p.waitForURL(/tab=valuation/);
-  await p.goBack();
-  await p.locator("#glance").getByRole("button", { name: /Más deuda que la mayoría/ }).click();
-  await p.waitForURL(/tab=business&view=summary/);
-  await p.goBack();
-  await axe(p);
-  await p.context().close();
-});
-
-await test("at a glance: when no source can answer, the card says why", async () => {
+await test("overview: Lo esencial says why when no source can answer", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL"); // demo: no SEC database
-  await p.locator("#glance").getByText("La fuente de datos no está configurada.").waitFor();
+  await p.locator("#highlights-card").getByText("La fuente de datos no está configurada.").waitFor();
   await p.context().close();
 });
 
@@ -990,11 +944,11 @@ await test("data tabs: an expired beta session asks to sign in again and comes b
   const p = await page();
   // The gate answers 401 without our envelope; before, most tabs showed an empty message.
   await p.route(/\/api\/(sec\/(quality|ratios)|analysts)\//, (r) => r.fulfill(json({ error: "beta_required" }, 401)));
-  await p.goto(base + "/stock/AAPL?tab=business&view=summary");
+  await p.goto(base + "/stock/AAPL?tab=business");
   await p.getByText("Tu acceso a la beta caducó. Vuelve a entrar para ver esta sección.").first().waitFor();
   const link = p.getByRole("link", { name: "Volver a entrar a la beta" }).first();
   const href = await link.getAttribute("href");
-  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness%26view%3Dsummary", `href ${href}`);
+  assert(href === "/beta?next=%2Fstock%2FAAPL%3Ftab%3Dbusiness", `href ${href}`);
   assert(!(await p.getByText("rechazó nuestra credencial").count()), "blamed the data provider");
   await axe(p);
   await p.context().close();
@@ -1727,7 +1681,7 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await box.press("Enter");
     await p.waitForURL(/\/stock\//);
     await p.getByRole("heading", { level: 1 }).waitFor();
-    await p.getByRole("heading", { name: lang === "es" ? "De un vistazo" : "At a glance" }).waitFor();
+    await p.getByRole("heading", { name: lang === "es" ? "Lo esencial" : "Highlights" }).first().waitFor();
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
@@ -1744,12 +1698,12 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
 await test("language switch loads the other dictionary and keeps the page working", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("heading", { name: "De un vistazo" }).waitFor();
+  await p.getByRole("heading", { name: "Lo esencial" }).first().waitFor();
   await p.getByRole("button", { name: /^ES,/ }).click();
-  await p.getByRole("heading", { name: "At a glance" }).waitFor();
+  await p.getByRole("heading", { name: "Highlights" }).first().waitFor();
   assert((await p.evaluate(() => document.documentElement.lang)) === "en", "html lang not updated");
   await p.reload();
-  await p.getByRole("heading", { name: "At a glance" }).waitFor(); // remembered (cookie)
+  await p.getByRole("heading", { name: "Highlights" }).first().waitFor(); // remembered (cookie)
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });

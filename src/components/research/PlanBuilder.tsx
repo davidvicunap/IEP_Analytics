@@ -21,7 +21,7 @@ import { useResource } from "@/lib/useResource";
 import type { EarningsPayload } from "@/lib/earningsData";
 import type { VerdictPoint } from "@/lib/verdict";
 import type { VerdictPayload } from "@/lib/verdictData";
-import { Mark, verdictEvidence } from "../AtAGlance";
+import { Mark, verdictEvidence } from "./VerdictText";
 import { CheckIcon } from "../icons";
 import { Explain, IssueNote, Panel, Segmented, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";

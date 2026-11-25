@@ -156,7 +156,7 @@ const es = {
       estimatedNote: "Estimado: un año después de los resultados del {b} (8-K a la SEC); la empresa aún no lo ha confirmado en nuestros datos.",
     },
     tabs: { overview: "Resumen", business: "Finanzas", valuation: "Valoración", filings: "Filings", research: "Mi análisis" },
-    views: { highlights: "Lo esencial", income: "Resultados", balance: "Balance", cashflow: "Flujo de caja", summary: "Calidad y ratios", filings: "Filings", insiders: "Insiders", news: "Noticias" },
+    views: { highlights: "Lo esencial", income: "Resultados", balance: "Balance", cashflow: "Flujo de caja", filings: "Filings", insiders: "Insiders", news: "Noticias" },
     addWatch: "Seguir",
     canvas: "Lienzo",
     canvasTitle: "Trabajar esta empresa en un lienzo",
@@ -495,7 +495,7 @@ const es = {
     count: "{n} opciones",
     sections: {
       overview: "Resumen",
-      business: "Negocio",
+      business: "Lo esencial y frente a su industria",
       statements: "Estados financieros",
       valuation: "Valoración",
       comps: "Comparables",

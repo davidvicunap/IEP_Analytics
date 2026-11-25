@@ -10,7 +10,7 @@ import CompsView from "./valuation/CompsView";
 import DcfMaker from "./valuation/DcfMaker";
 import HistoryView from "./valuation/HistoryView";
 import PriceImplies from "./valuation/PriceImplies";
-import { ExpectationsPanel } from "./fundamentals/FundamentalsPanel";
+import { ExpectationsPanel } from "./valuation/AnalystsView";
 
 export type View = "comps" | "history" | "dcf" | "expectations";
 const VIEWS: View[] = ["comps", "history", "dcf", "expectations"];

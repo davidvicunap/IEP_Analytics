@@ -156,7 +156,7 @@ const en: CoreDict = {
       estimatedNote: "Estimated: one year after the results of {b} (8-K at the SEC); the company hasn't confirmed it in our data yet.",
     },
     tabs: { overview: "Overview", business: "Financials", valuation: "Valuation", filings: "Filings", research: "My research" },
-    views: { highlights: "Highlights", income: "Income", balance: "Balance sheet", cashflow: "Cash flow", summary: "Quality & ratios", filings: "Filings", insiders: "Insiders", news: "News" },
+    views: { highlights: "Highlights", income: "Income", balance: "Balance sheet", cashflow: "Cash flow", filings: "Filings", insiders: "Insiders", news: "News" },
     addWatch: "Follow",
     canvas: "Canvas",
     canvasTitle: "Work this company on a canvas",
@@ -495,7 +495,7 @@ const en: CoreDict = {
     count: "{n} options",
     sections: {
       overview: "Overview",
-      business: "Business",
+      business: "Highlights and against its industry",
       statements: "Financial statements",
       valuation: "Valuation",
       comps: "Comparables",

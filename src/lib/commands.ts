@@ -6,7 +6,7 @@ import { TICKER } from "./search";
 
 export const SECTIONS = {
   overview: { words: ["resumen", "overview", "precio", "price"], path: "" },
-  business: { words: ["negocio", "business", "calidad", "quality", "ratios"], path: "?tab=business&view=summary" },
+  business: { words: ["negocio", "business", "calidad", "quality", "ratios"], path: "?tab=business&view=highlights" },
   statements: { words: ["estados", "statements", "financials", "finanzas", "cuentas", "balance", "income", "resultados"], path: "?tab=business&view=income" },
   valuation: { words: ["valoracion", "valuation"], path: "?tab=valuation" },
   comps: { words: ["comparables", "comps", "peers", "pares"], path: "?tab=valuation&view=comps" },

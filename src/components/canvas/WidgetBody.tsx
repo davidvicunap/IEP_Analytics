@@ -23,7 +23,7 @@ const Loading = () => (
     <Skeleton className="h-4 w-2/3" />
   </div>
 );
-const AtAGlance = dynamic(() => import("../AtAGlance"), { loading: Loading });
+const HighlightsCard = dynamic(() => import("../HighlightsCard"), { loading: Loading });
 const FinancialStatements = dynamic(() => import("../FinancialStatements"), { loading: Loading });
 const RatiosPanel = dynamic(() => import("../RatiosPanel"), { loading: Loading });
 const QuarterCard = dynamic(() => import("../QuarterCard"), { loading: Loading });
@@ -109,7 +109,7 @@ export default function WidgetBody({
         />
       );
     case "glance":
-      return <AtAGlance symbol={s} onOpen={(tab) => onOpen(tab === "valuation" ? "valuation" : "financials")} />;
+      return <HighlightsCard symbol={s} onOpen={() => onOpen("financials")} />;
     case "financials":
       return <FinancialStatements symbol={s} />;
     case "ratios":

@@ -50,35 +50,7 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
   const found = useMemo(() => findings(annual, SPAN), [annual]);
   const labels = annual.periods.map((p) => p.label);
 
-  const sentence = (f: Finding): string => {
-    switch (f.kind) {
-      case "growth":
-        return fill(f.cagr >= 0 ? hl.growthUp : hl.growthDown, { g: pct(Math.abs(f.cagr), lang), from: f.fromLabel, to: f.toLabel, a: money(f.from), b: money(f.to) });
-      case "margin": {
-        const d = f.to - f.from;
-        const tpl = Math.abs(d) < 0.005 ? hl.marginFlat : d > 0 ? hl.marginUp : hl.marginDown;
-        return fill(tpl, { a: pct(f.from, lang), b: pct(f.to, lang), from: f.fromLabel, to: f.toLabel });
-      }
-      case "cashConversion":
-        return fill(hl.cashConversion, { r: `${f.ratio < 0 ? "−" : ""}$${fmtNum(Math.abs(f.ratio), lang, 2)}`, n: String(f.years) });
-      case "shares":
-        return fill(Math.abs(f.change) < 0.01 ? hl.sharesFlat : f.change < 0 ? hl.sharesDown : hl.sharesUp, { p: pct(Math.abs(f.change), lang), n: String(f.years) });
-      case "payout":
-        return fill(hl.payout, { p: pct(f.share, lang, 0), n: String(f.years), a: money(f.returned) });
-      case "netCash":
-        return fill(hl.netCash, { a: money(f.amount), p: f.label });
-      case "netDebt":
-        return f.fcfYears === null
-          ? fill(hl.netDebtNoFcf, { a: money(f.amount), p: f.label })
-          : fill(hl.netDebt, { a: money(f.amount), p: f.label, y: fmtNum(f.fcfYears, lang, 1) });
-      case "stockComp":
-        return f.ofFcf === null
-          ? fill(hl.stockComp, { r: pct(f.ofRevenue, lang), p: f.label })
-          : fill(hl.stockCompFcf, { r: pct(f.ofRevenue, lang), f: pct(f.ofFcf, lang, 0), p: f.label });
-      case "rnd":
-        return fill(hl.rnd, { r: pct(f.ofRevenue, lang), p: f.label });
-    }
-  };
+
 
   return (
     <div className="space-y-10">
@@ -98,7 +70,7 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
           <ul className="mt-3 max-w-[68ch] divide-y divide-line border-y border-line">
             {found.map((f) => (
               <li key={f.kind} className="py-3 text-[15px] leading-relaxed">
-                {sentence(f)}
+                {findingText(f, hl, lang)}
               </li>
             ))}
           </ul>
@@ -113,6 +85,37 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
       </div>
     </div>
   );
+}
+
+/** One finding as a plain sentence, with its years and amounts. */
+export function findingText(f: Finding, hl: ReturnType<typeof useI18n>["t"]["fin"]["hl"], lang: Lang): string {
+  switch (f.kind) {
+    case "growth":
+      return fill(f.cagr >= 0 ? hl.growthUp : hl.growthDown, { g: pct(Math.abs(f.cagr), lang), from: f.fromLabel, to: f.toLabel, a: money(f.from), b: money(f.to) });
+    case "margin": {
+      const d = f.to - f.from;
+      const tpl = Math.abs(d) < 0.005 ? hl.marginFlat : d > 0 ? hl.marginUp : hl.marginDown;
+      return fill(tpl, { a: pct(f.from, lang), b: pct(f.to, lang), from: f.fromLabel, to: f.toLabel });
+    }
+    case "cashConversion":
+      return fill(hl.cashConversion, { r: `${f.ratio < 0 ? "−" : ""}$${fmtNum(Math.abs(f.ratio), lang, 2)}`, n: String(f.years) });
+    case "shares":
+      return fill(Math.abs(f.change) < 0.01 ? hl.sharesFlat : f.change < 0 ? hl.sharesDown : hl.sharesUp, { p: pct(Math.abs(f.change), lang), n: String(f.years) });
+    case "payout":
+      return fill(hl.payout, { p: pct(f.share, lang, 0), n: String(f.years), a: money(f.returned) });
+    case "netCash":
+      return fill(hl.netCash, { a: money(f.amount), p: f.label });
+    case "netDebt":
+      return f.fcfYears === null
+        ? fill(hl.netDebtNoFcf, { a: money(f.amount), p: f.label })
+        : fill(hl.netDebt, { a: money(f.amount), p: f.label, y: fmtNum(f.fcfYears, lang, 1) });
+    case "stockComp":
+      return f.ofFcf === null
+        ? fill(hl.stockComp, { r: pct(f.ofRevenue, lang), p: f.label })
+        : fill(hl.stockCompFcf, { r: pct(f.ofRevenue, lang), f: pct(f.ofFcf, lang, 0), p: f.label });
+    case "rnd":
+      return fill(hl.rnd, { r: pct(f.ofRevenue, lang), p: f.label });
+  }
 }
 
 function Metric({ metric, series, labels, lang }: { metric: KeyMetric; series: (number | null)[]; labels: string[]; lang: Lang }) {
