@@ -48,7 +48,6 @@ async function page({ width = 1280, height = 900, lang = "es", theme = "light", 
         localStorage.setItem("iep.watchlist", JSON.stringify(list));
         // The getting-started checklist is hidden except in its own journey.
         if (!onboarding) localStorage.setItem("iep.onboarding", JSON.stringify({ hidden: true }));
-        localStorage.setItem("iep.chartView", "simple");
         sessionStorage.setItem("seeded", "1");
       }
     },
@@ -327,7 +326,6 @@ await test("chart indicators: chosen once, every TradingView chart opens with th
   await p.route(/tradingview\.com|tradingview-widget\.com/, (r) => r.abort());
   const embedded = () => p.evaluate(() => [...document.querySelectorAll(".tradingview-widget-container script")].map((s) => JSON.parse(s.textContent || "{}").studies ?? null));
   await p.goto(base + "/stock/AAPL");
-  await p.locator("#panel-overview").getByRole("button", { name: "TradingView", exact: true }).click();
   const box = p.getByRole("group", { name: "Saved indicators" });
   await box.getByRole("button", { name: "RSI", exact: true }).click();
   await box.getByRole("button", { name: "Bollinger Bands" }).click();
@@ -630,7 +628,6 @@ await test("chart: TradingView keeps its full height after its script resizes th
     }),
   );
   await p.goto(base + "/stock/AAPL");
-  await p.getByRole("button", { name: "TradingView", exact: true }).click();
   await p.locator(".tradingview-widget-container iframe").waitFor({ state: "attached" });
   const h = await p.locator(".tradingview-widget-container iframe").evaluate((f) => f.getBoundingClientRect().height);
   assert(h >= 400, `chart is ${h}px tall`);
@@ -813,7 +810,7 @@ await test("methodology: reachable from the footer, contents link to sections, i
 
 // ---- Stock page -------------------------------------------------------------------------------
 
-await test("stock: tabs are history entries; keyboard Home/End; chart settings in the URL", async () => {
+await test("stock: tabs are history entries; keyboard Home/End; old tab links land on the new place", async () => {
   const p = await page();
   await p.goto(base + "/stock/AAPL");
   assert((await p.getByRole("tab").count()) === 5, "five tabs");
@@ -835,63 +832,12 @@ await test("stock: tabs are history entries; keyboard Home/End; chart settings i
   await p.keyboard.press("Home");
   await p.waitForURL((u) => !u.search.includes("tab="));
   await p.waitForFunction(() => document.getElementById("tab-overview")?.getAttribute("aria-selected") === "true");
-  const overview = p.locator("#panel-overview");
-  await overview.getByRole("button", { name: "6M" }).click();
-  await p.waitForURL(/range=6M/);
-  await overview.getByRole("button", { name: /^Indicadores/ }).click();
-  await overview.getByRole("checkbox", { name: /^RSI/ }).click();
-  await p.waitForURL(/ind=sma%2Crsi%2Cvolume|ind=sma,rsi,volume/);
-  await p.reload();
-  assert((await p.locator("#panel-overview").getByRole("button", { name: "6M" }).getAttribute("aria-pressed")) === "true", "range lost on reload");
   // Links from before the merge land on the new place, without an extra history entry.
   await p.goto(base + "/stock/AAPL?tab=news");
   await p.waitForURL(/tab=filings&view=news/);
   assert((await p.getByRole("tab", { name: "Filings" }).getAttribute("aria-selected")) === "true", "old news link");
   await p.goto(base + "/stock/AAPL?tab=chart");
   await p.waitForURL((u) => !u.search.includes("tab="));
-  await p.context().close();
-});
-
-await test("stock: chart keeps one canvas set through control and theme changes (no leaks)", async () => {
-  const p = await page();
-  await p.goto(base + "/stock/AAPL");
-  const fig = p.locator("#panel-overview figure");
-  await fig.locator("canvas").first().waitFor();
-  const count = () => p.locator("#panel-overview canvas").count();
-  const panesOf = async () => (await p.locator("#panel-overview table tr td canvas, #panel-overview canvas").count());
-  const before = await count();
-  const ov = p.locator("#panel-overview");
-  await p.waitForTimeout(300);
-  await ov.getByRole("button", { name: /^Indicadores/ }).click();
-  for (let i = 0; i < 3; i++) {
-    await ov.getByRole("button", { name: "Línea" }).click();
-    await ov.getByRole("button", { name: "Velas" }).click();
-    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
-    await ov.getByRole("checkbox", { name: /^Bandas de Bollinger/ }).click();
-    await p.getByRole("button", { name: /Tema/ }).click();
-  }
-  await p.waitForTimeout(500);
-  const after = await count();
-  assert(after === before, `canvases ${before} → ${after}`);
-  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
-  await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length > n, before);
-  const withPane = await panesOf();
-  await ov.getByRole("checkbox", { name: /^MACD/ }).click();
-  await p.waitForFunction((n) => document.querySelectorAll("#panel-overview canvas").length === n, before);
-  assert(withPane > before, `pane add/remove ${before} → ${withPane} → ${await count()}`);
-  assert(p.errors.length === 0, p.errors.join(" | "));
-  await p.context().close();
-});
-
-await test("stock: the chart's numbers are available as a table and as a text summary", async () => {
-  const p = await page();
-  await p.goto(base + "/stock/AAPL");
-  const cap = await p.locator("#panel-overview figcaption").innerText();
-  assert(/Gráfico de precios/.test(cap), "no summary");
-  await p.locator("#panel-overview").getByText("Ver los datos del gráfico").click();
-  await p.locator("#panel-overview [role=region] tbody tr").first().waitFor();
-  const rows = await p.locator("#panel-overview [role=region] tbody tr").count();
-  assert(rows > 200, `table rows ${rows}`);
   await p.context().close();
 });
 
