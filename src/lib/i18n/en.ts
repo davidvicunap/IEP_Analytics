@@ -303,6 +303,7 @@ const en: CoreDict = {
     latest: "Latest official releases",
   },
   ux: {
+    howCalculated: "How it's calculated",
     sectionsOf: "{s} sections",
     vsPrevClose: "vs. previous close",
     rangePos: "{p} of the way between the low of {lo} and the high of {hi}",

@@ -520,7 +520,9 @@ await test("against its industry: one table with the industry's median, where th
   await axe(p);
   await margin.getByText("See history").click();
   await margin.getByRole("table").getByText("FY2024").waitFor();
-  await p.getByText("What each metric means").click();
+  // Definitions and method are folded under the section's source line (the last section on the tab).
+  await p.getByText("How it's calculated").last().click();
+  await p.getByText("Operating income ÷ revenue", { exact: false }).first().waitFor();
   await p.getByText("Don't apply to this type of company: Equity / assets.", { exact: false }).waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();

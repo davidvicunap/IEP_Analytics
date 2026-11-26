@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtAsOf, fmtBig, fmtNum } from "@/lib/format";
+import { fmtBig, fmtNum } from "@/lib/format";
 import { KEY_METRICS, cagr, findings, fmtPerShare, metricSeries, type Finding, type KeyMetric } from "@/lib/financialsView";
 import type { StatementSet } from "@/lib/secFinancials";
 import { useFinancials } from "./financialsHooks";
-import { IssueNote, Skeleton } from "./ui";
+import { IssueNote, Skeleton, SourceNote } from "./ui";
 
 type Lang = "es" | "en";
 const SPAN = 5;
@@ -77,12 +77,7 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
         </section>
       )}
 
-      <div className="max-w-[80ch] space-y-1 text-[11px] leading-relaxed text-muted">
-        <p>{fill(hl.method, { n: String(SPAN) })}</p>
-        <p>
-          {hl.source} · {t.data.updated} <time dateTime={fetchedAt}>{fmtAsOf(fetchedAt, lang)}</time>
-        </p>
-      </div>
+      <SourceNote source={hl.source} asOf={fetchedAt} how={<p>{fill(hl.method, { n: String(SPAN) })}</p>} />
     </div>
   );
 }

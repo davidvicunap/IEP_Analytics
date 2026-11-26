@@ -303,6 +303,7 @@ const es = {
     latest: "Últimos comunicados oficiales",
   },
   ux: {
+    howCalculated: "Cómo se calcula",
     sectionsOf: "Secciones de {s}",
     vsPrevClose: "vs. cierre anterior",
     rangePos: "{p} del camino entre el mínimo {lo} y el máximo {hi}",

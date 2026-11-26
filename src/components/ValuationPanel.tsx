@@ -44,7 +44,7 @@ export default function ValuationPanel({ symbol, view, onView: setView }: { symb
         ))}
 
       {state.status === "ok" && view === "history" && (
-        <p className="text-[11px] text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
+        <p className="text-xs text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
       )}
     </div>
   );

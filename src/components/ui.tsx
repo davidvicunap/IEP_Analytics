@@ -282,6 +282,35 @@ export function LevelMark({ level, className = "" }: { level: Level; className?:
   return <span className={`inline-block h-2 w-2 shrink-0 ${shape} ${LEVEL_DOT[level]} ${className}`} aria-hidden="true" />;
 }
 
+/**
+ * The foot of a data section: where its figures come from and when (always shown), and how
+ * they're calculated, folded until asked for, so the small print doesn't crowd the data.
+ */
+export function SourceNote({ source, asOf, how, className = "" }: { source: React.ReactNode; asOf?: string; how?: React.ReactNode; className?: string }) {
+  const { t, lang } = useI18n();
+  return (
+    <div className={`text-xs leading-relaxed text-muted ${className}`}>
+      <p className="max-w-[80ch]">
+        {source}
+        {asOf && (
+          <>
+            {" · "}
+            {t.data.updated} <time dateTime={asOf}>{fmtAsOf(asOf, lang)}</time>
+          </>
+        )}
+      </p>
+      {how && (
+        <details className="mt-1">
+          <summary className="inline-flex min-h-11 cursor-pointer select-none items-center rounded underline decoration-line-strong decoration-dotted underline-offset-4 hover:text-fg sm:min-h-7">
+            {t.ux.howCalculated}
+          </summary>
+          <div className="mt-1 max-w-[72ch] space-y-1.5">{how}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 /** Expandable "What is this?" explanation; works with touch and keyboard. */
 export function Explain({ children, label, className = "mt-2" }: { children: React.ReactNode; label?: string; className?: string }) {
   const { t } = useI18n();

@@ -8,7 +8,7 @@ import type { CompsPayload } from "@/lib/compsData";
 import type { MarketCap } from "@/lib/marketCap";
 import { shown as shownData } from "@/lib/resource";
 import { useResource } from "@/lib/useResource";
-import { InWindow, IssueNote, Panel, Skeleton, buttonClass } from "../ui";
+import { InWindow, IssueNote, Panel, Skeleton, SourceNote, buttonClass } from "../ui";
 import { NumberField } from "./fields";
 
 type Lang = "es" | "en";
@@ -179,7 +179,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
           <CompsTable target={target} rows={rows.filter((r) => r.marketCap !== null)} shown={shown} basis={basis} lang={lang} />
         )}
         <Unpriced symbols={d.unpriced} rows={rows} manual={manual} issue={d.marketCapsIssue} onManual={updateManual} />
-        <div className="mt-3 space-y-1 text-[11px] text-muted">
+        <div className="mt-3 space-y-1 text-xs text-muted">
           <p>{fill(t.comps.fewPeers, { min: MIN_PEERS })}</p>
           {diluted && <p>{t.comps.dilutedNote}</p>}
           {financial && <p>{t.comps.bankNote}</p>}
@@ -200,10 +200,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
         )}
       </section>
 
-      <div className="max-w-[80ch] space-y-1 text-[11px] leading-relaxed text-muted">
-        <p>{t.comps.formulas}</p>
-        <p>{t.comps.sources}</p>
-      </div>
+      <SourceNote source={t.comps.sources} asOf={onScreen?.fetchedAt} how={<p>{t.comps.formulas}</p>} />
     </div>
   );
 }
