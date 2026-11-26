@@ -254,6 +254,42 @@ await test("navigation: research, canvas, list and screener; More holds the meth
   await m.context().close();
 });
 
+await test("stock page: the thesis is the main action; its tab shows only the plan until there's something to add trades and notes to", async () => {
+  const p = await page({ lang: "en", planMode: "" }); // an empty notebook opens on the guided plan
+  const blank = { symbol: "AAPL", thesis: "", bull: "", bear: "", fairValue: null, entry: null, stop: null, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: null };
+  let note = blank;
+  await p.route(/\/api\/research\/AAPL$/, (r) => (r.request().method() === "GET" ? r.fulfill(json({ ok: true, fetchedAt: "x", data: note })) : r.continue()));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await p.goto(base + "/stock/AAPL");
+  const main = p.getByTestId("thesis-button");
+  await main.getByText("Write my thesis").waitFor();
+  assert((await main.getAttribute("class")).includes("bg-accent"), "the thesis button is the page's primary action");
+  assert((await p.locator("#research-card").count()) === 0, "an empty thesis card on the overview");
+  await main.click();
+  await p.waitForURL(/tab=research/);
+  await p.getByRole("heading", { name: "Why does AAPL interest you?" }).waitFor();
+  assert((await p.locator("#trades").count()) === 0, "trades offered before there's a thesis");
+  assert((await p.getByRole("heading", { name: "Dated notes" }).count()) === 0, "dated notes offered before there's a thesis");
+  await axe(p);
+  // Once saved: the button goes back to it, and trades and notes join the tab.
+  note = { ...blank, thesis: "Services keep growing.", fairValue: 250, updatedAt: "2026-11-20T00:00:00Z" };
+  await p.goto(base + "/stock/AAPL");
+  await main.getByText("My thesis").waitFor();
+  await p.locator("#research-card").getByText("Services keep growing.").waitFor();
+  await main.click();
+  await p.locator("#trades").waitFor();
+  await p.getByRole("heading", { name: "Dated notes" }).waitFor();
+  // Phones: the thesis button fills the row; the canvas and follow buttons are icons with names.
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.goto(base + "/stock/AAPL");
+  await main.waitFor();
+  assert((await p.getByRole("link", { name: "Canvas" }).first().isVisible()) && (await p.getByRole("button", { name: "Follow" }).first().isVisible()), "icon buttons keep their names");
+  const box = await main.boundingBox();
+  assert(box && box.width > 150 && box.height >= 44, `thesis button ${JSON.stringify(box)}`);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
 await test("research hub: how to start when empty; theses with today's price and their canvas; a stock opens its canvas or starts one", async () => {
   const p = await page({ lang: "en" });
   let notes = [];
@@ -292,17 +328,26 @@ await test("chart indicators: chosen once, every TradingView chart opens with th
   await p.route(/tradingview\.com|tradingview-widget\.com/, (r) => r.abort());
   const embedded = () => p.evaluate(() => [...document.querySelectorAll(".tradingview-widget-container script")].map((s) => JSON.parse(s.textContent || "{}").studies ?? null));
   await p.goto(base + "/stock/AAPL");
+  // One small menu, not a wall of chips: closed until asked for, closed again with Escape.
+  const menu = p.getByTestId("studies-menu");
+  await menu.click();
   const box = p.getByRole("group", { name: "Saved indicators" });
-  await box.getByRole("button", { name: "RSI", exact: true }).click();
-  await box.getByRole("button", { name: "Bollinger Bands" }).click();
+  await box.getByRole("checkbox", { name: "RSI", exact: true }).check();
+  await box.getByRole("checkbox", { name: "Bollinger Bands" }).check();
   await until(async () => JSON.stringify(await embedded()) === JSON.stringify([["BB@tv-basicstudies", "RSI@tv-basicstudies"]]), "stock chart studies");
   await axe(p);
+  await p.keyboard.press("Escape");
+  await box.waitFor({ state: "detached" });
+  assert((await menu.innerText()).includes("2"), "the menu shows how many are on");
   await p.reload();
-  assert((await p.getByRole("group", { name: "Saved indicators" }).getByRole("button", { name: "RSI", exact: true }).getAttribute("aria-pressed")) === "true", "kept on reload");
-  // A canvas chart window opens with the same indicators.
+  await p.getByTestId("studies-menu").click();
+  assert(await p.getByRole("group", { name: "Saved indicators" }).getByRole("checkbox", { name: "RSI", exact: true }).isChecked(), "kept on reload");
+  // A canvas chart window opens with the same indicators, and the canvas bar has the same menu.
   await p.evaluate(() => localStorage.setItem("iep.canvases", JSON.stringify([{ id: "c-tv", name: "TV", view: { x: 0, y: 0, zoom: 1 }, updatedAt: "2026-11-20T12:00:00.000Z", widgets: [{ id: "w-1", kind: "chart", x: 0, y: 0, w: 640, h: 400, z: 1, symbol: "AAPL", link: 1, interval: "D" }] }])));
   await p.goto(base + "/canvas?c=c-tv");
   await until(async () => JSON.stringify(await embedded()) === JSON.stringify([["BB@tv-basicstudies", "RSI@tv-basicstudies"]]), "canvas chart studies");
+  await p.getByTestId("studies-menu").click();
+  assert(await p.getByRole("group", { name: "Saved indicators" }).getByRole("checkbox", { name: "Bollinger Bands" }).isChecked(), "canvas menu shows the same list");
   await p.evaluate(() => localStorage.removeItem("iep.chartstudies"));
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
@@ -1038,7 +1083,15 @@ await test("phone alerts: turn on (saved with the language), send a test, turn o
     PushManager.prototype.getSubscription = async () => current;
   });
   await p.route("**/api/push/test", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, fetchedAt: new Date().toISOString(), data: { devices: 1, sent: 1 } }) }));
+  // The channels show on the hub only once something is watched (a thesis with a fair value here).
+  let notes = [];
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
   await p.goto(base + "/research");
+  await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
+  await p.getByRole("heading", { name: "How it works" }).waitFor();
+  assert((await p.getByTestId("push-settings").count()) === 0, "alert channels offered with nothing watched");
+  notes = [{ symbol: "KO", thesis: "Pricing power.", bull: "", bear: "", fairValue: 80, entry: null, stop: null, target: null, direction: "up", reviewBy: null, checks: [], opened: null, closed: null, log: [], updatedAt: "2026-11-20T00:00:00Z" }];
+  await p.reload();
   const box = p.getByTestId("push-settings");
   const saved = p.waitForRequest((r) => r.url().endsWith("/api/push") && r.method() === "POST");
   await box.getByRole("button", { name: "Turn on alerts on this device" }).click();
@@ -1066,6 +1119,7 @@ await test("phone alerts: turn on (saved with the language), send a test, turn o
     Object.defineProperty(navigator, "userAgent", { get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
     delete window.PushManager;
   });
+  await ios.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
   await ios.goto(base + "/research");
   await ios.getByTestId("push-settings").getByText(/Add to Home Screen/).waitFor();
   await ios.context().close();

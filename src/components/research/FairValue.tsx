@@ -34,7 +34,25 @@ export function FairValueLine({ symbol, price, onOpen }: { symbol: string; price
   );
 }
 
-/** Overview card: the thesis at a glance, or an invitation to write one. */
+/**
+ * The stock page's one primary action, in its header: start a thesis, or go back to yours.
+ * Until the notebook has loaded it offers to write one (the common case for a new company). On the
+ * research tab itself it steps back (`quiet`), so the plan's own button is the one primary action.
+ */
+export function ThesisButton({ symbol, onOpen, quiet = false, className = "" }: { symbol: string; onOpen: () => void; quiet?: boolean; className?: string }) {
+  const { t } = useI18n();
+  const R = t.research;
+  const { state } = useNote(symbol);
+  const started = state.status === "ok" && state.data.updatedAt !== null;
+  return (
+    <button type="button" onClick={onOpen} className={buttonClass(quiet ? "secondary" : "primary", true, className)} data-testid="thesis-button">
+      <NotebookIcon size={16} />
+      {started ? R.mine : R.start}
+    </button>
+  );
+}
+
+/** Overview card: your thesis at a glance. Before there is one, the header's button is the way in. */
 export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price: number | null; onOpen: () => void }) {
   const { t, lang } = useI18n();
   const R = t.research;
@@ -42,12 +60,12 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
   if (state.status !== "ok") return null; // the notebook is optional: no skeleton, no error box on the overview
   const note = state.data;
   const started = note.updatedAt !== null;
+  if (!started) return null;
   const up = upside(note.fairValue, price);
   const lastNote = note.log.find((e) => e.kind === "note");
   return (
     <Panel bare className="border-t border-line pt-5" title={R.title} id="research-card" action={note.closed ? <StatusBadge status="closed" /> : isWatched(note) ? <CardStatus symbol={symbol} /> : undefined}>
-      {started ? (
-        <div className="space-y-2 text-sm">
+      <div className="space-y-2 text-sm">
           {note.thesis ? <p className="line-clamp-4 whitespace-pre-wrap">{note.thesis}</p> : <p className="text-muted">{R.noThesis}</p>}
           {note.fairValue !== null && (
             <p>
@@ -60,16 +78,7 @@ export function ResearchCard({ symbol, price, onOpen }: { symbol: string; price:
           <button type="button" onClick={onOpen} className="link text-[13px]">
             {R.open}
           </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-muted">{R.cardEmpty}</p>
-          <button type="button" onClick={onOpen} className={buttonClass("secondary", true)}>
-            <NotebookIcon size={16} />
-            {R.start}
-          </button>
-        </div>
-      )}
+      </div>
     </Panel>
   );
 }

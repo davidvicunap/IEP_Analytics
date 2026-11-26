@@ -66,7 +66,7 @@ const es = {
     ],
     held: "Tienes {n} posiciones que valen {v}.",
     heldOne: "Tienes 1 posición que vale {v}.",
-    addHolding: "Para anotar lo que tienes de una acción, ábrela y registra tus compras en «Mi análisis».",
+    addHolding: "Para anotar lo que tienes de una acción, escribe tu tesis en su pestaña «Mi análisis» y registra ahí tus compras.",
   },
   glance: {
     loading: "Preparando el resumen…",
@@ -146,6 +146,7 @@ const es = {
     exitFullscreen: "Salir de pantalla completa",
     tvHelp: "Arrastra para moverte, usa la rueda o pellizca para hacer zoom y la barra izquierda para dibujar líneas.",
     studies: {
+      menu: "Indicadores",
       title: "Indicadores guardados",
       note: "Tus gráficos de TradingView se abren con estos, aquí y en tus lienzos, en cualquier dispositivo. Lo que añadas o dibujes dentro del gráfico no se guarda: es de TradingView y no podemos leerlo.",
       full: "Máximo {n} indicadores: quita uno para añadir otro.",
@@ -386,7 +387,7 @@ const es = {
     below: "{p} por debajo del precio",
     open: "Abrir mi análisis",
     start: "Escribir mi tesis",
-    cardEmpty: "Anota por qué te interesa, tu valor razonable y tu plan. Se guarda con tu código de la beta.",
+    mine: "Mi tesis",
     lastNote: "Última nota: {d}",
     useDcf: "Usar como mi valor razonable",
     usedDcf: "Guardado como tu valor razonable.",

@@ -66,7 +66,7 @@ const en: CoreDict = {
     ],
     held: "You hold {n} positions worth {v}.",
     heldOne: "You hold 1 position worth {v}.",
-    addHolding: "To log what you own of a stock, open it and record your buys in “My research”.",
+    addHolding: "To log what you own of a stock, write your thesis in its “My research” tab and record your buys there.",
   },
   glance: {
     loading: "Preparing the summary…",
@@ -146,6 +146,7 @@ const en: CoreDict = {
     exitFullscreen: "Exit full screen",
     tvHelp: "Drag to move, scroll or pinch to zoom, and use the left toolbar to draw lines.",
     studies: {
+      menu: "Indicators",
       title: "Saved indicators",
       note: "Your TradingView charts open with these, here and in your canvases, on any device. What you add or draw inside the chart isn't kept: it belongs to TradingView and we can't read it.",
       full: "At most {n} indicators: remove one to add another.",
@@ -386,7 +387,7 @@ const en: CoreDict = {
     below: "{p} below the price",
     open: "Open my research",
     start: "Write my thesis",
-    cardEmpty: "Note why it interests you, your fair value and your plan. Saved with your beta code.",
+    mine: "My thesis",
     lastNote: "Last note: {d}",
     useDcf: "Use as my fair value",
     usedDcf: "Saved as your fair value.",

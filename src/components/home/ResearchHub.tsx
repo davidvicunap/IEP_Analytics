@@ -5,6 +5,8 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf } from "@/lib/format";
 import type { CanvasDoc } from "@/lib/canvas";
 import { useCanvases } from "@/lib/canvasClient";
+import { useNotes } from "@/lib/researchClient";
+import { isWatched } from "@/lib/thesis";
 import { useHydrated } from "@/lib/watchlist";
 import { MiniWatchlist, RecentlyViewed } from "./Lists";
 import Theses from "./Theses";
@@ -76,7 +78,7 @@ export default function ResearchHub() {
         </div>
       </div>
 
-      <PushSettings />
+      <AlertChannels />
       <p className="text-xs text-muted">{t.research.disclaimer}</p>
     </div>
   );
@@ -100,4 +102,11 @@ function CanvasRow({ canvas }: { canvas: CanvasDoc }) {
       </Link>
     </li>
   );
+}
+
+/** Where alerts reach you: only once something is being watched (a new reader has nothing to be alerted about). */
+function AlertChannels() {
+  const { state } = useNotes();
+  const watching = state.status === "ok" && state.data.some(isWatched);
+  return watching ? <PushSettings /> : null;
 }

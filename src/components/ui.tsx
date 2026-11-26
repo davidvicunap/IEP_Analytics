@@ -332,7 +332,8 @@ export function Comparison({ label, percentile, text }: { label: string; percent
 
 // ---- Watchlist action -------------------------------------------------------------------
 
-export function WatchButton({ symbol, className = "" }: { symbol: string; className?: string }) {
+/** Follow or unfollow a stock. In the stock header (`inHeader`) it matches the row: compact on desktop, an icon on phones. */
+export function WatchButton({ symbol, className = "", inHeader = false }: { symbol: string; className?: string; inHeader?: boolean }) {
   const { t } = useI18n();
   const { has, add, remove, list } = useWatchlist();
   const on = has(symbol);
@@ -354,10 +355,10 @@ export function WatchButton({ symbol, className = "" }: { symbol: string; classN
       type="button"
       onClick={click}
       aria-pressed={on}
-      className={`${buttonClass("secondary")} ${on ? "bg-panel-2" : ""} ${className}`}
+      className={`${buttonClass("secondary", inHeader)} ${on ? "bg-panel-2" : ""} ${className}`}
     >
       <StarIcon filled={on} size={18} className={on ? "text-fg" : "text-muted"} />
-      {on ? t.stock.removeWatch : t.stock.addWatch}
+      <span className={inHeader ? "max-sm:sr-only" : ""}>{on ? t.stock.removeWatch : t.stock.addWatch}</span>
     </button>
   );
 }
