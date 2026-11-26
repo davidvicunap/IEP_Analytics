@@ -225,18 +225,20 @@ await test("command palette: Ctrl+K goes to a stock's section, follows it, switc
   await p.context().close();
 });
 
-await test("navigation: research, canvas, list and screener; More holds the method; the old portfolio address opens the hub; a sheet on phones", async () => {
+await test("navigation: research, canvas and screener; More holds the method; the old portfolio and list addresses open the hub; a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.goto(base + "/");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
   const nav = p.getByRole("navigation", { name: /main/i }).first();
-  for (const name of ["Research", "Canvas", "Watchlist", "Screener"]) assert((await nav.getByRole("link", { name, exact: true }).count()) === 1, `${name} in the nav`);
+  for (const name of ["Research", "Canvas", "Screener"]) assert((await nav.getByRole("link", { name, exact: true }).count()) === 1, `${name} in the nav`);
   // Tools left out of the MVP aren't offered (their pages still open by URL).
   await nav.getByRole("button", { name: "More" }).click();
   await p.getByRole("link", { name: /How we calculate\s*Where every number/ }).waitFor();
   assert((await p.getByRole("link", { name: /Compare|Calendar|Chart packs|My portfolio/ }).count()) === 0, "removed tools offered");
   await axe(p);
   await p.goto(base + "/portfolio");
+  await p.waitForURL((u) => u.pathname === "/");
+  await p.goto(base + "/watchlist");
   await p.waitForURL((u) => u.pathname === "/");
   await p.goto(base + "/research");
   await p.waitForURL((u) => u.pathname === "/");
@@ -245,7 +247,8 @@ await test("navigation: research, canvas, list and screener; More holds the meth
   const m = await page({ lang: "es", width: 390, height: 800, touch: true });
   await m.goto(base + "/");
   const bar = m.getByRole("navigation", { name: /principal/i }).last();
-  for (const name of ["Mi análisis", "Lienzo", "Mi lista", "Buscador"]) await bar.getByRole("link", { name }).waitFor();
+  for (const name of ["Mi análisis", "Lienzo", "Buscador"]) await bar.getByRole("link", { name }).waitFor();
+  assert((await bar.getByRole("link", { name: "Mi lista" }).count()) === 0, "the old list is still in the bar");
   await bar.getByRole("button", { name: "Más" }).click();
   const sheet = m.getByRole("dialog", { name: "Más" });
   await sheet.getByRole("link", { name: /Cómo calculamos/ }).waitFor();
@@ -308,7 +311,7 @@ await test("research hub: how to start when empty; theses with today's price and
     localStorage.setItem("iep.canvases", JSON.stringify([{ id: "c-ko", name: "KO desk", view: { x: 0, y: 0, zoom: 1 }, updatedAt: "2026-11-20T12:00:00.000Z", widgets: [{ id: "w-1", kind: "glance", x: 0, y: 0, w: 400, h: 464, z: 1, symbol: "KO", link: 1 }] }])),
   );
   await p.reload();
-  const theses = p.getByRole("region", { name: "Your theses" }).or(p.locator("section", { has: p.getByRole("heading", { name: "Your theses" }) }));
+  const theses = p.getByRole("region", { name: "Your companies" }).or(p.locator("section", { has: p.getByRole("heading", { name: "Your companies" }) }));
   await theses.getByText("Pricing power holds.").waitFor();
   assert((await p.getByRole("link", { name: "Open the canvas for KO" }).getAttribute("href")) === "/canvas?c=c-ko", "KO's canvas");
   assert((await p.getByRole("link", { name: "Open MSFT in a new canvas" }).getAttribute("href")) === "/canvas?new=1&s=MSFT", "MSFT starts one");
@@ -365,49 +368,37 @@ await test("search: touch selection on a phone (expandable header search)", asyn
   await p.context().close();
 });
 
-// ---- Watchlist ------------------------------------------------------------------------------
+// ---- Your companies (the hub's one list: theses, holdings and followed stocks) ---------------
 
 const many = Array.from({ length: 45 }, (_, i) => `W${String.fromCharCode(65 + (i % 26))}${i >= 26 ? "Q" : ""}`);
 
-await test("watchlist: 45 saved stocks are all priced, in pages of at most 30", async () => {
-  const p = await page({ watchlist: many });
+/** The hub with nothing but the followed list (the demo store's notebooks and trades outlive a run). */
+async function hubWithFollowed(opts) {
+  const p = await page(opts);
+  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
+  return p;
+}
+
+await test("your companies: 45 followed stocks are all listed and priced, in quote pages of at most 30", async () => {
+  const p = await hubWithFollowed({ watchlist: many });
   const sizes = [];
   p.on("request", (r) => {
     const u = new URL(r.url());
     if (u.pathname === "/api/quotes") sizes.push(decodeURIComponent(u.searchParams.get("symbols")).split(",").length);
   });
-  await p.goto(base + "/watchlist");
-  await p.getByText("45 de 100").waitFor();
-  await p.waitForFunction(() => document.querySelectorAll("main tbody th a[href^='/stock/']").length === 45);
-  await p.waitForTimeout(500);
-  assert(sizes.every((n) => n <= 30) && sizes.reduce((a, b) => a + b, 0) === 45, `pages ${sizes}`);
-  const priced = await p.locator("main tbody tr").filter({ hasText: "$" }).count();
-  assert(priced === 45, `priced rows ${priced}`);
-  await p.context().close();
-});
-
-await test("watchlist: home mini-list asks only for the 8 it shows", async () => {
-  const p = await page({ watchlist: many });
-  // No notebooks: fair values would add their own quotes (the demo store outlives a run).
-  await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] })));
-  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // nor holdings
-  const asked = [];
-  p.on("request", (r) => {
-    const u = new URL(r.url());
-    if (u.pathname === "/api/quotes") asked.push(...decodeURIComponent(u.searchParams.get("symbols")).split(","));
-  });
   await p.goto(base + "/");
-  await p.getByText("Ver las 45").waitFor();
-  await p.waitForTimeout(800);
-  assert(asked.length === 8, `asked for ${asked.length}`);
+  await p.waitForFunction(() => document.querySelectorAll("[data-testid^='company-']").length === 45);
+  await p.waitForFunction(() => [...document.querySelectorAll("[data-testid^='company-']")].every((li) => li.textContent.includes("$")));
+  assert(sizes.every((n) => n <= 30) && sizes.reduce((a, b) => a + b, 0) === 45, `pages ${sizes}`);
+  await p.getByTestId("company-WA").getByText("Siguiendo").waitFor();
   await p.context().close();
 });
 
-await test("watchlist: partial failures, stale values and an expired beta session are labelled", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
+await test("your companies: missing prices and an expired beta session are said plainly", async () => {
+  const p = await hubWithFollowed({ watchlist: ["AAPL", "MSFT", "KO"] });
   let mode = "partial";
   await p.route(/\/api\/quotes/, async (r) => {
-    if (mode === "500") return r.fulfill(json({}, 500));
     if (mode === "401") return r.fulfill(json({ error: "beta_required" }, 401));
     const res = await r.fetch();
     const body = await res.json();
@@ -415,123 +406,71 @@ await test("watchlist: partial failures, stale values and an expired beta sessio
     body.missing = [{ symbol: "KO", error: "rate_limited" }];
     r.fulfill(json(body));
   });
-  await p.goto(base + "/watchlist");
+  await p.goto(base + "/");
   await p.getByText("No pudimos cargar 1 de 3 precios.", { exact: false }).waitFor();
-  mode = "500";
-  await p.getByRole("button", { name: "Actualizar" }).click();
-  await p.getByText("No pudimos actualizar los precios.", { exact: false }).waitFor();
-  assert((await p.locator("main").getByText("$").count()) > 0, "last good values gone");
+  assert((await p.getByTestId("company-AAPL").getByText("$").count()) > 0, "AAPL lost its price");
   mode = "401";
-  await p.getByRole("button", { name: "Actualizar" }).click();
-  await p.getByText("Tu acceso a la beta caducó", { exact: false }).waitFor();
-  await p.getByRole("link", { name: "Volver a entrar a la beta" }).waitFor();
+  await p.reload();
+  await p.getByText("Tu acceso a la beta caducó", { exact: false }).first().waitFor();
   await p.context().close();
 });
 
-await test("watchlist: a list changed during fetching shows only the current list", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  await p.route(/\/api\/quotes/, async (r) => {
-    await new Promise((res) => setTimeout(res, 700));
-    r.fulfill({ response: await r.fetch() });
-  });
-  await p.goto(base + "/watchlist");
-  await p.getByRole("button", { name: "Quitar MSFT de la lista" }).waitFor({ timeout: 8000 });
-  await p.getByRole("button", { name: "Quitar MSFT de la lista" }).click();
-  await p.waitForTimeout(1600);
-  const rows = await p.locator("main tbody th a[href^='/stock/']").allInnerTexts();
-  assert(rows.length === 2 && !rows.join(" ").includes("MSFT"), `rows: ${rows.join(" | ")}`);
-  await p.context().close();
-});
-
-await test("watchlist: remove, undo puts it back in place; saving from a stock page confirms it", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  await p.goto(base + "/watchlist");
-  await p.getByRole("button", { name: "Quitar MSFT de la lista" }).click();
-  await p.getByRole("button", { name: "Deshacer" }).click();
-  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")));
-  assert(JSON.stringify(saved) === JSON.stringify(["AAPL", "MSFT", "KO"]), `after undo: ${saved}`);
+await test("your companies: following from a stock page puts it on the hub; unfollowing can be undone", async () => {
+  const p = await hubWithFollowed({ watchlist: ["AAPL"] });
   await p.goto(base + "/stock/NVDA");
   await p.getByRole("button", { name: "Seguir", exact: true }).click();
-  await p.getByText("NVDA se guardó en tu lista.").waitFor();
+  await p.getByText("Sigues NVDA: está en tus empresas", { exact: false }).waitFor();
   assert((await p.getByRole("button", { name: "Siguiendo" }).getAttribute("aria-pressed")) === "true", "not pressed");
-  await p.context().close();
-});
-
-await test("watchlist: corrupted storage is cleaned up, not fatal", async () => {
-  const p = await page({ watchlist: ["aapl", "AAPL", 7, "<b>", "ko"] });
+  await p.getByRole("button", { name: "Siguiendo" }).click();
+  await p.getByText("Dejaste de seguir NVDA.").waitFor();
+  await p.getByRole("button", { name: "Deshacer" }).click();
+  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")));
+  assert(JSON.stringify(saved) === JSON.stringify(["AAPL", "NVDA"]), `after undo: ${saved}`);
+  await p.goto(base + "/");
+  await p.getByTestId("company-NVDA").getByText("Siguiendo").waitFor();
+  // The old list's address opens the hub.
   await p.goto(base + "/watchlist");
-  await p.getByText("2 de 100").waitFor();
+  await p.waitForURL((u) => u.pathname === "/");
   await p.context().close();
 });
 
-const snapshot = (symbol, o = {}) => ({
-  symbol,
-  cik: 1,
-  quality: { ok: true, data: { passed: o.passed ?? 5, failed: o.failed ?? 4, na: 0, level: o.level ?? "mixed", fiscal: "FY2026" } },
-  filings: {
-    ok: true,
-    data: {
-      report: { accn: "0000000001-26-000001", form: "10-K", filed: "2026-02-01", reportDate: "2025-12-31", primaryDocument: "a.htm", items: [] },
-      latest: { accn: "0000000001-26-000002", form: "8-K", filed: o.filed ?? "2026-10-01", reportDate: null, primaryDocument: "b.htm", items: ["2.02"] },
-    },
-  },
-  insiders: o.insiders ?? { ok: true, data: { from: "", to: "", bought: o.bought ?? 0, sold: o.sold ?? 0, buyers: 0, sellers: 0, pending: o.pending ?? 0, checkedAt: "2026-11-01T00:00:00Z" } },
+await test("your companies: corrupted storage is cleaned up, not fatal", async () => {
+  const p = await hubWithFollowed({ watchlist: ["aapl", "AAPL", 7, "<b>", "ko"] });
+  await p.goto(base + "/");
+  await p.waitForFunction(() => document.querySelectorAll("[data-testid^='company-']").length === 2);
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
 });
 
-await test("watchlist dashboard: SEC columns load per row, sort with gaps last, and a failed row says why and retries", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  let koFails = true;
+await test("your companies: each row says the next thing to know (a new filing, results soon); a failed SEC summary leaves it quiet", async () => {
+  const p = await hubWithFollowed({ watchlist: ["AAPL", "MSFT", "KO"], lang: "en" });
+  const day = (n) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  const snap = (symbol, o) => ({
+    symbol,
+    cik: 1,
+    quality: { ok: false, error: "not_found" },
+    filings: { ok: true, data: { report: null, latest: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
+    insiders: { ok: false, error: "not_found" },
+  });
   await p.route(/\/api\/sec\/snapshot\//, (r) => {
     const s = decodeURIComponent(r.request().url().split("/snapshot/")[1]);
-    if (s === "KO" && koFails) return r.fulfill(json({ ok: false, error: "rate_limited" }, 502));
-    const o = s === "AAPL" ? { passed: 8, failed: 1, level: "high", sold: 2.4e7 } : { passed: 3, failed: 6, level: "low", bought: 1.2e6, pending: 2 };
-    return r.fulfill(json({ ok: true, data: snapshot(s, o), fetchedAt: new Date().toISOString() }));
+    if (s === "KO") return r.fulfill(json({ ok: false, error: "upstream" }, 502));
+    const o = s === "AAPL" ? { recent: [{ accn: "0000320193-26-000099", form: "8-K", filed: day(-2), reportDate: null, primaryDocument: "a.htm", items: [] }] } : { next: day(10) };
+    return r.fulfill(json({ ok: true, data: snap(s, o), fetchedAt: new Date().toISOString() }));
   });
-  await p.goto(base + "/watchlist");
-  await p.getByText("8/9").waitFor();
-  await p.getByText("Compras $1.2M").waitFor();
-  await p.getByText("parcial").waitFor(); // insider filings still to read
-  await p.getByText("No pudimos cargar los datos de la SEC de 1 de 3 acciones", { exact: false }).waitFor();
-  const order = async () => (await p.locator("main tbody th a[href^='/stock/']").allInnerTexts()).map((t) => t.split("\n")[0]);
-  await p.getByRole("button", { name: "Ordenar por Calidad" }).click();
-  assert((await order()).join() === "AAPL,MSFT,KO", `quality desc: ${await order()}`);
-  await p.getByRole("button", { name: "Ordenar por Calidad" }).click();
-  assert((await order()).join() === "MSFT,AAPL,KO", `quality asc keeps the gap last: ${await order()}`);
-  assert((await p.locator("th[aria-sort='ascending']").count()) === 1, "aria-sort not set");
-  await p.getByRole("button", { name: "Volver al orden guardado" }).click();
-  assert((await order()).join() === "AAPL,MSFT,KO", "saved order not restored");
-  koFails = false;
-  await p.getByRole("button", { name: "Reintentar" }).click();
-  await p.waitForFunction(() => document.querySelectorAll("main tbody tr").length === 3 && !document.body.innerText.includes("No pudimos cargar los datos de la SEC"));
+  await p.goto(base + "/");
+  await p.getByTestId("company-AAPL").getByText(/^New 8-K filed /).waitFor();
+  await p.getByTestId("company-MSFT").getByText(/^Results around .* \(in 10 days\)$/).waitFor();
+  await p.getByTestId("company-KO").waitFor();
+  assert((await p.getByTestId("company-KO").locator("[data-next]").count()) === 0, "a failed summary made up a next event");
   await axe(p);
   await p.context().close();
 });
 
-await test("watchlist dashboard: tags filter the list and columns can be hidden, both remembered", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"] });
-  await p.goto(base + "/watchlist");
-  await p.getByRole("button", { name: "Editar etiquetas de MSFT" }).click();
-  await p.getByLabel("Nueva etiqueta").fill("  Dividendos ");
-  await p.getByRole("button", { name: "Añadir", exact: true }).click();
-  await p.getByRole("button", { name: "Listo" }).click();
-  await p.getByRole("button", { name: "Editar etiquetas de KO" }).click();
-  await p.getByRole("button", { name: "Dividendos", exact: true }).click(); // the existing tag, one click
-  await p.getByRole("button", { name: "Listo" }).click();
-  await p.getByRole("group", { name: "Filtrar por etiqueta" }).getByRole("button", { name: /Dividendos/ }).click();
-  await p.waitForFunction(() => document.querySelectorAll("main tbody th a[href^='/stock/']").length === 2);
-  await p.locator("summary", { hasText: "Columnas" }).click();
-  await p.getByRole("checkbox", { name: /Directivos/ }).uncheck();
-  await p.reload();
-  assert((await p.getByRole("button", { name: "Ordenar por Directivos (12 m)" }).count()) === 0, "hidden column came back");
-  const tags = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchtags")));
-  assert(JSON.stringify(tags) === JSON.stringify({ MSFT: ["Dividendos"], KO: ["Dividendos"] }), `tags ${JSON.stringify(tags)}`);
-  await p.context().close();
-});
-
-await test("watchlist dashboard: phone keeps the page from scrolling sideways", async () => {
-  const p = await page({ watchlist: ["AAPL", "MSFT", "KO"], width: 320, height: 640, touch: true });
-  await p.goto(base + "/watchlist");
-  await p.getByTestId("watch-card").first().waitFor(); // phones get cards, not the table
+await test("your companies: a phone keeps the page from scrolling sideways", async () => {
+  const p = await hubWithFollowed({ watchlist: ["AAPL", "MSFT", "KO"], width: 320, height: 640, touch: true });
+  await p.goto(base + "/");
+  await p.getByTestId("company-KO").waitFor();
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(over <= 0, `page overflows by ${over}px`);
   await p.context().close();
@@ -654,33 +593,28 @@ async function syncedPage(opts) {
   return p;
 }
 
-await test("account sync: a list saved on one device appears on another, and edits travel both ways", async () => {
-  const tag = `Sync${Date.now() % 100000}`;
-  // Device A: has stocks and a tag from before sync existed; its first sync uploads them.
+await test("account sync: a followed list saved on one device appears on another, and edits travel both ways", async () => {
+  // Device A: has stocks from before sync existed; its first sync uploads them.
   const a = await syncedPage({ watchlist: ["ZION", "AAPL"] });
-  await a.addInitScript((t) => {
-    if (!sessionStorage.getItem("tagged")) {
-      localStorage.setItem("iep.watchtags", JSON.stringify({ ZION: [t] }));
-      sessionStorage.setItem("tagged", "1");
-    }
-  }, tag);
-  await a.goto(base + "/watchlist");
+  await a.goto(base + "/");
   await a.locator("[data-sync=synced]").waitFor();
-  // Device B: a fresh browser with its own list: it gets A's stocks and tag, and keeps its own.
+  // Device B: a fresh browser with its own list: it gets A's stocks and keeps its own.
   const b = await syncedPage({ watchlist: ["KO"] });
-  await b.goto(base + "/watchlist");
+  await b.goto(base + "/");
   await b.locator("[data-sync=synced]").waitFor();
-  await b.locator("main tbody th a[href='/stock/ZION']").waitFor();
-  await b.locator("main tbody th a[href='/stock/KO']").waitFor();
-  await b.getByRole("group", { name: "Filtrar por etiqueta" }).getByRole("button", { name: new RegExp(tag) }).waitFor();
-  // An edit on B reaches A when A comes back to the page.
-  await b.getByRole("button", { name: "Quitar ZION de la lista" }).click();
-  await b.locator("[data-sync=synced]").waitFor();
+  await b.getByTestId("company-ZION").waitFor();
+  await b.getByTestId("company-KO").waitFor();
+  // An edit on B (unfollowing ZION on its page) reaches A when A comes back.
+  await b.goto(base + "/stock/ZION");
+  await b.getByRole("button", { name: "Siguiendo" }).click();
+  await b.getByText("Dejaste de seguir ZION.").waitFor();
   await b.waitForTimeout(1200); // the save waits a moment so quick edits make one request
+  await b.goto(base + "/");
+  await b.locator("[data-sync=synced]").waitFor();
   await a.reload();
   await a.locator("[data-sync=synced]").waitFor();
-  await a.waitForFunction(() => !document.querySelector("main tbody th a[href='/stock/ZION']"));
-  assert((await a.locator("main tbody th a[href='/stock/KO']").count()) === 1, "B's stock didn't reach A");
+  await a.getByTestId("company-KO").waitFor();
+  assert((await a.getByTestId("company-ZION").count()) === 0 || !(await a.getByTestId("company-ZION").getByText("Siguiendo").count()), "B's unfollow didn't reach A");
   await a.context().close();
   await b.context().close();
 });
@@ -688,9 +622,10 @@ await test("account sync: a list saved on one device appears on another, and edi
 await test("account sync: when the account can't be reached, edits stay in this browser and it says so", async () => {
   const p = await page({ watchlist: ["AAPL"] });
   await p.route(/\/api\/prefs/, (r) => r.fulfill(json({ ok: false, error: "upstream" }, 502)));
-  await p.goto(base + "/watchlist");
+  await p.goto(base + "/");
   await p.getByText("No pudimos guardar en tu cuenta. Se guarda en este navegador y lo reintentamos.").waitFor();
-  await p.getByRole("button", { name: "Quitar AAPL de la lista" }).click();
+  await p.goto(base + "/stock/AAPL");
+  await p.getByRole("button", { name: "Siguiendo" }).click();
   const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("iep.watchlist")));
   assert(Array.isArray(saved) && saved.length === 0, `kept locally: ${JSON.stringify(saved)}`);
   await p.context().close();
@@ -1086,6 +1021,7 @@ await test("phone alerts: turn on (saved with the language), send a test, turn o
   // The channels show on the hub only once something is watched (a thesis with a fair value here).
   let notes = [];
   await p.route(/\/api\/research$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: notes })));
+  await p.route(/\/api\/trades$/, (r) => r.fulfill(json({ ok: true, fetchedAt: "x", data: [] }))); // the demo store outlives a run
   await p.goto(base + "/research");
   await p.getByRole("heading", { level: 1, name: "My research" }).waitFor();
   await p.getByRole("heading", { name: "How it works" }).waitFor();
@@ -1189,17 +1125,17 @@ await test("holdings on the hub: each held stock is a row, a split restated, a r
     await add("GONE", "2026-02-07", 10, 5);
   });
   await p.reload();
-  const list = p.getByTestId("theses");
+  const list = p.getByTestId("companies");
   await list.getByTestId("holding-SPLT").getByText("20 shares · average cost US$ 100.00").waitFor(); // 2 at $1,000 before a 10-for-1 split
   await list.getByTestId("holding-GONE").getByText("No longer trades in the US.").waitFor();
   await list.getByTestId("holding-OLDCO").getByText("Now trades as NEWCO.").waitFor();
   await list.getByTestId("holding-KO").getByText(/No exit set/).waitFor();
-  await list.getByTestId("thesis-KO").getByText("No thesis yet").waitFor();
+  await list.getByTestId("company-KO").getByText("No thesis yet").waitFor();
   await p.getByTestId("holdings-total").getByText(/You hold 4 positions worth/).waitFor();
   assert((await p.getByText("To log what you own of a stock", { exact: false }).count()) === 0, "the how-to shows only with no holdings");
   await axe(p);
   // The renamed ticker: its row opens the research tab, where one tap moves the notebook, alerts and trades.
-  await list.getByTestId("thesis-OLDCO").getByRole("link", { name: /OLDCO/ }).first().click();
+  await list.getByTestId("company-OLDCO").getByRole("link", { name: /OLDCO/ }).first().click();
   await p.waitForURL(/\/stock\/OLDCO\?tab=research/);
   await p.locator("#listing").getByRole("button", { name: "Move everything to NEWCO" }).click();
   await p.waitForURL(/\/stock\/NEWCO\?tab=research/);
@@ -1567,7 +1503,7 @@ await test("quarter in review: the latest quarter against a year ago and the qua
 // ---- Journeys in both languages and themes ------------------------------------------------
 
 for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
-  await test(`journey (${lang}, ${theme}): search → stock → save → watchlist, accessible on the way`, async () => {
+  await test(`journey (${lang}, ${theme}): search → stock → follow → your companies, accessible on the way`, async () => {
     const p = await page({ lang, theme, width: 390, height: 844, touch: true });
     await p.goto(base + "/");
     await axe(p);
@@ -1581,10 +1517,10 @@ for (const [lang, theme] of [["es", "light"], ["en", "dark"]]) {
     await axe(p);
     const symbol = p.url().split("/stock/")[1];
     await p.getByRole("button", { name: lang === "es" ? "Seguir" : "Follow", exact: true }).tap();
-    // The list is in the bottom bar.
-    await p.getByRole("navigation", { name: lang === "es" ? "Navegación principal" : "Main navigation" }).last().getByRole("link", { name: lang === "es" ? "Mi lista" : "Watchlist" }).tap();
-    await p.waitForURL(/\/watchlist/);
-    await p.locator(`a[href="/stock/${symbol}"]`).waitFor();
+    // Followed stocks are in your companies, on the home page (first in the bottom bar).
+    await p.getByRole("navigation", { name: lang === "es" ? "Navegación principal" : "Main navigation" }).last().getByRole("link", { name: lang === "es" ? "Mi análisis" : "Research" }).tap();
+    await p.waitForURL((u) => u.pathname === "/");
+    await p.getByTestId(`company-${symbol}`).waitFor();
     await axe(p);
     assert(p.errors.length === 0, p.errors.join(" | "));
     await p.context().close();

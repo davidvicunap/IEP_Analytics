@@ -21,8 +21,7 @@ export const SECTIONS = {
 export type SectionId = keyof typeof SECTIONS;
 
 export const PAGES = {
-  home: { words: ["inicio", "home", "portada", "cartera", "portfolio", "posiciones", "positions", "holdings"], href: "/" },
-  watchlist: { words: ["lista", "watchlist", "list", "favoritos"], href: "/watchlist" },
+  home: { words: ["inicio", "home", "portada", "cartera", "portfolio", "posiciones", "positions", "holdings", "lista", "watchlist", "list", "favoritos", "empresas", "companies"], href: "/" },
   screener: { words: ["buscador", "screener", "filtrar", "filter", "screen"], href: "/screener" },
   research: { words: ["analisis", "research", "tesis", "theses", "cuaderno", "notebook"], href: "/" },
   methodology: { words: ["metodologia", "methodology", "como", "how", "calculamos"], href: "/methodology" },
@@ -151,7 +150,7 @@ export function commandsFor(q: string, ctx: Context): Command[] {
   if (!norm) {
     if (ctx.symbol) for (const s of ["valuation", "research", "statements", "insiders"] as const) push({ type: "stock", symbol: ctx.symbol, section: s });
     for (const s of ctx.recent.slice(0, 4)) push({ type: "stock", symbol: s, section: "overview" });
-    for (const p of ["canvas", "watchlist", "screener", "research"] as const) push({ type: "page", page: p });
+    for (const p of ["canvas", "screener", "research"] as const) push({ type: "page", page: p });
     return out;
   }
 

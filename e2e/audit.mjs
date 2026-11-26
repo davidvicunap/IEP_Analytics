@@ -49,12 +49,10 @@ const PAGES = [
   { name: "plan", path: "/stock/ORCL", tab: "research" }, // an empty notebook: the guided plan
   { name: "reader", path: "/stock/AAPL/report" },
   { name: "methodology", path: "/methodology" },
-  { name: "watchlist", path: "/watchlist" },
   { name: "stats", path: "/stats" },
   { name: "canvas-start", path: "/canvas" },
   { name: "canvas", path: "/canvas", canvas: true }, // a saved canvas with five windows // the demo's local user is the admin
   { name: "home-new", path: "/", empty: true },
-  { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },
   { name: "notfound", path: "/stock/1NOPE" },
 ];

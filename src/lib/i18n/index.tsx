@@ -6,7 +6,7 @@ import type { CoreDict, Dict } from "./es";
 import type { DeepDict } from "./esDeep";
 
 // Text ships in two parts per language:
-// - core (shell, home, watchlist, stock overview): passed in by the server layout, so only
+// - core (shell, home, stock overview): passed in by the server layout, so only
 //   the active language reaches the browser;
 // - deep (the stock page's secondary tabs): loaded with those tabs, under <DeepI18n>.
 const coreLoaders: Record<Lang, () => Promise<CoreDict>> = {

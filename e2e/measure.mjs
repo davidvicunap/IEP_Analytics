@@ -22,7 +22,6 @@ const PROFILES = {
 const PAGES = [
   { name: "home", path: "/" },
   { name: "stock", path: "/stock/AAPL" },
-  { name: "watchlist", path: "/watchlist" },
 ];
 
 const median = (xs) => {

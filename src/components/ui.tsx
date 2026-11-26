@@ -8,7 +8,7 @@ import type { Level } from "@/lib/scoring";
 import { isRetryable, type ViewIssue } from "@/lib/resource";
 import type { DataSource } from "@/lib/types";
 import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
-import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
+import { AlertIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
 
 // ---- Layout -----------------------------------------------------------------------------
 
@@ -118,25 +118,6 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-/** An on/off option (indicators): a chip with a check mark when on. */
-export function ToggleChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-11 sm:h-8 px-3 rounded-full border text-[13px] font-medium transition-colors ${
-        on ? "border-line-strong bg-panel-2 text-fg" : "border-line bg-panel text-muted hover:text-fg"
-      }`}
-    >
-      <span className={`grid place-items-center h-4 w-4 rounded-full border ${on ? "border-fg bg-fg text-bg" : "border-line-strong"}`} aria-hidden="true">
-        {on && <CheckIcon size={12} />}
-      </span>
-      {children}
-    </button>
   );
 }
 
@@ -347,7 +328,7 @@ export function WatchButton({ symbol, className = "", inHeader = false }: { symb
       toast({ message: fill(t.ux.listFull, { n: WATCHLIST_LIMIT }) });
     } else {
       add(symbol);
-      toast({ message: fill(t.ux.added, { s: symbol }), link: { label: t.ux.viewList, href: "/watchlist" } });
+      toast({ message: fill(t.ux.added, { s: symbol }), link: { label: t.ux.viewList, href: "/" } });
     }
   };
   return (

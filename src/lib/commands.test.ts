@@ -42,7 +42,7 @@ describe("commands for a line", () => {
       "/stock/MSFT",
       "/stock/KO",
       "page:canvas",
-      "page:watchlist",
+      "page:screener",
     ]);
   });
 
@@ -75,7 +75,7 @@ describe("commands for a line", () => {
 
   it("finds pages and settings by their words", () => {
     // Typed in full, a page or setting comes before a guessed ticker; a real company found by that name wins.
-    expect(hrefs(commandsFor("lista", ctx()))).toEqual(["page:watchlist", "/stock/LISTA"]);
+    expect(hrefs(commandsFor("lista", ctx()))).toEqual(["page:home", "/stock/LISTA"]);
     expect(hrefs(commandsFor("dark", ctx()))[0]).toBe("set:dark");
     expect(hrefs(commandsFor("dark", ctx({ results: [{ symbol: "DARK", name: "Dark Corp." }] })))[0]).toBe("/stock/DARK");
     expect(hrefs(commandsFor("metodología", ctx()))).toContain("page:methodology");

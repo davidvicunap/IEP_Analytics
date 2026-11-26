@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { ExploreSheet, isExplorePath } from "./ExploreMenu";
-import { CanvasIcon, MoreIcon, NotebookIcon, SlidersIcon, StarIcon } from "./icons";
+import { CanvasIcon, MoreIcon, NotebookIcon, SlidersIcon } from "./icons";
 
 /** Phone navigation. Hidden while a text field has focus, so it never rides on the keyboard. */
 export default function BottomNav() {
@@ -31,7 +31,6 @@ export default function BottomNav() {
   const items = [
     { href: "/", label: t.nav.home, Icon: NotebookIcon, active: path === "/" || path.startsWith("/research") },
     { href: "/canvas", label: t.nav.canvas, Icon: CanvasIcon, active: path.startsWith("/canvas") },
-    { href: "/watchlist", label: t.nav.watchlist, Icon: StarIcon, active: path.startsWith("/watchlist") },
     { href: "/screener", label: t.nav.screener, Icon: SlidersIcon, active: path.startsWith("/screener") },
   ];
   const exploreActive = exploring || isExplorePath(path);

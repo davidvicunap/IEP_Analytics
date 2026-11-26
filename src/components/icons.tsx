@@ -86,11 +86,6 @@ export const ClockIcon = (p: IconProps) => (
     <path d="M12 7v5l3 2" />
   </Svg>
 );
-export const RefreshIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4" />
-  </Svg>
-);
 export const ExternalIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
@@ -142,18 +137,6 @@ export function LogoMark({ size = 26 }: { size?: number }) {
 export const ExpandIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
-  </Svg>
-);
-export const TagIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0z" />
-    <circle cx="8" cy="8" r="1.4" />
-  </Svg>
-);
-export const ColumnsIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
-    <path d="M9.5 4.5v15M14.5 4.5v15" />
   </Svg>
 );
 export const FileTextIcon = (p: IconProps) => (

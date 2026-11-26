@@ -1,4 +1,4 @@
-// A stock's one-line summary for the watchlist dashboard: types and pure helpers, safe to
+// A stock's one-line SEC summary for the hub's companies list: types and pure helpers, safe to
 // import from the browser. Each part (quality, filings, insiders) loads and fails on its own.
 import { estimateFromReleases } from "./earnings";
 import { formGroup, type Filing } from "./filingsShared";

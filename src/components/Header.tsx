@@ -93,9 +93,6 @@ export default function Header({ demo }: { demo: boolean }) {
           <NavLink href="/canvas" active={path.startsWith("/canvas")}>
             {t.nav.canvas}
           </NavLink>
-          <NavLink href="/watchlist" active={path.startsWith("/watchlist")}>
-            {t.nav.watchlist}
-          </NavLink>
           <NavLink href="/screener" active={path.startsWith("/screener")}>
             {t.nav.screener}
           </NavLink>

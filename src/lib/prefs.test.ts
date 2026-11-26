@@ -3,7 +3,7 @@ import { MAX_SCREENS, PREF_KEYS, isEmptyPref, isPrefKey, mergePref, normalizePre
 
 describe("account settings", () => {
   it("knows its keys", () => {
-    expect(PREF_KEYS).toEqual(["watchlist", "watchtags", "watchcols", "screens", "risk", "canvases", "chartstudies"]);
+    expect(PREF_KEYS).toEqual(["watchlist", "screens", "risk", "canvases", "chartstudies"]);
     expect(isPrefKey("watchlist")).toBe(true);
     expect(isPrefKey("theme")).toBe(false);
   });
@@ -11,9 +11,6 @@ describe("account settings", () => {
   it("stores only what the app can read back", () => {
     expect(normalizePref("watchlist", ["aapl", "AAPL", 7, "<b>", "msft"])).toEqual(["AAPL", "MSFT"]);
     expect(normalizePref("watchlist", { not: "a list" })).toBeNull();
-    expect(normalizePref("watchtags", ["wrong"])).toBeNull();
-    expect(normalizePref("watchtags", { AAPL: ["Core", "core"] })).toEqual({ AAPL: ["Core"] });
-    expect(normalizePref("watchcols", ["insiders", "bogus"])).toEqual(["insiders"]);
     expect(normalizePref("screens", [{ name: " Mine ", query: "roic=15" }, { name: "Mine", query: "x" }, { name: 3 }])).toEqual([{ name: "Mine", query: "roic=15" }]);
   });
 
@@ -24,8 +21,6 @@ describe("account settings", () => {
 
   it("merges a device's first sync without losing either side", () => {
     expect(mergePref("watchlist", ["AAPL", "MSFT"], ["KO", "AAPL"])).toEqual(["AAPL", "MSFT", "KO"]);
-    expect(mergePref("watchtags", { AAPL: ["Core"] }, { AAPL: ["core", "Tech"], KO: ["Dividends"] })).toEqual({ AAPL: ["Core", "Tech"], KO: ["Dividends"] });
-    expect(mergePref("watchcols", ["quality"], ["insiders"])).toEqual(["quality"]); // one choice: the account's
     expect(mergePref("screens", [{ name: "A", query: "1" }], [{ name: "A", query: "2" }, { name: "B", query: "3" }])).toEqual([
       { name: "A", query: "1" },
       { name: "B", query: "3" },
@@ -34,8 +29,6 @@ describe("account settings", () => {
 
   it("treats a new device's defaults as empty, except the column choice", () => {
     expect(isEmptyPref("watchlist", [])).toBe(true);
-    expect(isEmptyPref("watchtags", {})).toBe(true);
-    expect(isEmptyPref("watchcols", [])).toBe(false);
     expect(isEmptyPref("screens", [{ name: "A", query: "" }])).toBe(false);
   });
 });
