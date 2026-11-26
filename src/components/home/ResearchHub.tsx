@@ -5,9 +5,11 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf } from "@/lib/format";
 import type { CanvasDoc } from "@/lib/canvas";
 import { useCanvases } from "@/lib/canvasClient";
+import { useNotes } from "@/lib/researchClient";
+import { isWatched } from "@/lib/thesis";
 import { useHydrated } from "@/lib/watchlist";
-import { MiniWatchlist, RecentlyViewed } from "./Lists";
-import Theses from "./Theses";
+import Companies from "./Companies";
+import { RecentlyViewed } from "./Lists";
 import { ThesisAlerts } from "./ThesisAlerts";
 import PushSettings from "../PushSettings";
 import TickerSearch from "../TickerSearch";
@@ -18,9 +20,9 @@ import { Skeleton, buttonClass } from "../ui";
 const symbolsOf = (c: CanvasDoc) => [...new Set(c.widgets.map((w) => w.symbol).filter((s): s is string => !!s))];
 
 /**
- * The home page: your research. Search first (the one action that starts everything), then the
- * theses with today's price beside your fair value and what you hold of each, then your canvases
- * and the list. No market tiles or popular stocks: this page is yours.
+ * The home page: your research. Search first (the one action that starts everything), then your
+ * companies (theses, holdings and the ones you follow, each with what to know next), then your
+ * canvases. No market tiles or popular stocks: this page is yours.
  */
 export default function ResearchHub() {
   const { t } = useI18n();
@@ -46,9 +48,9 @@ export default function ResearchHub() {
       <ThesisAlerts title={H.alertsTitle} />
 
       <div className="grid gap-10 lg:grid-cols-3 lg:gap-12">
-        <section aria-labelledby="hub-theses" className="min-w-0 lg:col-span-2">
-          <h2 id="hub-theses" className="section-title">{H.thesesTitle}</h2>
-          <Theses canvasFor={hydrated ? canvasFor : () => null} />
+        <section aria-labelledby="hub-companies" className="min-w-0 lg:col-span-2">
+          <h2 id="hub-companies" className="section-title">{H.companiesTitle}</h2>
+          <Companies canvasFor={hydrated ? canvasFor : () => null} />
         </section>
 
         <div className="min-w-0 space-y-10">
@@ -72,11 +74,10 @@ export default function ResearchHub() {
               </ul>
             )}
           </section>
-          <MiniWatchlist />
         </div>
       </div>
 
-      <PushSettings />
+      <AlertChannels />
       <p className="text-xs text-muted">{t.research.disclaimer}</p>
     </div>
   );
@@ -100,4 +101,11 @@ function CanvasRow({ canvas }: { canvas: CanvasDoc }) {
       </Link>
     </li>
   );
+}
+
+/** Where alerts reach you: only once something is being watched (a new reader has nothing to be alerted about). */
+function AlertChannels() {
+  const { state } = useNotes();
+  const watching = state.status === "ok" && state.data.some(isWatched);
+  return watching ? <PushSettings /> : null;
 }

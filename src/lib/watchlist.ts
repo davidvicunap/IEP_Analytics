@@ -1,7 +1,7 @@
 "use client";
 
-// Lists kept in this browser (watchlist, recently viewed) and the dashboard's settings. The
-// watchlist, its tags and columns also follow the signed-in account (see prefsSync.ts).
+// Lists kept in this browser: the stocks you follow (also saved to your account, see
+// prefsSync.ts) and the ones you viewed recently (this device only).
 // - Persisted values are validated and deduplicated on every read, so a hand-edited or
 //   corrupted entry can't break the app; existing saved symbols are kept as they are.
 // - Changes in another tab arrive through the `storage` event.
@@ -9,7 +9,6 @@
 //   for the session and the UI can say so.
 import { useCallback, useSyncExternalStore } from "react";
 import { createJsonStore, useJsonStore } from "./localStore";
-import { DEFAULT_COLUMNS, parseColumns, parseTags, pruneTags, toggleColumn, toggleTag, type Column, type Tags } from "./watchDashboard";
 
 export { RECENT_LIMIT, WATCHLIST_LIMIT, insertAt, sanitizeList } from "./watchlistShared";
 import { RECENT_LIMIT, WATCHLIST_LIMIT, insertAt, sanitizeList } from "./watchlistShared";
@@ -56,27 +55,4 @@ export function useHydrated(): boolean {
     () => true,
     () => false,
   );
-}
-
-// ---- Dashboard settings: tags per stock and the columns shown --------------------------------
-
-const NO_TAGS: Tags = {};
-const tagStore = createJsonStore<Tags>("iep.watchtags", parseTags, NO_TAGS, "watchtags");
-const columnStore = createJsonStore<Column[]>("iep.watchcols", parseColumns, DEFAULT_COLUMNS, "watchcols");
-
-export function useWatchTags() {
-  const tags = useJsonStore(tagStore);
-  const toggle = useCallback((symbol: string, tag: string) => tagStore.write(toggleTag(tagStore.read(), symbol, tag)), []);
-  const prune = useCallback((list: string[]) => {
-    const cur = tagStore.read();
-    const next = pruneTags(cur, list);
-    if (next !== cur) tagStore.write(next);
-  }, []);
-  return { tags, toggle, prune };
-}
-
-export function useWatchColumns() {
-  const columns = useJsonStore(columnStore);
-  const toggle = useCallback((c: Column) => columnStore.write(toggleColumn(columnStore.read(), c)), []);
-  return { columns, toggle };
 }

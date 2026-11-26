@@ -4,6 +4,7 @@
 // component's state (so drags and pans stay smooth) and is saved a moment after each change, to
 // this browser and, through the settings sync, to the account.
 import { TICKER } from "@/lib/search";
+import ChartStudiesMenu from "../ChartStudiesMenu";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
@@ -414,6 +415,8 @@ function Workspace({ stored, all, select, startNew }: { stored: CanvasDoc; all: 
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg px-3 py-1.5 sm:px-4">
         <CanvasSwitcher doc={doc} all={all} select={(id) => select(id)} startNew={startNew} rename={rename} duplicate={duplicateCanvas} remove={remove} />
         <AddWindow open={adding} setOpen={setAdding} symbol={defaultSymbol} link={defaultLink} groups={groups} full={doc.widgets.length >= MAX_WIDGETS} onAdd={add} />
+        {/* The indicators every chart window opens with, the same list as on the stock page. */}
+        {doc.widgets.some((w) => w.kind === "chart") && <ChartStudiesMenu align="left" />}
         <div className="ml-auto flex items-center gap-0.5">
           <button type="button" aria-label={C.zoomOut} title={C.zoomOut} onClick={() => zoomBy(1 / 1.2)} className={iconBtn}>
             <MinusIcon size={16} />
@@ -433,7 +436,7 @@ function Workspace({ stored, all, select, startNew }: { stored: CanvasDoc; all: 
         </div>
       </div>
       <div className="relative min-h-0 flex-1">
-        <Surface doc={doc} view={view} setView={setView} size={size} surfaceRef={surfaceRef} locked={!!maxed} busy={busy} setBusy={setBusy} onKey={onKey}>
+        <Surface doc={doc} view={view} setView={setView} surfaceRef={surfaceRef} locked={!!maxed} busy={busy} setBusy={setBusy} onKey={onKey}>
           {doc.widgets.map((w) => (
             <CanvasWindow
               key={w.id}

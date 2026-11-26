@@ -42,6 +42,8 @@ export default function ExplainPanel({ symbol }: { symbol: string }) {
   }
   // A just-written explanation stands in until the next read, but only for this stock and language.
   const data = written && written.lang === lang && written.symbol === symbol ? written : state.data;
+  // The feature is off on this site (no key): nothing to offer, so no panel saying so.
+  if (!data.explanation && !data.canGenerate && data.why !== "daily_cap") return null;
 
   const write = async () => {
     setWriting({ kind: "busy" });
@@ -90,7 +92,7 @@ export default function ExplainPanel({ symbol }: { symbol: string }) {
               )}
             </>
           ) : (
-            <p className="text-sm text-muted">{data.why === "daily_cap" ? E.dailyCap : E.notConfigured}</p>
+            <p className="text-sm text-muted">{E.dailyCap}</p>
           )}
           <p className="text-xs text-muted">{E.disclaimer}</p>
         </div>

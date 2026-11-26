@@ -5,11 +5,10 @@
 import { mergeCanvases, parseCanvases } from "./canvas";
 import { parseStudies } from "./chartStudies";
 import { parseRisk } from "./planBuilder";
-import { parseColumns, parseTags, toggleTag, type Tags } from "./watchDashboard";
 import { WATCHLIST_LIMIT, sanitizeList } from "./watchlistShared";
 
 /** `risk`: the account size and % at risk the guided plan sizes positions with; `canvases`: Trading Canvas layouts; `chartstudies`: the indicators TradingView charts open with. */
-export const PREF_KEYS = ["watchlist", "watchtags", "watchcols", "screens", "risk", "canvases", "chartstudies"] as const;
+export const PREF_KEYS = ["watchlist", "screens", "risk", "canvases", "chartstudies"] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 export const isPrefKey = (k: string): k is PrefKey => (PREF_KEYS as readonly string[]).includes(k);
 
@@ -42,8 +41,6 @@ export function parseScreens(raw: unknown): SavedScreen[] {
 
 const PARSE: Record<PrefKey, (raw: unknown) => unknown> = {
   watchlist: (raw) => sanitizeList(raw).slice(0, WATCHLIST_LIMIT),
-  watchtags: parseTags,
-  watchcols: parseColumns,
   screens: parseScreens,
   risk: parseRisk,
   canvases: parseCanvases,
@@ -51,7 +48,7 @@ const PARSE: Record<PrefKey, (raw: unknown) => unknown> = {
 };
 
 /** Keys whose value is an object rather than a list. */
-const OBJECT_KEYS = new Set<PrefKey>(["watchtags", "risk"]);
+const OBJECT_KEYS = new Set<PrefKey>(["risk"]);
 
 /** The value as the app would read it back, or null when it isn't the right shape at all. */
 export function normalizePref(key: PrefKey, raw: unknown): unknown {
@@ -61,30 +58,18 @@ export function normalizePref(key: PrefKey, raw: unknown): unknown {
 
 /** True when a value holds nothing worth keeping (a new device's defaults). */
 export function isEmptyPref(key: PrefKey, value: unknown): boolean {
-  if (key === "watchcols") return false; // the column choice is never "empty": it's a choice
-  if (key === "watchtags") return !value || Object.keys(value as object).length === 0;
   if (key === "risk") return parseRisk(value).account === null;
   return !Array.isArray(value) || value.length === 0;
 }
 
 /**
  * The first time a device syncs a key that the account already has: the account's value
- * comes first and the device adds what the account lacks. Columns are a single choice, so the
- * account's wins. After that first time the account is the source of truth for that device.
+ * comes first and the device adds what the account lacks. After that first time the account is the source of truth for that device.
  */
 export function mergePref(key: PrefKey, account: unknown, device: unknown): unknown {
   switch (key) {
     case "watchlist":
       return sanitizeList([...sanitizeList(account), ...sanitizeList(device)]).slice(0, WATCHLIST_LIMIT);
-    case "watchtags": {
-      let tags: Tags = parseTags(account);
-      for (const [symbol, list] of Object.entries(parseTags(device))) {
-        for (const tag of list) if (!tags[symbol]?.some((t) => t.toLocaleLowerCase() === tag.toLocaleLowerCase())) tags = toggleTag(tags, symbol, tag);
-      }
-      return tags;
-    }
-    case "watchcols":
-      return parseColumns(account);
     case "screens":
       return parseScreens([...parseScreens(account), ...parseScreens(device)]);
     case "risk":

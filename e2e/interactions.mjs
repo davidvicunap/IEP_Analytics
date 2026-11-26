@@ -32,7 +32,9 @@ const measure = async (name, act) => {
   console.log(`${name.padEnd(28)} median ${Math.round(xs[2])} ms  max ${Math.round(xs[4])} ms`);
 };
 const btn = (re) => p.getByRole("button", { name: re }).first();
-await measure("saved indicator (RSI)", () => btn(/^RSI$/).tap());
+await p.getByTestId("studies-menu").tap();
+await measure("saved indicator (RSI)", () => p.getByRole("checkbox", { name: "RSI", exact: true }).tap());
+await p.keyboard.press("Escape");
 await measure("theme toggle", () => btn(/Tema|Theme/).tap());
 await measure("tab switch (Finanzas/Resumen)", (i) => p.getByRole("tab", { name: i % 2 ? /^Resumen$|^Overview$/ : /^Finanzas$|^Financials$/ }).tap());
 await measure("view switch (Resultados/Balance)", (i) => btn(i % 2 ? /^Balance$/ : /^Resultados$|^Income$/).tap());

@@ -55,7 +55,7 @@ describe("the fact sheet", () => {
       href: "https://www.sec.gov/Archives/edgar/data/320193/000032019326000105/",
     });
     expect(es[1].value).toBe("47% (+0.8 pts frente a Q4 FY2025)");
-    expect(es[2]).toMatchObject({ label: "Pruebas de calidad (Buffett) superadas", value: "9 de 10 (bien)", source: "10-K FY2025" });
+    expect(es[2]).toMatchObject({ label: "Pruebas de calidad superadas", value: "9 de 10 (bien)", source: "10-K FY2025" });
     expect(es[4]).toMatchObject({ value: "34.2x / 27.1x (débil)", source: "precio de Financial Modeling Prep y cifras de la SEC" });
     expect(buildFacts(input, "en")[3]).toMatchObject({ label: "Revenue growth against its industry median", value: "6.4% / 5% (in line)", source: "10-K FY2025 · industry: ELECTRONIC COMPUTERS" });
   });

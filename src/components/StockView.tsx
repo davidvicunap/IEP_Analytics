@@ -12,7 +12,7 @@ import { useRecent } from "@/lib/watchlist";
 import HighlightsCard from "./HighlightsCard";
 import ExplainPanel from "./ExplainPanel";
 import QuarterCard from "./QuarterCard";
-import { FairValueLine, ResearchCard } from "./research/FairValue";
+import { FairValueLine, ResearchCard, ThesisButton } from "./research/FairValue";
 import NextEarnings from "./NextEarnings";
 import { CanvasIcon, ClockIcon, ExternalIcon } from "./icons";
 import { Change, IssueNote, Panel, Provenance, Segmented, Skeleton, StatusMessage, WatchButton, buttonClass } from "./ui";
@@ -35,8 +35,8 @@ type BusinessView = "highlights" | "income" | "balance" | "cashflow";
 type FilingsView = "filings" | "insiders" | "news";
 const BUSINESS_VIEWS: BusinessView[] = ["highlights", "income", "balance", "cashflow"];
 const FILINGS_VIEWS: FilingsView[] = ["filings", "insiders", "news"];
-type ValuationView = "comps" | "history" | "expectations";
-const VALUATION_VIEWS: ValuationView[] = ["comps", "history", "expectations"];
+type ValuationView = "comps" | "history";
+const VALUATION_VIEWS: ValuationView[] = ["comps", "history"];
 
 /** Links from before the tabs were merged keep working (bookmarks, shared links, journeys). */
 const LEGACY: Record<string, { tab: Tab; view?: string }> = {
@@ -166,7 +166,7 @@ export default function StockView({
 
   return (
     <div className="space-y-5">
-      <StockHeader identity={identity} quote={quote} quoteFetchedAt={quoteFetchedAt} priceIssue={priceIssue} source={sections.source} profile={sections.profile} goTo={setTab} />
+      <StockHeader tab={tab} identity={identity} quote={quote} quoteFetchedAt={quoteFetchedAt} priceIssue={priceIssue} source={sections.source} profile={sections.profile} goTo={setTab} />
 
       <div role="tablist" aria-label={fill(t.ux.sectionsOf, { s: symbol })} className="-mx-4 pl-4 pr-12 sm:mx-0 sm:px-0 flex gap-1 overflow-x-auto border-b border-line scrollbar-none [mask-image:linear-gradient(to_right,black_80%,transparent)] sm:[mask-image:none]">
         {TABS.map((k, i) => (
@@ -214,7 +214,7 @@ export default function StockView({
           )}
         </div>,
       )}
-      {panel("valuation", <Deep><ValuationPanel symbol={symbol} price={quote?.price ?? null} view={valuationView} onView={setView} /></Deep>)}
+      {panel("valuation", <Deep><ValuationPanel symbol={symbol} view={valuationView} onView={setView} /></Deep>)}
       {panel(
         "filings",
         <div className="space-y-4">
@@ -257,6 +257,7 @@ function Deep({ children }: { children: React.ReactNode }) {
 // ---- Header ------------------------------------------------------------------------------
 
 function StockHeader({
+  tab,
   identity,
   quote,
   quoteFetchedAt,
@@ -265,6 +266,7 @@ function StockHeader({
   profile,
   goTo,
 }: {
+  tab: Tab;
   identity: StockIdentity;
   quote: Quote | null;
   quoteFetchedAt: string | null;
@@ -293,18 +295,19 @@ function StockHeader({
             </Suspense>
           </p>
         </div>
+        {/* Phones: the thesis button fills the row and the other two are icons. */}
         <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+          <ThesisButton symbol={identity.symbol} onOpen={() => goTo("research")} quiet={tab === "research"} className="flex-1 sm:order-last sm:flex-none" />
           {/* Work this company on a canvas: its own if there is one, else a new one. */}
           <Link
             href={`/canvas?s=${encodeURIComponent(identity.symbol)}`}
-            className={buttonClass("secondary", true, "!px-2.5 sm:!px-3")}
+            className={buttonClass("secondary", true, "max-sm:w-11 max-sm:!px-0")}
             title={t.stock.canvasTitle}
-            aria-label={t.stock.canvasTitle}
           >
             <CanvasIcon size={16} />
-            <span className="hidden min-[360px]:inline">{t.stock.canvas}</span>
+            <span className="max-sm:sr-only">{t.stock.canvas}</span>
           </Link>
-          <WatchButton symbol={identity.symbol} />
+          <WatchButton symbol={identity.symbol} inHeader className="max-sm:w-11 max-sm:!px-0" />
         </div>
       </div>
       {quote ? (
@@ -413,13 +416,13 @@ function Overview({
   goTo: (t: Tab, view?: string) => void;
 }) {
   return (
-    // Phones: verdict → chart → quarter → thesis.
+    // Phones: highlights → your thesis (once written) → chart → quarter.
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-start">
       <div className="max-lg:contents lg:col-span-2 lg:space-y-4 min-w-0">
-        <div className="order-2 min-w-0 scroll-mt-20" id="price">
+        <div className="order-3 min-w-0 scroll-mt-20" id="price">
           <StockChart symbol={identity.symbol} exchange={identity.exchange} />
         </div>
-        <div className="order-3 min-w-0">
+        <div className="order-4 min-w-0">
           <QuarterCard symbol={identity.symbol} />
           <ExplainPanel symbol={identity.symbol} />
         </div>
@@ -432,7 +435,7 @@ function Overview({
             </DeepI18n>
           </Section>
         </div>
-        <div className="order-4">
+        <div className="order-2 empty:hidden">
           <ResearchCard symbol={identity.symbol} price={quote?.price ?? null} onOpen={() => goTo("research")} />
         </div>
       </div>

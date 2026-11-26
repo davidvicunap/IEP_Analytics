@@ -49,12 +49,10 @@ const PAGES = [
   { name: "plan", path: "/stock/ORCL", tab: "research" }, // an empty notebook: the guided plan
   { name: "reader", path: "/stock/AAPL/report" },
   { name: "methodology", path: "/methodology" },
-  { name: "watchlist", path: "/watchlist" },
   { name: "stats", path: "/stats" },
   { name: "canvas-start", path: "/canvas" },
   { name: "canvas", path: "/canvas", canvas: true }, // a saved canvas with five windows // the demo's local user is the admin
   { name: "home-new", path: "/", empty: true },
-  { name: "watchlist-empty", path: "/watchlist", empty: true },
   { name: "beta", path: "/beta" },
   { name: "notfound", path: "/stock/1NOPE" },
 ];
@@ -96,7 +94,7 @@ async function open(browser, page, width, lang, theme) {
     [theme, page.empty ? [] : WATCHLIST, page.canvas ? CANVASES : null],
   );
   // SEC/FMP-backed client sections have no data locally: answer them like an unconfigured server.
-  await ctx.route(/\/api\/(sec|analysts|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
+  await ctx.route(/\/api\/(sec|valuation)\//, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));
   await ctx.route(/tradingview\.com|s3\.tradingview\.com/, (r) => r.abort());
   // Account sync off: the demo server keeps settings in shared memory across these contexts.
   await ctx.route(/\/api\/prefs/, (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, error: "not_configured" }) }));

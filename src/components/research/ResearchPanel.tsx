@@ -6,6 +6,7 @@ import { DeepI18n, fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtNum, fmtPrice } from "@/lib/format";
 import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/research";
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
+import { useTrades } from "@/lib/tradesClient";
 import { TrashIcon } from "../icons";
 import PushSettings from "../PushSettings";
 import ListingNotice from "./ListingNotice";
@@ -102,6 +103,11 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
   });
   const [planned, setPlanned] = useState(false);
   const plannedRef = useRef<HTMLDivElement>(null);
+  // One task at a time: until the notebook is saved, only the plan shows. Trades and dated notes
+  // come after, or right away for a stock already held (trades logged before there was a thesis).
+  const trades = useTrades();
+  const holds = trades.state.status === "ok" && trades.state.data.some((x) => x.symbol === symbol);
+  const started = note.updatedAt !== null || holds;
   // After the guided plan saves, show its confirmation where the eye is.
   useEffect(() => {
     if (planned) plannedRef.current?.scrollIntoView({ block: "center" });
@@ -175,8 +181,8 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
             />
           </DeepI18n>
         </Suspense>
-        <Trades symbol={symbol} price={price} note={note} />
-        <DatedNotes symbol={symbol} note={note} />
+        {started && <Trades symbol={symbol} price={price} note={note} />}
+        {started && <DatedNotes symbol={symbol} note={note} />}
         <p className="text-xs text-muted">{R.disclaimer}</p>
       </div>
     );
@@ -266,8 +272,8 @@ function Notebook({ symbol, note, price, onReload }: { symbol: string; note: Res
         </div>
       </form>
 
-      <Trades symbol={symbol} price={price} note={note} />
-      <DatedNotes symbol={symbol} note={note} />
+      {started && <Trades symbol={symbol} price={price} note={note} />}
+      {started && <DatedNotes symbol={symbol} note={note} />}
       <ThesisHistory symbol={symbol} note={note} />
       <FairValueHistory note={note} lang={lang} />
       <p className="text-xs text-muted">{R.disclaimer}</p>

@@ -234,26 +234,6 @@ export const splits = pgTable(
   (t) => [primaryKey({ columns: [t.symbol, t.date] })],
 );
 
-/** Telegram chats linked to a beta label. Telegram alerts were retired; the table keeps existing rows until a migration drops it. */
-export const telegramChats = pgTable(
-  "telegram_chats",
-  {
-    chatId: text("chat_id").primaryKey(),
-    owner: text("owner").notNull(),
-    lang: text("lang").notNull().default("es"),
-    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index("telegram_chats_owner_idx").on(t.owner)],
-);
-
-/** One-time codes of the retired "Connect Telegram" link (kept until a migration drops the table). */
-export const telegramCodes = pgTable("telegram_codes", {
-  code: text("code").primaryKey(),
-  owner: text("owner").notNull(),
-  lang: text("lang").notNull().default("es"),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-});
-
 /** First-party product events (what people do, never what they hold), for the admin funnel. */
 export const events = pgTable(
   "events",

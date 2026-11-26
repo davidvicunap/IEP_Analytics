@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf } from "@/lib/format";
 import type { ValuationPayload } from "@/lib/valuationData";
@@ -9,18 +8,17 @@ import { IssueNote, Panel } from "./ui";
 import CompsView from "./valuation/CompsView";
 import HistoryView from "./valuation/HistoryView";
 import PriceImplies from "./valuation/PriceImplies";
-import { ExpectationsPanel } from "./valuation/AnalystsView";
 
-export type View = "comps" | "history" | "expectations";
-const VIEWS: View[] = ["comps", "history", "expectations"];
+export type View = "comps" | "history";
+const VIEWS: View[] = ["comps", "history"];
 
-/** Valuation screen: what the price implies, interactive comps, the company against its own history, and analysts. */
+/** Valuation screen: what the price implies, interactive comps and the company against its own history. */
 /** The view lives in the URL (`?view=`), so a link (or the command palette) can open it. */
-export default function ValuationPanel({ symbol, price, view, onView: setView }: { symbol: string; price: number | null; view: View; onView: (v: View) => void }) {
+export default function ValuationPanel({ symbol, view, onView: setView }: { symbol: string; view: View; onView: (v: View) => void }) {
   const { t, lang } = useI18n();
   const { state, retry } = useResource<ValuationPayload>(`/api/valuation/${encodeURIComponent(symbol)}`);
 
-  const label = (k: View) => (k === "history" ? t.valuation.history.view : k === "expectations" ? t.valuation.expectationsView : t.comps.views[k]);
+  const label = (k: View) => (k === "history" ? t.valuation.history.view : t.comps.views[k]);
 
   return (
     <div className="space-y-4">
@@ -44,9 +42,8 @@ export default function ValuationPanel({ symbol, price, view, onView: setView }:
       {state.status === "ok" && <PriceImplies v={state.data} />}
 
       {view === "comps" && <CompsView symbol={symbol} />}
-      {view === "expectations" && <ExpectationsPanel symbol={symbol} price={price} />}
 
-      {view !== "comps" && view !== "expectations" &&
+      {view === "history" &&
         (state.status === "loading" ? (
           <Panel>
             <p role="status" className="text-sm text-muted">{t.valuation.loading}</p>

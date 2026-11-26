@@ -6,7 +6,7 @@ import { secJson, submissionsUrl } from "./sec";
 import { getSecurity } from "./securities";
 import type { DataIssue, Result } from "./types";
 
-import { formGroup, type Filing, type FilingsPayload } from "./filingsShared";
+import type { Filing, FilingsPayload } from "./filingsShared";
 export * from "./filingsShared";
 
 type Recent = {

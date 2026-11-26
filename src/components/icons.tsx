@@ -37,11 +37,6 @@ export const StarIcon = ({ filled, ...p }: IconProps & { filled?: boolean }) => 
     />
   </Svg>
 );
-export const HomeIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1Z" />
-  </Svg>
-);
 export const SunIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="4" />
@@ -91,24 +86,9 @@ export const ClockIcon = (p: IconProps) => (
     <path d="M12 7v5l3 2" />
   </Svg>
 );
-export const RefreshIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4" />
-  </Svg>
-);
 export const ExternalIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-  </Svg>
-);
-export const TrendUpIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="m3 17 6-6 4 4 8-8M15 7h6v6" />
-  </Svg>
-);
-export const TrendDownIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="m3 7 6 6 4-4 8 8M15 17h6v-6" />
   </Svg>
 );
 export const SlidersIcon = (p: IconProps) => (
@@ -116,22 +96,6 @@ export const SlidersIcon = (p: IconProps) => (
     <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
     <circle cx="16" cy="7" r="2" />
     <circle cx="10" cy="17" r="2" />
-  </Svg>
-);
-export const ChartIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M4 20h16" />
-    <path d="M7 16v-5M12 16V7M17 16v-8" />
-  </Svg>
-);
-export const DownloadIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-  </Svg>
-);
-export const LinkIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
   </Svg>
 );
 export const PlusIcon = (p: IconProps) => (
@@ -148,12 +112,6 @@ export const NotebookIcon = (p: IconProps) => (
 export const TrashIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4.5 7h15M10 7V5h4v2M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5" />
-  </Svg>
-);
-export const TableIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
-    <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
   </Svg>
 );
 
@@ -179,18 +137,6 @@ export function LogoMark({ size = 26 }: { size?: number }) {
 export const ExpandIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
-  </Svg>
-);
-export const TagIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0z" />
-    <circle cx="8" cy="8" r="1.4" />
-  </Svg>
-);
-export const ColumnsIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.5" y="4.5" width="17" height="15" rx="1.5" />
-    <path d="M9.5 4.5v15M14.5 4.5v15" />
   </Svg>
 );
 export const FileTextIcon = (p: IconProps) => (

@@ -7,7 +7,7 @@ import { fmtAsOf, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import type { ResearchNote } from "@/lib/research";
 import { dismissAlert, saveNote, useThesis, type SaveIssue } from "@/lib/researchClient";
 import { alertText, pctText, splitRatioText } from "@/lib/thesisText";
-import { CHECK_LIMIT, RESULTS_DAYS, isWatched, previewPlan, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type SignalData, type SignalKind, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
+import { CHECK_LIMIT, RESULTS_DAYS, isWatched, previewPlan, thesisReturn, type CheckBody, type CheckType, type Direction, type Outcome, type StoredAlert, type ThesisStatus } from "@/lib/thesis";
 import { VERDICT_KEYS, type VerdictKey } from "@/lib/verdict";
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, PlusIcon } from "../icons";
 import { NumberField } from "../valuation/fields";

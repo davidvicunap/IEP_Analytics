@@ -19,7 +19,7 @@ export const KIND_GROUPS: { key: "market" | "company" | "value" | "yours"; kinds
 /** Chart intervals offered (TradingView's codes). */
 export const INTERVALS = ["5", "15", "60", "240", "D", "W", "M"] as const;
 export type Interval = (typeof INTERVALS)[number];
-export const VALUATION_VIEWS = ["history", "comps", "expectations"] as const;
+export const VALUATION_VIEWS = ["history", "comps"] as const;
 export type ValuationView = (typeof VALUATION_VIEWS)[number];
 
 /** Symbol link groups: windows in the same group always show the same company. 0 = not linked. */
@@ -353,7 +353,7 @@ const slot = (kind: WidgetKind, x: number, y: number, extra: Partial<Slot> = {})
 
 const LAYOUTS: Record<Exclude<Template, "blank">, Slot[]> = {
   // The chart first, its technical reading beside it, the news on the right; below, the business
-  // (statements and valuation), what the data says at a glance and your own plan and note.
+  // (statements and valuation), the highlights and your own plan and note.
   full: [
     slot("chart", 0, 0),
     slot("technicals", 776, 0),

@@ -1,4 +1,4 @@
-// Browser-side quotes: one shared cache for every view (home, mini-watchlist, watchlist),
+// Browser-side quotes: one shared cache for every view (the hub, stock pages, canvases),
 // so a symbol fetched (or server-rendered) a moment ago isn't asked for again.
 // - Lists longer than the server's per-request limit are paged, two requests at a time.
 // - Identical in-flight requests are shared.

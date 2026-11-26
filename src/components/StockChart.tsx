@@ -3,7 +3,7 @@
 import { fill, useI18n } from "@/lib/i18n";
 import { widgetStudies } from "@/lib/chartStudies";
 import { useChartStudies } from "@/lib/chartStudiesClient";
-import ChartStudiesPicker from "./ChartStudiesPicker";
+import ChartStudiesMenu from "./ChartStudiesMenu";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "./TradingViewWidget";
 import { Panel } from "./ui";
 
@@ -14,7 +14,7 @@ export default function StockChart({ symbol, exchange }: { symbol: string; excha
   const studies = useChartStudies();
   const tv = tvSymbol(symbol, exchange);
   return (
-    <Panel title={t.chart.priceTitle}>
+    <Panel title={t.chart.priceTitle} action={<ChartStudiesMenu />}>
       <TradingViewWidget
         widget="advanced-chart"
         heightClass="h-[min(64vh,600px)] min-h-[400px]"
@@ -42,7 +42,6 @@ export default function StockChart({ symbol, exchange }: { symbol: string; excha
         }}
       />
       <p className="mt-2 text-xs text-muted">{t.chart.tvHelp}</p>
-      <ChartStudiesPicker />
     </Panel>
   );
 }

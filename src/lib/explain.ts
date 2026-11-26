@@ -37,7 +37,7 @@ const L = {
     filed: "{f} presentado el {d}",
     tenK: "10-K {fy}",
     glance: {
-      quality: "Pruebas de calidad (Buffett) superadas",
+      quality: "Pruebas de calidad superadas",
       growth: "Crecimiento de ingresos frente a la mediana de su industria",
       profitability: "Rentabilidad frente a la mediana de su industria",
       debt: "Deuda frente a la mediana de su industria",
@@ -55,7 +55,7 @@ const L = {
     filed: "{f} filed on {d}",
     tenK: "10-K {fy}",
     glance: {
-      quality: "Quality tests (Buffett) passed",
+      quality: "Quality tests passed",
       growth: "Revenue growth against its industry median",
       profitability: "Profitability against its industry median",
       debt: "Debt against its industry median",

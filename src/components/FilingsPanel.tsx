@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtDate } from "@/lib/format";
-import { filingDocUrl, filingIndexUrl, formGroup, xbrlViewerUrl, type Filing, type FormGroup } from "@/lib/filingsShared";
+import { filingDocUrl, filingIndexUrl, formGroup, xbrlViewerUrl, type FormGroup } from "@/lib/filingsShared";
 import { shown as shownData } from "@/lib/resource";
 import { IssueNote, Panel } from "./ui";
 

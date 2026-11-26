@@ -6,9 +6,9 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtPct, fmtPrice } from "@/lib/format";
 import type { Level } from "@/lib/scoring";
 import { isRetryable, type ViewIssue } from "@/lib/resource";
-import type { DataSource, Quote } from "@/lib/types";
+import type { DataSource } from "@/lib/types";
 import { useWatchlist, WATCHLIST_LIMIT } from "@/lib/watchlist";
-import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
+import { AlertIcon, ClockIcon, CloseIcon, DirectionGlyph, InfoIcon, StarIcon } from "./icons";
 
 // ---- Layout -----------------------------------------------------------------------------
 
@@ -84,15 +84,6 @@ export function buttonClass(variant: Variant = "secondary", compact = false, ext
   } ${VARIANT[variant]} ${extra}`;
 }
 
-export function Button({
-  variant = "secondary",
-  compact = false,
-  className = "",
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; compact?: boolean }) {
-  return <button type="button" className={buttonClass(variant, compact, className)} {...props} />;
-}
-
 /**
  * A set of mutually exclusive options (range, chart style…). Each option is a toggle button
  * with aria-pressed inside a labelled group: simple, and fully usable with keyboard or touch.
@@ -127,25 +118,6 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-/** An on/off option (indicators): a chip with a check mark when on. */
-export function ToggleChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-11 sm:h-8 px-3 rounded-full border text-[13px] font-medium transition-colors ${
-        on ? "border-line-strong bg-panel-2 text-fg" : "border-line bg-panel text-muted hover:text-fg"
-      }`}
-    >
-      <span className={`grid place-items-center h-4 w-4 rounded-full border ${on ? "border-fg bg-fg text-bg" : "border-line-strong"}`} aria-hidden="true">
-        {on && <CheckIcon size={12} />}
-      </span>
-      {children}
-    </button>
   );
 }
 
@@ -283,24 +255,6 @@ export function Provenance({
   );
 }
 
-export function QuoteTile({ q, label }: { q: Quote; label?: string }) {
-  const { lang } = useI18n();
-  return (
-    <Link
-      href={`/stock/${q.symbol}`}
-      prefetch={false}
-      className="block rounded-lg border border-line bg-panel hover:bg-panel-2 hover:border-line-strong transition-colors p-3 min-w-0"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold text-fg">{q.symbol}</span>
-        <span className="text-[11px] text-muted truncate">{label ?? q.name}</span>
-      </div>
-      <div className="num text-lg font-semibold mt-1">{fmtPrice(q.price, lang)}</div>
-      <Change pct={q.changePercent} className="text-sm" />
-    </Link>
-  );
-}
-
 // ---- Scores -----------------------------------------------------------------------------
 
 // Calm by default: only a level that needs attention gets full-strength text.
@@ -328,10 +282,6 @@ export function LevelMark({ level, className = "" }: { level: Level; className?:
   return <span className={`inline-block h-2 w-2 shrink-0 ${shape} ${LEVEL_DOT[level]} ${className}`} aria-hidden="true" />;
 }
 
-export function Dot({ level }: { level: Level }) {
-  return <LevelMark level={level} className="mt-[7px]" />;
-}
-
 /** Expandable "What is this?" explanation; works with touch and keyboard. */
 export function Explain({ children, label, className = "mt-2" }: { children: React.ReactNode; label?: string; className?: string }) {
   const { t } = useI18n();
@@ -345,25 +295,10 @@ export function Explain({ children, label, className = "mt-2" }: { children: Rea
   );
 }
 
-/** A labelled percentile (0–100) with a marker bar and a sentence; used inside a <dl>. */
-export function Comparison({ label, percentile, text }: { label: string; percentile?: number; text: string }) {
-  return (
-    <div>
-      <dt className="font-medium">{label}</dt>
-      {percentile !== undefined && (
-        <div className="relative my-1 h-1.5 rounded-full bg-panel-2" aria-hidden="true">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-series-1/35" style={{ width: `${percentile}%` }} />
-          <div className="absolute -top-0.5 h-2.5 w-1 rounded-full bg-series-1" style={{ left: `calc(${percentile}% - 2px)` }} />
-        </div>
-      )}
-      <dd className="text-muted">{text}</dd>
-    </div>
-  );
-}
-
 // ---- Watchlist action -------------------------------------------------------------------
 
-export function WatchButton({ symbol, className = "" }: { symbol: string; className?: string }) {
+/** Follow or unfollow a stock. In the stock header (`inHeader`) it matches the row: compact on desktop, an icon on phones. */
+export function WatchButton({ symbol, className = "", inHeader = false }: { symbol: string; className?: string; inHeader?: boolean }) {
   const { t } = useI18n();
   const { has, add, remove, list } = useWatchlist();
   const on = has(symbol);
@@ -377,7 +312,7 @@ export function WatchButton({ symbol, className = "" }: { symbol: string; classN
       toast({ message: fill(t.ux.listFull, { n: WATCHLIST_LIMIT }) });
     } else {
       add(symbol);
-      toast({ message: fill(t.ux.added, { s: symbol }), link: { label: t.ux.viewList, href: "/watchlist" } });
+      toast({ message: fill(t.ux.added, { s: symbol }), link: { label: t.ux.viewList, href: "/" } });
     }
   };
   return (
@@ -385,10 +320,10 @@ export function WatchButton({ symbol, className = "" }: { symbol: string; classN
       type="button"
       onClick={click}
       aria-pressed={on}
-      className={`${buttonClass("secondary")} ${on ? "bg-panel-2" : ""} ${className}`}
+      className={`${buttonClass("secondary", inHeader)} ${on ? "bg-panel-2" : ""} ${className}`}
     >
       <StarIcon filled={on} size={18} className={on ? "text-fg" : "text-muted"} />
-      {on ? t.stock.removeWatch : t.stock.addWatch}
+      <span className={inHeader ? "max-sm:sr-only" : ""}>{on ? t.stock.removeWatch : t.stock.addWatch}</span>
     </button>
   );
 }
