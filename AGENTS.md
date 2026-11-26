@@ -28,6 +28,7 @@ npm run e2e                                # browser journeys (see e2e/README.md
   - Comps: one quote per peer without a stored price from the last 24 h (up to 8).
   - The hub: one quote per company listed (cached 15 min while the market is open, an hour when the day's quota runs tight, 6 h when it's closed).
   - Financial statements, filings, insiders, the screener and canvases' SEC windows use no FMP calls; charts and news come from TradingView in the browser.
+- Design reviews: the Playwright MCP server (`.mcp.json` → `scripts/playwright-mcp.sh`) gives a headless browser for screenshots and accessibility snapshots. Point it at the demo server, never production. It's pinned and locked down (see the script); its `browser_run_code_unsafe` tool is denied in `.claude/settings.json`. Claude Code asks you once to approve the server.
 - Local checks on real SEC data without spending FMP calls: `LOCAL_PGLITE_DIR=.local/pg npm run db:local` fills an in-process Postgres (see `scripts/local-db.ts`); run the app with the same variable and `BETA_GATE=off`.
 - `src/lib/i18n/`: `es.ts` / `en.ts` ship with every page; `esDeep.ts` / `enDeep.ts` hold the stock tabs' and charts' text, loaded under `<DeepI18n>`. Add every string in both languages.
 
