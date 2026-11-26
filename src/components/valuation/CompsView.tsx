@@ -169,20 +169,16 @@ export default function CompsView({ symbol }: { symbol: string }) {
         </form>
         {current.length >= MAX && <p className="mt-2 text-xs text-muted">{fill(t.comps.maxPeers, { n: MAX })}</p>}
         {d.unknown.length > 0 && <p className="mt-2 text-xs text-warn">{fill(t.comps.unknown, { list: d.unknown.join(", ") })}</p>}
-        {d.unpriced.length > 0 && (
-          <div className="mt-3 text-[13px]">
-            <p className="text-muted">{fill(t.comps.unpriced, { list: d.unpriced.join(", ") })}</p>
-            {d.marketCapsIssue && <IssueNote issue={d.marketCapsIssue} className="mt-1" />}
-          </div>
-        )}
       </div>
 
       <Panel>
         {rows.length === 0 ? (
           <p className="text-sm text-muted">{t.comps.noPeers}</p>
         ) : (
-          <CompsTable target={target} rows={rows} shown={shown} basis={basis} lang={lang} onManual={updateManual} />
+          // Peers with a market value (the SEC's shares × a price, or one you typed); the rest below.
+          <CompsTable target={target} rows={rows.filter((r) => r.marketCap !== null)} shown={shown} basis={basis} lang={lang} />
         )}
+        <Unpriced symbols={d.unpriced} rows={rows} manual={manual} issue={d.marketCapsIssue} onManual={updateManual} />
         <div className="mt-3 space-y-1 text-[11px] text-muted">
           <p>{fill(t.comps.fewPeers, { min: MIN_PEERS })}</p>
           {diluted && <p>{t.comps.dilutedNote}</p>}
@@ -212,20 +208,74 @@ export default function CompsView({ symbol }: { symbol: string }) {
   );
 }
 
+/**
+ * Peers without a price today, named in one line instead of a row of empty boxes; a market value
+ * from another source can be typed for each (kept in this browser, marked as yours in the table).
+ */
+function Unpriced({
+  symbols,
+  rows,
+  manual,
+  issue,
+  onManual,
+}: {
+  symbols: string[];
+  rows: CompsRow[];
+  manual: Record<string, number>;
+  issue: CompsPayload["marketCapsIssue"];
+  onManual: (s: string, v: number | null) => void;
+}) {
+  const { t } = useI18n();
+  if (symbols.length === 0) return null;
+  const missing = symbols.filter((s) => !(manual[s] > 0));
+  const nameOf = (s: string) => rows.find((r) => r.symbol === s)?.name ?? s;
+  return (
+    <div className="mt-3 border-t border-line pt-3 text-[13px]" data-testid="comps-unpriced">
+      {missing.length > 0 && (
+        <p className="text-muted">{fill(missing.length === 1 ? t.comps.unpricedOne : t.comps.unpriced, { n: missing.length, list: missing.join(", ") })}</p>
+      )}
+      {issue && missing.length > 0 && <IssueNote issue={issue} className="mt-1" />}
+      <details className="mt-2">
+        <summary className="link inline-flex min-h-11 cursor-pointer items-center sm:min-h-0">{t.comps.typeValues}</summary>
+        <p className="mt-2 max-w-[64ch] text-xs text-muted">{t.comps.typeIntro}</p>
+        <ul className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          {symbols.map((s) => (
+            <li key={s} className="flex items-center justify-between gap-3">
+              <span className="min-w-0">
+                <span className="font-medium">{s}</span>
+                <span className="block truncate text-[11px] text-muted">{nameOf(s)}</span>
+              </span>
+              <div className="w-28 shrink-0">
+                <NumberField
+                  label={fill(t.comps.manualLabel, { s })}
+                  srLabel
+                  value={manual[s] ?? null}
+                  scale={1e-9}
+                  digits={1}
+                  placeholder={t.comps.manualPlaceholder}
+                  onChange={(v) => onManual(s, v)}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
 function CompsTable({
   target,
   rows,
   shown,
   basis,
   lang,
-  onManual,
 }: {
   target: CompsRow;
   rows: CompsRow[];
   shown: CompsMultiple[];
   basis: Map<string, MarketCap | null>;
   lang: Lang;
-  onManual: (s: string, v: number | null) => void;
 }) {
   const { t } = useI18n();
   const cols = t.comps.cols;
@@ -264,20 +314,10 @@ function CompsTable({
               {b?.sharesSource === "diluted" && <span className="text-muted">*</span>}
             </span>
           ) : (
-            <div className="ml-auto w-28">
-              <NumberField
-                label={fill(t.comps.manualLabel, { s: r.symbol })}
-                srLabel
-                value={r.marketCap}
-                scale={1e-9}
-                digits={1}
-                placeholder={t.comps.manualPlaceholder}
-                onChange={(v) => onManual(r.symbol, v)}
-              />
-              <span className="mt-0.5 block whitespace-normal text-left text-[10px] text-muted">
-                {r.marketCapSource === "manual" ? t.comps.manual : t.comps.noPrice}
-              </span>
-            </div>
+            <>
+              {money(r.marketCap)}
+              <span className="block text-[11px] text-muted">{t.comps.manual}</span>
+            </>
           )}
         </td>
         {ev && <td className="border-t border-line px-2 py-2 text-right align-top">{money(r.ev)}</td>}

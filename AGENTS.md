@@ -22,7 +22,12 @@ npm run e2e                                # browser journeys (see e2e/README.md
 - `src/app/api/*`: JSON routes that return `Result<T>` (`{ ok, data, fetchedAt }` or `{ ok: false, error: DataIssue }`).
 - `src/components/`: views. The home page is the research hub (`home/ResearchHub.tsx`: "Your companies": theses, holdings and followed stocks in one list (`home/Companies.tsx` over `lib/companies.ts`), and canvases; `/portfolio` and `/watchlist` redirect there). Stock page tabs live in `StockView.tsx` (Overview, Finanzas, Valuation, Filings, My research); Finanzas is `FinancialHighlights.tsx` + `FinancialStatements.tsx` over `lib/financialsView.ts`; the Trading Canvas (infinite canvas of windows, `/canvas`, `?s=AAPL` opens or starts one for a company) in `canvas/`, its model in `lib/canvas.ts`. Panels shown inside a canvas window render without their box under `<InWindow>`.
 - Comps market values are SEC cover-page shares × price (`lib/marketCap.ts`); no paid market-cap feed.
-- FMP quota: lists use one `batch-quote` call when the plan has it (per-symbol calls otherwise, `fmp.fmpQuotes`); price history is fetched only by the plan builder (`/api/history`). Real calls are counted per endpoint in Redis and shown on `/stats`.
+- FMP quota (free plan: 250 calls/day): lists use one `batch-quote` call when the plan has it (per-symbol calls otherwise, `fmp.fmpQuotes`). Real calls are counted per endpoint in Redis and shown on `/stats`. Cold-cache budget for a company seen for the first time today:
+  - stock page: quote 1, profile 1 (a day), earnings 1 (a day; "not in your plan" is remembered for a day); a stock FMP can't price adds one price-history call for its last close.
+  - Valuation: 5-year history 1 (an hour, shared with the plan builder and the "What the data says" valuation line) and SPY's history, the 10-year Treasury and the risk premium (shared by every company).
+  - Comps: one quote per peer without a stored price from the last 24 h (up to 8).
+  - The hub: one quote per company listed (cached 15 min while the market is open, an hour when the day's quota runs tight, 6 h when it's closed).
+  - Financial statements, filings, insiders, the screener and canvases' SEC windows use no FMP calls; charts and news come from TradingView in the browser.
 - Local checks on real SEC data without spending FMP calls: `LOCAL_PGLITE_DIR=.local/pg npm run db:local` fills an in-process Postgres (see `scripts/local-db.ts`); run the app with the same variable and `BETA_GATE=off`.
 - `src/lib/i18n/`: `es.ts` / `en.ts` ship with every page; `esDeep.ts` / `enDeep.ts` hold the stock tabs' and charts' text, loaded under `<DeepI18n>`. Add every string in both languages.
 

@@ -30,3 +30,26 @@ jobs:
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+  smoke:
+    name: Browser smoke test (demo data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      # The demo server: simulated prices, no database, no provider keys, so no quota is used.
+      - run: |
+          npm run start:demo > demo.log 2>&1 &
+          for i in $(seq 60); do curl -sf http://localhost:3123/api/health > /dev/null && break; sleep 1; done
+      - run: npm run e2e:smoke
+      - if: failure()
+        run: tail -100 demo.log

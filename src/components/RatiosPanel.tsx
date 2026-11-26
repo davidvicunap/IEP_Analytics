@@ -1,12 +1,13 @@
 "use client";
 
+import { useContext } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf, fmtNum } from "@/lib/format";
 import type { RatioGroup, RatioKey } from "@/lib/ratios";
 import type { RatioRow, RatiosPayload } from "@/lib/ratiosData";
 import type { Level } from "@/lib/scoring";
 import { useResource } from "@/lib/useResource";
-import { Comparison, Explain, IssueNote, LevelBadge, Panel } from "./ui";
+import { InWindow, IssueNote, LevelBadge, Panel } from "./ui";
 
 const GROUPS: RatioGroup[] = ["profitability", "returns", "health", "growth"];
 type Lang = "es" | "en";
@@ -69,19 +70,23 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
         {d.period && <p className="text-xs text-muted">{d.period.label}</p>}
       </div>
 
-      {GROUPS.map((g) => {
-        const rows = d.ratios.filter((r) => r.group === g && r.applicable);
-        if (rows.length === 0) return null;
-        return (
-          <Panel key={g} title={t.ratios.groups[g]}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {rows.map((r) => (
-                <RatioCard key={r.key} r={r} payload={d} lang={lang} />
-              ))}
-            </div>
-          </Panel>
-        );
-      })}
+      <RatiosTable payload={d} lang={lang} />
+
+      <details className="text-sm">
+        <summary className="link inline-flex min-h-11 cursor-pointer items-center sm:min-h-0">{t.ratios.whatTitle}</summary>
+        <dl className="mt-2 max-w-[68ch] space-y-2">
+          {d.ratios
+            .filter((r) => r.applicable)
+            .map((r) => (
+              <div key={r.key}>
+                <dt className="font-medium">{t.ratios.names[r.key]}</dt>
+                <dd className="text-muted">
+                  {t.ratios.what[r.key]} <span className="text-[12px]">= {t.ratios.formulas[r.key]}</span>
+                </dd>
+              </div>
+            ))}
+        </dl>
+      </details>
 
       <div className="space-y-1 text-[11px] text-muted">
         {notApplicable.length > 0 && <p>{fill(t.ratios.notApplicable, { list: notApplicable.join(", ") })}</p>}
@@ -94,58 +99,93 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
   );
 }
 
-function RatioCard({ r, payload, lang }: { r: RatioRow; payload: RatiosPayload; lang: Lang }) {
+/**
+ * Every ratio in one table: the company's figure, the industry's median and where the company
+ * stands among those companies, and the same against its own last 10 years. Grouped by section;
+ * each figure's yearly values open in place.
+ */
+function RatiosTable({ payload: d, lang }: { payload: RatiosPayload; lang: Lang }) {
   const { t } = useI18n();
-  // No traffic light on a figure the SEC data itself disagrees about.
-  const level = r.value === null || r.note === "revenueAmbiguous" ? null : ratioLevel(r);
-  const name = t.ratios.names[r.key];
+  const R = t.ratios;
+  const C = R.cols;
+  const cell = "border-t border-line px-3 py-2.5 align-top";
+  // The pinned column takes the surface it sits on: the page, or a canvas window.
+  const inWindow = useContext(InWindow);
+  const sticky = `sticky left-0 z-10 ${inWindow ? "bg-panel" : "bg-bg"}`;
   return (
-    <article className="rounded-lg border border-line bg-panel p-3 flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium">{name}</h3>
-        {level && <LevelBadge level={level} />}
-      </div>
-      <p className={`num text-2xl font-semibold ${r.value !== null && r.value < 0 ? "text-down" : ""}`}>{fmtRatio(r.key, r.value, lang)}</p>
-      <p className="text-[11px] text-muted">= {t.ratios.formulas[r.key]}</p>
-      {r.note && <p className="text-xs text-warn">{t.ratios.notes[r.note]}</p>}
-      {r.value === null && !r.note && <p className="text-xs text-muted">{t.ratios.noValue}</p>}
-
-      {r.value !== null && (
-        <dl className="space-y-2 text-xs">
-          {r.note !== "revenueAmbiguous" && (
-            <Comparison
-              label={t.ratios.vsSector}
-              percentile={r.sector?.percentile}
-              text={
-                r.sector && payload.peersYear
-                  ? fill(t.ratios.sectorText, {
-                      p: r.sector.percentile,
-                      n: r.sector.n,
-                      sic: `${r.sector.sicPrefix}${"x".repeat(4 - r.sector.sicPrefix.length)}`,
-                      year: payload.peersYear,
-                      m: fmtRatio(r.key, r.sector.median, lang),
-                    })
-                  : payload.sic
-                    ? t.ratios.noSector
-                    : t.ratios.noSic
-              }
-            />
-          )}
-          <Comparison
-            label={t.ratios.vsHistory}
-            percentile={r.own?.percentile}
-            text={
-              r.own
-                ? fill(t.ratios.historyText, { p: r.own.percentile, n: r.own.n, m: fmtRatio(r.key, r.own.median, lang) })
-                : t.ratios.shortHistory
-            }
-          />
-        </dl>
-      )}
-
-      <History r={r} lang={lang} />
-      <Explain>{t.ratios.what[r.key]}</Explain>
-    </article>
+    <div className="relative -mx-4 overflow-x-auto sm:mx-0" tabIndex={0} role="region" aria-label={R.title}>
+      <table className="num w-max min-w-full border-separate border-spacing-0 text-[13px]">
+        <caption className="sr-only">{R.title}</caption>
+        <thead>
+          <tr className="text-xs text-muted">
+            <th scope="col" className={`${sticky} pb-2 pl-4 pr-3 text-left font-normal sm:pl-0`}>{C.metric}</th>
+            <th scope="col" className="px-3 pb-2 text-right font-normal">{C.value}</th>
+            <th scope="col" className="px-3 pb-2 text-right font-normal">{C.industry}</th>
+            <th scope="col" className="px-3 pb-2 text-left font-normal">{C.standing}</th>
+            <th scope="col" className="pb-2 pl-3 pr-4 text-left font-normal sm:pr-0">{C.history}</th>
+          </tr>
+        </thead>
+        {GROUPS.map((g) => {
+          const rows = d.ratios.filter((r) => r.group === g && r.applicable);
+          if (rows.length === 0) return null;
+          return (
+            <tbody key={g}>
+              <tr>
+                <th scope="colgroup" colSpan={5} className={`${sticky} border-t border-line-strong pb-1.5 pl-4 pt-4 text-left text-[13px] font-semibold sm:pl-0`}>
+                  {R.groups[g]}
+                </th>
+              </tr>
+              {rows.map((r) => {
+                // No standing on a figure the SEC data itself disagrees about.
+                const ambiguous = r.note === "revenueAmbiguous";
+                const level = r.value === null || ambiguous ? null : ratioLevel(r);
+                return (
+                  <tr key={r.key} data-ratio={r.key}>
+                    <th scope="row" className={`${sticky} ${cell} pl-4 text-left font-sans font-normal sm:pl-0`}>
+                      {/* Narrow on phones so the company's figure shows beside it; the rest scrolls. */}
+                      <div className="max-w-[9.5rem] sm:max-w-none">
+                        <span className="font-medium">{R.names[r.key]}</span>
+                        {r.note && <span className="block max-w-[28ch] text-xs text-warn">{R.notes[r.note]}</span>}
+                        <History r={r} lang={lang} />
+                      </div>
+                    </th>
+                    <td className={`${cell} text-right font-semibold ${r.value !== null && r.value < 0 ? "text-down" : ""}`}>
+                      {r.value === null ? <span className="font-normal text-muted" title={R.noValue}>—</span> : fmtRatio(r.key, r.value, lang)}
+                    </td>
+                    <td className={`${cell} text-right`}>{r.sector && !ambiguous ? fmtRatio(r.key, r.sector.median, lang) : "—"}</td>
+                    <td className={cell}>
+                      {r.value !== null && r.sector && !ambiguous ? (
+                        <>
+                          <span className="flex items-center gap-2 whitespace-nowrap">
+                            {fill(R.higherThan, { p: r.sector.percentile })}
+                            {level && <LevelBadge level={level} />}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            {fill(R.ofCompanies, { n: r.sector.n, sic: `${r.sector.sicPrefix}${"x".repeat(4 - r.sector.sicPrefix.length)}` })}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="block max-w-[26ch] text-xs text-muted">{r.value === null ? R.noValue : d.sic ? R.noSector : R.noSic}</span>
+                      )}
+                    </td>
+                    <td className={`${cell} pr-4 sm:pr-0`}>
+                      {r.value !== null && r.own ? (
+                        <>
+                          <span className="block whitespace-nowrap">{fill(R.ownMedian, { m: fmtRatio(r.key, r.own.median, lang) })}</span>
+                          <span className="block text-xs text-muted">{fill(R.ownHigher, { p: r.own.percentile })}</span>
+                        </>
+                      ) : (
+                        <span className="block max-w-[24ch] text-xs text-muted">{r.value === null ? "—" : R.shortHistory}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          );
+        })}
+      </table>
+    </div>
   );
 }
 
@@ -155,7 +195,7 @@ function History({ r, lang }: { r: RatioRow; lang: Lang }) {
   if (points.length < 2) return null;
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer select-none link min-h-6 inline-flex items-center">{t.ratios.seeHistory}</summary>
+      <summary className="cursor-pointer select-none link inline-flex min-h-11 items-center font-normal sm:min-h-6">{t.ratios.seeHistory}</summary>
       <table className="num mt-1 w-full">
         <caption className="sr-only">{t.ratios.names[r.key]}</caption>
         <thead>

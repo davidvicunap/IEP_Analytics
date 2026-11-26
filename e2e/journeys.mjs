@@ -11,8 +11,10 @@ const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const base = process.argv[2] ?? "http://localhost:3123";
 
 const results = [];
+// ONLY="live thesis" runs the matching journeys; several names separated by "|" run each (CI's smoke set).
+const only = process.env.ONLY ? process.env.ONLY.split("|").map((s) => s.trim()).filter(Boolean) : null;
 async function test(name, fn) {
-  if (process.env.ONLY && !name.includes(process.env.ONLY)) return; // ONLY="live thesis" runs the matching journeys
+  if (only && !only.some((o) => name.includes(o))) return;
   const t0 = Date.now();
   try {
     await fn();
@@ -473,6 +475,94 @@ await test("your companies: a phone keeps the page from scrolling sideways", asy
   await p.getByTestId("company-KO").waitFor();
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert(over <= 0, `page overflows by ${over}px`);
+  await p.context().close();
+});
+
+await test("against its industry: one table with the industry's median, where the company stands and its own 10 years; gaps said in words", async () => {
+  const p = await page({ lang: "en" });
+  const row = (key, group, value, o = {}) => ({
+    key, group, better: o.better ?? "higher", applicable: o.applicable ?? true, value, note: o.note ?? null,
+    history: [{ label: "FY2024", value: value ? value * 0.9 : null }, { label: "FY2025", value }],
+    own: o.own === null ? null : { percentile: 95, median: value ? value * 0.8 : 0, n: 10 },
+    sector: o.sector === null ? null : { percentile: 97, median: 0.143, n: 62, sicPrefix: "35" },
+  });
+  await p.route(/\/api\/sec\/ratios\//, (r) =>
+    r.fulfill(json({
+      ok: true,
+      fetchedAt: new Date().toISOString(),
+      data: {
+        symbol: "AAPL", cik: 320193, businessType: "general", sic: 3571, sicDescription: "Electronic computers",
+        period: { label: "FY2025", end: "2025-09-27" }, peersYear: 2025,
+        ratios: [
+          row("operatingMargin", "profitability", 0.33),
+          row("roic", "returns", 0.69, { sector: null }),
+          row("debtToEquity", "health", 0.61, { better: "lower", own: null }),
+          row("revenueGrowth", "growth", null),
+          row("equityToAssets", "health", 0.2, { applicable: false }),
+        ],
+      },
+    })),
+  );
+  await p.goto(base + "/stock/AAPL?tab=business&view=highlights");
+  const table = p.getByRole("region", { name: "Against its industry" });
+  const margin = table.locator("[data-ratio=operatingMargin]");
+  await margin.waitFor();
+  const cells = await margin.locator(":scope > td").allInnerTexts();
+  assert(cells[0] === "33%" && cells[1] === "14.3%", `value and the industry's median: ${cells.join(" | ")}`);
+  await margin.getByText("Higher than 97%").waitFor();
+  await margin.getByText("of 62 companies · SIC 35xx").waitFor();
+  await margin.getByText("higher than 95% of its years").waitFor();
+  await table.locator("[data-ratio=roic]").getByText("Not enough comparable companies with data yet.").waitFor();
+  await table.locator("[data-ratio=debtToEquity]").getByText("History too short (under 5 years) to compare.").waitFor();
+  await table.locator("[data-ratio=revenueGrowth]").getByText("Not enough data to calculate it.").waitFor();
+  assert((await table.locator("[data-ratio=equityToAssets]").count()) === 0, "a ratio that doesn't apply has a row");
+  assert((await p.locator("article").filter({ hasText: "Operating margin" }).count()) === 0, "the old cards are back");
+  await axe(p);
+  await margin.getByText("See history").click();
+  await margin.getByRole("table").getByText("FY2024").waitFor();
+  await p.getByText("What each metric means").click();
+  await p.getByText("Don't apply to this type of company: Equity / assets.", { exact: false }).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
+  await p.context().close();
+});
+
+// ---- Comps -------------------------------------------------------------------------------------
+
+await test("comps: peers without a price are named in one line, not empty rows; a value typed from another source joins the table as yours", async () => {
+  const p = await page({ lang: "en" });
+  const inputs = (rev) => ({ revenue: rev, revenuePrev: rev * 0.9, grossProfit: rev * 0.4, operatingIncome: rev * 0.2, netIncome: rev * 0.15, ocf: rev * 0.22, capex: rev * 0.04, equity: rev * 0.5, assets: rev * 1.2, longTermDebt: rev * 0.2, cash: rev * 0.1, depreciation: rev * 0.03 });
+  const cap = (value, price) => ({ value, shares: value / price, sharesSource: "cover", sharesAsOf: "2026-10-20", price, priceAt: "2026-11-25T21:00:00Z" });
+  const peer = (symbol, rev, mc) => ({ symbol, name: `${symbol} Inc.`, sic: 3571, marketCap: mc, marketCapBasis: mc ? cap(mc, 100) : null, inputs: inputs(rev) });
+  await p.route(/\/api\/valuation\/comps/, (r) =>
+    r.fulfill(json({
+      ok: true,
+      fetchedAt: new Date().toISOString(),
+      data: {
+        year: 2025,
+        target: { ...peer("AAPL", 400e9, 3.4e12), price: 230, businessType: "standard", sicDescription: "Electronic computers" },
+        peers: [peer("DELL", 95e9, 80e9), peer("HPQ", 54e9, 30e9), peer("CSCO", 54e9, 230e9), peer("SMCI", 15e9, null), peer("ANET", 7e9, null)],
+        suggested: true,
+        unknown: [],
+        marketCapsIssue: "plan_restricted",
+        unpriced: ["SMCI", "ANET"],
+      },
+    })),
+  );
+  await p.goto(base + "/stock/AAPL?tab=valuation&view=comps");
+  const table = p.getByRole("region", { name: "Comparable companies" });
+  await table.getByText("DELL", { exact: true }).waitFor();
+  assert((await table.getByText("SMCI", { exact: true }).count()) === 0, "an unpriced peer is still a table row");
+  assert((await table.getByRole("spinbutton").count()) + (await table.getByRole("textbox").count()) === 0, "inputs left in the table");
+  const box = p.getByTestId("comps-unpriced");
+  await box.getByText("2 peers have no price today (SMCI, ANET)", { exact: false }).waitFor();
+  await axe(p);
+  await box.getByText("Type a market value from another source").click();
+  await box.getByLabel("Market value of SMCI in billions of $").fill("25");
+  await box.getByLabel("Market value of SMCI in billions of $").blur();
+  await table.getByText("SMCI", { exact: true }).waitFor();
+  await table.getByText("typed by you").waitFor();
+  await box.getByText("1 peer has no price today (ANET)", { exact: false }).waitFor();
+  assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 });
 
