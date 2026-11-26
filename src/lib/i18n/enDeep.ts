@@ -179,7 +179,6 @@ const enDeep: DeepDict = {
     ofCompanies: "of {n} companies · SIC {sic}",
     ownMedian: "Median {m}",
     ownHigher: "higher than {p}% of its years",
-    whatTitle: "What each metric means",
     noSector: "Not enough comparable companies with data yet.",
     noSic: "The SEC doesn't publish this company's industry, so there's no sector comparison.",
     shortHistory: "History too short (under 5 years) to compare.",

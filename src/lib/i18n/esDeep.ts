@@ -178,7 +178,6 @@ const esDeep = {
     ofCompanies: "de {n} empresas · SIC {sic}",
     ownMedian: "Mediana {m}",
     ownHigher: "mayor que el {p} % de sus años",
-    whatTitle: "Qué significa cada indicador",
     noSector: "Aún no hay suficientes empresas comparables con datos.",
     noSic: "La SEC no publica la industria de esta empresa, así que no hay comparación sectorial.",
     shortHistory: "Historial demasiado corto (menos de 5 años) para comparar.",

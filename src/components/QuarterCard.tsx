@@ -61,24 +61,25 @@ export default function QuarterCard({ symbol }: { symbol: string }) {
           {fill(Q.headline, { v: `${revenue.vsYearAgo > 0 ? "+" : revenue.vsYearAgo < 0 ? "−" : ""}${fmtNum(Math.abs(revenue.vsYearAgo) * 100, lang, 1)}%` })}
         </p>
       )}
+      {/* Phones: numbers never break and headers wrap instead; names wrap only on the narrowest screens. */}
       <div className="relative overflow-x-auto" tabIndex={0} role="region" aria-label={Q.title}>
-        <table className="num w-full text-sm">
+        <table className="num w-full text-[13px] sm:text-sm">
           <thead>
             <tr className="text-xs text-muted border-b border-line">
-              <th scope="col" className="py-1.5 pr-3 text-left font-normal">{Q.cols.metric}</th>
-              <th scope="col" className="py-1.5 px-2 text-right font-normal">{Q.cols.now}</th>
+              <th scope="col" className="py-1.5 pr-3 text-left align-bottom font-normal">{Q.cols.metric}</th>
+              <th scope="col" className="py-1.5 px-2 text-right align-bottom font-normal">{Q.cols.now}</th>
               {cols.map((c) => (
-                <th key={c.label} scope="col" className="py-1.5 pl-2 text-right font-normal whitespace-nowrap">{c.label}</th>
+                <th key={c.label} scope="col" className="py-1.5 pl-2 text-right align-bottom font-normal sm:whitespace-nowrap">{c.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((x) => (
               <tr key={x.key} className="border-b border-line last:border-0">
-                <th scope="row" className="py-2 pr-3 text-left font-sans font-normal">{Q.metrics[x.key]}</th>
-                <td className="py-2 px-2 text-right font-medium">{fmtValue(x.key, x.now, lang)}</td>
+                <th scope="row" className="py-2 pr-2 text-left font-sans font-normal min-[360px]:whitespace-nowrap sm:pr-3">{Q.metrics[x.key]}</th>
+                <td className="whitespace-nowrap px-1.5 py-2 text-right font-medium sm:px-2">{fmtValue(x.key, x.now, lang)}</td>
                 {cols.map((c) => (
-                  <td key={c.label} className="py-2 pl-2 text-right">
+                  <td key={c.label} className="whitespace-nowrap py-2 pl-1.5 text-right sm:pl-2">
                     <Delta k={x.key} v={c.pick(x)} lang={lang} />
                   </td>
                 ))}

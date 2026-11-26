@@ -520,7 +520,9 @@ await test("against its industry: one table with the industry's median, where th
   await axe(p);
   await margin.getByText("See history").click();
   await margin.getByRole("table").getByText("FY2024").waitFor();
-  await p.getByText("What each metric means").click();
+  // Definitions and method are folded under the section's source line (the last section on the tab).
+  await p.getByText("How it's calculated").last().click();
+  await p.getByText("Operating income ÷ revenue", { exact: false }).first().waitFor();
   await p.getByText("Don't apply to this type of company: Equity / assets.", { exact: false }).waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
@@ -735,7 +737,7 @@ await test("next earnings: a listed date with estimates, an SEC estimate labelle
   answer = { ok: true, data: { symbol: "MSFT", next: { kind: "estimated", date: "2099-01-28", basedOn: "2098-01-29" }, fmpIssue: "rate_limited" }, fetchedAt: new Date().toISOString() };
   await p.goto(base + "/stock/MSFT");
   await p.locator("[data-earnings=estimated]").getByText("hacia el", { exact: false }).waitFor();
-  await p.getByText("Estimado: un año después de los resultados", { exact: false }).waitFor();
+  await p.getByText("Estimado a partir de los resultados", { exact: false }).waitFor();
   answer = { ok: true, data: { symbol: "KO", next: { kind: "unknown" }, fmpIssue: "not_found" }, fetchedAt: new Date().toISOString() };
   await p.goto(base + "/stock/KO");
   await p.getByRole("heading", { level: 1 }).waitFor();
@@ -980,7 +982,9 @@ await test("research notebook: write a thesis and fair value, add a note, find i
   await p.locator("#research-card").getByText(thesisText).waitFor();
   await p.goto(base + "/research");
   const row = p.getByRole("link", { name: /KO/ });
-  await row.getByText("$75.00").waitFor();
+  // One fair value on screen: a column on wide screens, a line under the name on phones.
+  await row.getByText("$75.00").filter({ visible: true }).waitFor();
+  assert((await row.getByText("$75.00").filter({ visible: true }).count()) === 1, "fair value shown twice");
   await axe(p);
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();

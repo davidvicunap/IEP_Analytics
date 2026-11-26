@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtAsOf, fmtBig, fmtNum } from "@/lib/format";
+import { fmtBig, fmtNum } from "@/lib/format";
 import { KEY_METRICS, cagr, findings, fmtPerShare, metricSeries, type Finding, type KeyMetric } from "@/lib/financialsView";
 import type { StatementSet } from "@/lib/secFinancials";
 import { useFinancials } from "./financialsHooks";
-import { IssueNote, Skeleton } from "./ui";
+import { IssueNote, Skeleton, SourceNote } from "./ui";
 
 type Lang = "es" | "en";
 const SPAN = 5;
@@ -29,7 +29,7 @@ export default function FinancialHighlights({ symbol }: { symbol: string }) {
       <div className="space-y-4" aria-busy="true">
         <p role="status" className="sr-only">{t.fin.loading}</p>
         <Skeleton className="h-6 w-40" />
-        <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-8 lg:grid-cols-3">
           {KEY_METRICS.map((m) => (
             <Skeleton key={m} className="h-32" />
           ))}
@@ -57,7 +57,7 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
       <section aria-labelledby="hl-key">
         <h2 id="hl-key" className="section-title">{hl.keyTitle}</h2>
         <p className="mt-1 text-[13px] text-muted">{hl.keyIntro}</p>
-        <div className="mt-4 grid gap-x-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-x-4 sm:gap-x-10 lg:grid-cols-3">
           {KEY_METRICS.map((m) => (
             <Metric key={m} metric={m} series={metricSeries(annual, m)} labels={labels} lang={lang} />
           ))}
@@ -77,12 +77,7 @@ function Highlights({ annual, fetchedAt, lang }: { annual: StatementSet; fetched
         </section>
       )}
 
-      <div className="max-w-[80ch] space-y-1 text-[11px] leading-relaxed text-muted">
-        <p>{fill(hl.method, { n: String(SPAN) })}</p>
-        <p>
-          {hl.source} · {t.data.updated} <time dateTime={fetchedAt}>{fmtAsOf(fetchedAt, lang)}</time>
-        </p>
-      </div>
+      <SourceNote source={hl.source} asOf={fetchedAt} how={<p>{fill(hl.method, { n: String(SPAN) })}</p>} />
     </div>
   );
 }
@@ -149,7 +144,7 @@ function Metric({ metric, series, labels, lang }: { metric: KeyMetric; series: (
   return (
     <div className="border-t border-line py-4">
       <h3 className="text-[13px] font-medium text-muted">{hl.metrics[metric]}</h3>
-      <p className="num mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em]">{latest === null ? "—" : fmt(latest)}</p>
+      <p className="num mt-1 text-[22px] font-semibold leading-none tracking-[-0.02em] sm:text-[26px]">{latest === null ? "—" : fmt(latest)}</p>
       <p className="num mt-1.5 text-[12px] text-muted">
         {labels[last]}
         {change && <> · {change}</>}

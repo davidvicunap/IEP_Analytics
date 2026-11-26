@@ -112,54 +112,57 @@ function Start({ existing, onCreated, onBack, initialSymbol }: { existing: Canva
   };
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-        <h1 className="text-[30px] font-semibold leading-tight sm:text-[38px]">{C.title}</h1>
-        <p className="mt-2 max-w-[68ch] text-[15px] leading-relaxed text-muted">{C.intro}</p>
+      {/* The same page frame and title as every other page: left-aligned, the content kept narrow. */}
+      <div className="mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
+        <div className="max-w-4xl">
+          <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.02em] sm:text-[36px]">{C.title}</h1>
+          <p className="mt-2 max-w-[68ch] text-[15px] leading-relaxed text-muted">{C.intro}</p>
 
-        <section aria-labelledby="canvas-start" className="mt-10 space-y-6">
-          <h2 id="canvas-start" className="section-title">
-            {C.startTitle}
-          </h2>
-          <div>
-            <p className="control-label mb-1.5">{C.symbol}</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="num inline-flex h-11 items-center rounded-lg border border-line-strong bg-panel px-3 text-sm font-semibold" data-testid="start-symbol">
-                {symbol}
-              </span>
-              <div className="w-full max-w-xs">
-                <TickerSearch label={C.symbol} onSelect={setSymbol} />
+          <section aria-labelledby="canvas-start" className="mt-10 space-y-6">
+            <h2 id="canvas-start" className="section-title">
+              {C.startTitle}
+            </h2>
+            <div>
+              <p className="control-label mb-1.5">{C.symbol}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="num inline-flex h-11 items-center rounded-lg border border-line-strong bg-panel px-3 text-sm font-semibold" data-testid="start-symbol">
+                  {symbol}
+                </span>
+                <div className="w-full max-w-xs">
+                  <TickerSearch label={C.symbol} onSelect={setSymbol} />
+                </div>
               </div>
             </div>
-          </div>
-          <div role="radiogroup" aria-label={C.startTitle} className="grid gap-3 sm:grid-cols-2">
-            {TEMPLATES.map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="radio"
-                aria-checked={template === k}
-                onClick={() => setTemplate(k)}
-                className={`rounded-lg border bg-panel p-4 text-left transition-colors ${template === k ? "border-fg" : "border-line hover:border-line-strong"}`}
-              >
-                <TemplateThumb template={k} />
-                <span className="mt-3 block text-sm font-semibold">{C.templates[k].name}</span>
-                <span className="mt-0.5 block text-[13px] leading-snug text-muted">{C.templates[k].desc}</span>
+            <div role="radiogroup" aria-label={C.startTitle} className="grid gap-3 sm:grid-cols-2">
+              {TEMPLATES.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={template === k}
+                  onClick={() => setTemplate(k)}
+                  className={`rounded-lg border bg-panel p-4 text-left transition-colors ${template === k ? "border-fg" : "border-line hover:border-line-strong"}`}
+                >
+                  <TemplateThumb template={k} />
+                  <span className="mt-3 block text-sm font-semibold">{C.templates[k].name}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-muted">{C.templates[k].desc}</span>
+                </button>
+              ))}
+            </div>
+            {full && <StatusMessage tone="warn">{fill(C.tooMany, { n: MAX_CANVASES })}</StatusMessage>}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={full} onClick={create} className={buttonClass("primary")}>
+                {C.create}
               </button>
-            ))}
-          </div>
-          {full && <StatusMessage tone="warn">{fill(C.tooMany, { n: MAX_CANVASES })}</StatusMessage>}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={full} onClick={create} className={buttonClass("primary")}>
-              {C.create}
-            </button>
-            {onBack && (
-              <button type="button" onClick={onBack} className={buttonClass("secondary")}>
-                {C.cancel}
-              </button>
-            )}
-          </div>
-          <p className="max-w-[68ch] text-xs text-muted">{C.sources}</p>
-        </section>
+              {onBack && (
+                <button type="button" onClick={onBack} className={buttonClass("secondary")}>
+                  {C.cancel}
+                </button>
+              )}
+            </div>
+            <p className="max-w-[68ch] text-xs text-muted">{C.sources}</p>
+          </section>
+        </div>
       </div>
     </div>
   );

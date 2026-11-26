@@ -4,7 +4,7 @@ import { fill, useI18n } from "@/lib/i18n";
 import { fmtAsOf } from "@/lib/format";
 import type { ValuationPayload } from "@/lib/valuationData";
 import { useResource } from "@/lib/useResource";
-import { IssueNote, Panel } from "./ui";
+import { IssueNote, Panel, Segmented } from "./ui";
 import CompsView from "./valuation/CompsView";
 import HistoryView from "./valuation/HistoryView";
 import PriceImplies from "./valuation/PriceImplies";
@@ -21,23 +21,9 @@ export default function ValuationPanel({ symbol, view, onView: setView }: { symb
   const label = (k: View) => (k === "history" ? t.valuation.history.view : t.comps.views[k]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="section-title mr-auto">{t.valuation.title}</h2>
-        <div role="group" aria-label={t.valuation.title} className="flex flex-wrap gap-1">
-          {VIEWS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              aria-pressed={view === k}
-              onClick={() => setView(k)}
-              className={`h-11 sm:h-9 px-4 rounded-md text-[13px] font-medium border ${view === k ? "bg-panel-2 text-fg border-line-strong" : "border-transparent text-muted hover:text-fg hover:bg-panel-2"}`}
-            >
-              {label(k)}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-6">
+      {/* The same view switch as the other tabs: left-aligned under the tabs, no second title. */}
+      <Segmented label={t.valuation.title} value={view} onChange={setView} options={VIEWS.map((k) => ({ value: k, label: label(k) }))} />
 
       {state.status === "ok" && <PriceImplies v={state.data} />}
 
@@ -58,7 +44,7 @@ export default function ValuationPanel({ symbol, view, onView: setView }: { symb
         ))}
 
       {state.status === "ok" && view === "history" && (
-        <p className="text-[11px] text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
+        <p className="text-xs text-muted">{fill(t.valuation.sources, { time: fmtAsOf(state.data.quoteAt, lang) })}</p>
       )}
     </div>
   );

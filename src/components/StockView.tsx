@@ -193,10 +193,11 @@ export default function StockView({
       {panel("overview", <Overview identity={identity} quote={quote} goTo={setTab} />)}
       {panel(
         "business",
-        <div className="space-y-4">
+        <div className="space-y-6">
           <SubNav label={t.stock.tabs.business} value={businessView} onChange={setView} options={BUSINESS_VIEWS.map((v) => ({ value: v, label: t.stock.views[v] }))} />
           {businessView === "highlights" ? (
-            <>
+            // Whitespace, not boxes, between the sections.
+            <div className="space-y-12">
               <Section fallback={<Skeleton className="h-32" />}>
                 <About profile={sections.profile} />
               </Section>
@@ -206,7 +207,7 @@ export default function StockView({
               <Deep>
                 <RatiosPanel symbol={symbol} />
               </Deep>
-            </>
+            </div>
           ) : (
             <Deep>
               <FinancialStatements symbol={symbol} statement={businessView} />
@@ -217,7 +218,7 @@ export default function StockView({
       {panel("valuation", <Deep><ValuationPanel symbol={symbol} view={valuationView} onView={setView} /></Deep>)}
       {panel(
         "filings",
-        <div className="space-y-4">
+        <div className="space-y-6">
           <SubNav label={t.stock.tabs.filings} value={filingsView} onChange={setView} options={FILINGS_VIEWS.map((v) => ({ value: v, label: t.stock.views[v] }))} />
           {filingsView === "filings" ? (
             <FilingsPanel symbol={symbol} />
@@ -358,7 +359,7 @@ function StockHeader({
 
 function Initial({ symbol }: { symbol: string }) {
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-line bg-panel text-base font-semibold tracking-tight text-fg" aria-hidden="true">
+    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-panel-2 text-[15px] font-semibold text-muted" aria-hidden="true">
       {symbol[0]}
     </span>
   );
@@ -373,7 +374,7 @@ function Logo({ profile, symbol }: { profile: Promise<Result<Profile>>; symbol: 
     // Logos come from the data provider's CDN; a plain lazy <img> with fixed size avoids an
     // open image proxy and any layout shift. A broken logo falls back to the empty tile.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" width={48} height={48} loading="lazy" decoding="async" onError={() => setBroken(true)} className="h-12 w-12 shrink-0 rounded-full bg-white object-contain p-1.5 border border-line" />
+    <img src={src} alt="" width={44} height={44} loading="lazy" decoding="async" onError={() => setBroken(true)} className="h-11 w-11 shrink-0 rounded-full border border-line bg-white object-contain p-1.5" />
   );
 }
 

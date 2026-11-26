@@ -13,3 +13,6 @@ next-env.d.ts
 
 # Local PGlite database (npm run db:local)
 .local/
+
+# Playwright MCP screenshots and snapshots
+.playwright-mcp/

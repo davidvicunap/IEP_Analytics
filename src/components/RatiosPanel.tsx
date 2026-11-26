@@ -2,12 +2,12 @@
 
 import { useContext } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtAsOf, fmtNum } from "@/lib/format";
+import { fmtNum } from "@/lib/format";
 import type { RatioGroup, RatioKey } from "@/lib/ratios";
 import type { RatioRow, RatiosPayload } from "@/lib/ratiosData";
 import type { Level } from "@/lib/scoring";
 import { useResource } from "@/lib/useResource";
-import { InWindow, IssueNote, LevelBadge, Panel } from "./ui";
+import { InWindow, IssueNote, LevelBadge, Panel, SourceNote } from "./ui";
 
 const GROUPS: RatioGroup[] = ["profitability", "returns", "health", "growth"];
 type Lang = "es" | "en";
@@ -72,29 +72,28 @@ export default function RatiosPanel({ symbol }: { symbol: string }) {
 
       <RatiosTable payload={d} lang={lang} />
 
-      <details className="text-sm">
-        <summary className="link inline-flex min-h-11 cursor-pointer items-center sm:min-h-0">{t.ratios.whatTitle}</summary>
-        <dl className="mt-2 max-w-[68ch] space-y-2">
-          {d.ratios
-            .filter((r) => r.applicable)
-            .map((r) => (
-              <div key={r.key}>
-                <dt className="font-medium">{t.ratios.names[r.key]}</dt>
-                <dd className="text-muted">
-                  {t.ratios.what[r.key]} <span className="text-[12px]">= {t.ratios.formulas[r.key]}</span>
-                </dd>
-              </div>
-            ))}
-        </dl>
-      </details>
-
-      <div className="space-y-1 text-[11px] text-muted">
-        {notApplicable.length > 0 && <p>{fill(t.ratios.notApplicable, { list: notApplicable.join(", ") })}</p>}
-        {d.peersYear && <p>{fill(t.ratios.method, { year: d.peersYear })}</p>}
-        <p>
-          {t.ratios.source} · {t.data.updated} <time dateTime={state.fetchedAt}>{fmtAsOf(state.fetchedAt, lang)}</time>
-        </p>
-      </div>
+      <SourceNote
+        source={t.ratios.source}
+        asOf={state.fetchedAt}
+        how={
+          <>
+            <dl className="space-y-2">
+              {d.ratios
+                .filter((r) => r.applicable)
+                .map((r) => (
+                  <div key={r.key}>
+                    <dt className="font-medium text-fg">{t.ratios.names[r.key]}</dt>
+                    <dd>
+                      {t.ratios.what[r.key]} = {t.ratios.formulas[r.key]}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+            {notApplicable.length > 0 && <p className="pt-1">{fill(t.ratios.notApplicable, { list: notApplicable.join(", ") })}</p>}
+            {d.peersYear && <p>{fill(t.ratios.method, { year: d.peersYear })}</p>}
+          </>
+        }
+      />
     </div>
   );
 }

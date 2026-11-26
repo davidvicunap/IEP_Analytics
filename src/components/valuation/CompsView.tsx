@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
 import { fmtBig, fmtDate, fmtNum, fmtPrice } from "@/lib/format";
 import { MIN_PEERS, compsRow, impliedValues, peerStats, type CompsMultiple, type CompsRow } from "@/lib/comps";
@@ -8,7 +8,7 @@ import type { CompsPayload } from "@/lib/compsData";
 import type { MarketCap } from "@/lib/marketCap";
 import { shown as shownData } from "@/lib/resource";
 import { useResource } from "@/lib/useResource";
-import { IssueNote, Panel, Skeleton } from "../ui";
+import { InWindow, IssueNote, Panel, Skeleton, SourceNote, buttonClass } from "../ui";
 import { NumberField } from "./fields";
 
 type Lang = "es" | "en";
@@ -158,11 +158,11 @@ export default function CompsView({ symbol }: { symbol: string }) {
               className="h-11 sm:h-9 w-44 rounded-lg border border-line bg-panel px-3 text-sm uppercase placeholder:normal-case placeholder:text-muted"
             />
           </div>
-          <button type="submit" disabled={current.length >= MAX} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium bg-accent text-accent-fg hover:brightness-110 disabled:opacity-50">
+          <button type="submit" disabled={current.length >= MAX} className={buttonClass("secondary", true)}>
             {t.comps.add}
           </button>
           {!d.suggested && (
-            <button type="button" onClick={() => updatePeers(null)} className="h-11 sm:h-9 px-3.5 rounded-lg text-[13px] font-medium border border-line bg-panel hover:bg-panel-2">
+            <button type="button" onClick={() => updatePeers(null)} className={buttonClass("ghost", true)}>
               {t.comps.resetPeers}
             </button>
           )}
@@ -171,7 +171,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
         {d.unknown.length > 0 && <p className="mt-2 text-xs text-warn">{fill(t.comps.unknown, { list: d.unknown.join(", ") })}</p>}
       </div>
 
-      <Panel>
+      <Panel bare>
         {rows.length === 0 ? (
           <p className="text-sm text-muted">{t.comps.noPeers}</p>
         ) : (
@@ -179,7 +179,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
           <CompsTable target={target} rows={rows.filter((r) => r.marketCap !== null)} shown={shown} basis={basis} lang={lang} />
         )}
         <Unpriced symbols={d.unpriced} rows={rows} manual={manual} issue={d.marketCapsIssue} onManual={updateManual} />
-        <div className="mt-3 space-y-1 text-[11px] text-muted">
+        <div className="mt-3 space-y-1 text-xs text-muted">
           <p>{fill(t.comps.fewPeers, { min: MIN_PEERS })}</p>
           {diluted && <p>{t.comps.dilutedNote}</p>}
           {financial && <p>{t.comps.bankNote}</p>}
@@ -200,10 +200,7 @@ export default function CompsView({ symbol }: { symbol: string }) {
         )}
       </section>
 
-      <div className="max-w-[80ch] space-y-1 text-[11px] leading-relaxed text-muted">
-        <p>{t.comps.formulas}</p>
-        <p>{t.comps.sources}</p>
-      </div>
+      <SourceNote source={t.comps.sources} asOf={onScreen?.fetchedAt} how={<p>{t.comps.formulas}</p>} />
     </div>
   );
 }
@@ -285,7 +282,9 @@ function CompsTable({
     const s = stats.get(m);
     return s && s.n >= MIN_PEERS ? s.median : null;
   };
-  const sticky = "sticky left-0 z-10 text-left font-sans pl-4 pr-3";
+  // The pinned column takes the surface it sits on: the page, or a canvas window.
+  const surface = useContext(InWindow) ? "bg-panel" : "bg-bg";
+  const sticky = "sticky left-0 z-10 text-left font-sans pl-4 pr-3 sm:pl-0";
   const capTitle = (b: MarketCap | null | undefined) =>
     b
       ? fill(t.comps.capTitle, {
@@ -301,7 +300,7 @@ function CompsTable({
     const b = basis.get(r.symbol);
     return (
       <tr key={r.symbol} className={isTarget ? "bg-panel-2" : ""}>
-        <th scope="row" className={`${sticky} border-t border-line py-2 ${isTarget ? "bg-panel-2" : "bg-panel"}`}>
+        <th scope="row" className={`${sticky} border-t border-line py-2 ${isTarget ? "bg-panel-2" : surface}`}>
           <span className="font-medium">{r.symbol}</span>
           {isTarget && <span className="ml-1 text-[11px] text-muted">({t.comps.thisCompany})</span>}
           <span className="block w-36 truncate text-[11px] font-normal text-muted" title={r.name}>{r.name}</span>
@@ -325,38 +324,38 @@ function CompsTable({
           <td key={m} className="border-t border-line px-2 py-2 text-right align-top">{mult(m, r.multiples[m], lang)}</td>
         ))}
         <td className="border-t border-line px-2 py-2 text-right align-top">{pct(r.growth, lang)}</td>
-        <td className="border-t border-line py-2 pr-4 text-right align-top">{pct(r.operatingMargin, lang)}</td>
+        <td className="border-t border-line py-2 pr-4 text-right align-top sm:pr-0">{pct(r.operatingMargin, lang)}</td>
       </tr>
     );
   };
 
   const summary = (label: string, cell: (m: CompsMultiple) => React.ReactNode, first = false) => (
     <tr className={first ? "font-semibold" : "text-muted"}>
-      <th scope="row" className={`${sticky} bg-panel py-2 font-medium ${first ? "border-t border-line-strong" : "border-t border-line"}`}>{label}</th>
+      <th scope="row" className={`${sticky} ${surface} py-2 font-medium ${first ? "border-t border-line-strong" : "border-t border-line"}`}>{label}</th>
       <td className={first ? "border-t border-line-strong" : "border-t border-line"} />
       {ev && <td className={first ? "border-t border-line-strong" : "border-t border-line"} />}
       {shown.map((m) => (
         <td key={m} className={`px-2 py-2 text-right ${first ? "border-t border-line-strong" : "border-t border-line"}`}>{cell(m)}</td>
       ))}
       <td className={first ? "border-t border-line-strong" : "border-t border-line"} />
-      <td className={`pr-4 ${first ? "border-t border-line-strong" : "border-t border-line"}`} />
+      <td className={`pr-4 sm:pr-0 ${first ? "border-t border-line-strong" : "border-t border-line"}`} />
     </tr>
   );
 
   return (
-    <div className="relative -mx-4 overflow-x-auto" tabIndex={0} role="region" aria-label={t.comps.title}>
+    <div className="relative -mx-4 overflow-x-auto sm:mx-0" tabIndex={0} role="region" aria-label={t.comps.title}>
       <table className="num w-max min-w-full border-separate border-spacing-0 text-[13px]">
         <caption className="sr-only">{t.comps.title}</caption>
         <thead>
           <tr className="text-xs text-muted">
-            <th scope="col" className={`${sticky} bg-panel pb-2 font-normal`}>{cols.company}</th>
+            <th scope="col" className={`${sticky} ${surface} pb-2 font-normal`}>{cols.company}</th>
             <th scope="col" className="px-2 pb-2 text-right font-normal">{cols.marketCap}</th>
             {ev && <th scope="col" className="px-2 pb-2 text-right font-normal">{cols.ev}</th>}
             {shown.map((m) => (
               <th key={m} scope="col" className="px-2 pb-2 text-right font-normal">{cols[m]}</th>
             ))}
             <th scope="col" className="px-2 pb-2 text-right font-normal">{cols.growth}</th>
-            <th scope="col" className="pb-2 pr-4 text-right font-normal">{cols.opMargin}</th>
+            <th scope="col" className="pb-2 pr-4 text-right font-normal sm:pr-0">{cols.opMargin}</th>
           </tr>
         </thead>
         <tbody>
