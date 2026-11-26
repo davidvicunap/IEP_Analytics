@@ -22,7 +22,7 @@ export default function HighlightsCard({ symbol, onOpen }: { symbol: string; onO
 
   if (state.status === "loading")
     return (
-      <Panel bare className="border-t border-line pt-5" title={title} id="highlights-card">
+      <Panel bare className="lg:pt-6" title={title} id="highlights-card">
         <div className="space-y-2" aria-busy="true">
           <p role="status" className="sr-only">{t.fin.loading}</p>
           <Skeleton className="h-4 w-11/12" />
@@ -33,14 +33,14 @@ export default function HighlightsCard({ symbol, onOpen }: { symbol: string; onO
     );
   if (state.status === "error")
     return (
-      <Panel bare className="border-t border-line pt-5" title={title} id="highlights-card">
+      <Panel bare className="lg:pt-6" title={title} id="highlights-card">
         <IssueNote issue={state.issue} onRetry={retry} />
       </Panel>
     );
 
   const found = findings(state.data.annual).slice(0, SHOWN);
   return (
-    <Panel bare className="border-t border-line pt-5" title={title} id="highlights-card">
+    <Panel bare className="lg:pt-6" title={title} id="highlights-card">
       {found.length === 0 ? (
         <p className="text-sm text-muted">{hl.noHistory}</p>
       ) : (

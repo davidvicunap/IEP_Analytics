@@ -49,7 +49,10 @@ export default function ResearchHub() {
 
       <div className="grid gap-10 lg:grid-cols-3 lg:gap-12">
         <section aria-labelledby="hub-companies" className="min-w-0 lg:col-span-2">
-          <h2 id="hub-companies" className="section-title">{H.companiesTitle}</h2>
+          {/* Same height as the canvases title row (it has a button), so both titles line up. */}
+          <div className="flex min-h-9 items-center">
+            <h2 id="hub-companies" className="section-title">{H.companiesTitle}</h2>
+          </div>
           <Companies canvasFor={hydrated ? canvasFor : () => null} />
         </section>
 

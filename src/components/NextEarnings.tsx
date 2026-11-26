@@ -25,10 +25,8 @@ export default function NextEarnings({ symbol }: { symbol: string }) {
       <span>
         <span className="text-fg">{fill(n.kind === "listed" ? E.listed : E.estimated, { d: date })}</span> ({when})
         {n.kind === "listed" && n.epsEstimate !== null && ` · ${fill(E.eps, { v: fmtPrice(n.epsEstimate, lang) })}`}
-        <span className="block sm:inline">
-          {" "}
-          {n.kind === "listed" ? E.listedNote : fill(E.estimatedNote, { b: fmtDate(n.basedOn, lang) })}
-        </span>
+        {" · "}
+        {n.kind === "listed" ? E.listedNote : fill(E.estimatedNote, { b: fmtDate(n.basedOn, lang) })}
       </span>
     </p>
   );

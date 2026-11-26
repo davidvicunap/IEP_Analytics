@@ -21,7 +21,7 @@ import { CanvasIcon } from "../icons";
 import SyncNote from "../SyncNote";
 import { signedPct } from "../research/ResearchPanel";
 import { StatusBadge } from "../research/Thesis";
-import { Badge, Change, IssueNote, Provenance, Skeleton, StatusMessage } from "../ui";
+import { Change, IssueNote, Provenance, Skeleton, StatusMessage } from "../ui";
 
 type Lang = "es" | "en";
 const localToday = () => {
@@ -127,7 +127,17 @@ export default function Companies({ canvasFor }: { canvasFor: (symbol: string) =
         </p>
       )}
       {tradesRes.state.status === "error" && <IssueNote issue={tradesRes.state.issue} onRetry={tradesRes.retry} className="mt-2" />}
-      <ul className="mt-2 divide-y divide-line border-y border-line" data-testid="companies">
+      {/* Column names once, above the list; each value also carries its name for screen readers. */}
+      <div className="mt-3 hidden items-end gap-2 pb-2 text-xs text-muted sm:flex" aria-hidden="true">
+        <span className="flex-1" />
+        <span className="num flex gap-4 pr-2 text-right">
+          <span className="w-24">{R.cols.fair}</span>
+          <span className="w-24">{R.cols.price}</span>
+          <span className="w-16">{R.cols.gap}</span>
+        </span>
+        <span className="w-9" />
+      </div>
+      <ul className="mt-2 divide-y divide-line border-y border-line sm:mt-0" data-testid="companies">
         {rows.map(({ symbol: s, followed: isFollowed }) => {
           const n = notes!.find((x) => x.symbol === s);
           const pos = open.find((p) => p.symbol === s);
@@ -140,50 +150,58 @@ export default function Companies({ canvasFor }: { canvasFor: (symbol: string) =
           const filings = snap?.status === "ok" && snap.data.filings.ok ? snap.data.filings.data : null;
           // Held stocks say what matters about the position; the rest, the next thing to know.
           const next = pos ? null : nextEvent({ alerts: unseenAlerts(s), recent: filings?.recent ?? [], nextResults: filings?.nextResults ?? null, today });
+          const canvasLabel = canvas ? fill(H.openCanvasTitle, { s }) : fill(H.newCanvasFor, { s });
           return (
-            <li key={s} className="flex items-start gap-2 py-1" data-testid={`company-${s}`}>
+            <li key={s} className="group flex items-start gap-2" data-testid={`company-${s}`}>
               <Link
                 href={n || pos ? `/stock/${encodeURIComponent(s)}?tab=research` : `/stock/${encodeURIComponent(s)}`}
                 prefetch={false}
-                className="-ml-2 flex min-w-0 flex-1 flex-col gap-1 rounded-lg px-2 py-2.5 hover:bg-panel-2 sm:flex-row sm:items-start sm:gap-4"
+                className="-ml-2 flex min-w-0 flex-1 items-start gap-4 rounded-lg px-2 py-3 hover:bg-panel-2"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-semibold">{s}</span>
                     {status && <StatusBadge status={status} />}
-                    {!n && !pos && isFollowed && <Badge tone="neutral">{H.following}</Badge>}
+                    {!n && !pos && isFollowed && <span className="text-xs text-muted">{H.following}</span>}
                   </span>
                   <span className={`mt-0.5 block line-clamp-2 text-sm leading-relaxed ${n?.thesis ? "" : "text-muted"}`}>
                     {n?.thesis || (n || pos ? R.noThesis : (quote?.name ?? H.noThesisYet))}
                   </span>
+                  {/* Phones: your fair value, when you set one, sits under the name instead of a column. */}
+                  {n?.fairValue != null && (
+                    <span className="num mt-1 block text-[13px] text-muted sm:hidden">
+                      {R.cols.fair} {fmtPrice(n.fairValue, lang)}
+                      {gap !== null && ` · ${signedPct(gap, lang)}`}
+                    </span>
+                  )}
                   {pos && <Holding p={pos} price={p} reasons={reasonsOf(pos)} lang={lang} />}
                   {next && <NextLine event={next} lang={lang} />}
                 </span>
-                <span className="num grid grid-cols-3 gap-3 text-sm sm:w-80 sm:text-right">
-                  <span>
-                    <span className="block text-xs text-muted">{R.cols.fair}</span>
-                    {n?.fairValue == null ? "—" : fmtPrice(n.fairValue, lang)}
+                <span className="num flex shrink-0 gap-4 text-right text-sm">
+                  <span className="hidden w-24 sm:block">
+                    <span className="sr-only">{R.cols.fair}: </span>
+                    {n?.fairValue == null ? <span className="text-muted">—</span> : fmtPrice(n.fairValue, lang)}
                   </span>
-                  <span>
-                    <span className="block text-xs text-muted">{R.cols.price}</span>
-                    {p === null ? "—" : fmtPrice(p, lang)}
+                  <span className="w-24">
+                    <span className="sr-only">{R.cols.price}: </span>
+                    {p === null ? <span className="text-muted">—</span> : <span className="font-medium">{fmtPrice(p, lang)}</span>}
                     {quote && <span className="block"><Change pct={quote.changePercent} className="text-xs" /></span>}
                   </span>
-                  <span>
-                    <span className="block text-xs text-muted">{R.cols.gap}</span>
-                    {gap === null ? "—" : signedPct(gap, lang)}
+                  <span className="hidden w-16 sm:block">
+                    <span className="sr-only">{R.cols.gap}: </span>
+                    {gap === null ? <span className="text-muted">—</span> : signedPct(gap, lang)}
                   </span>
                 </span>
               </Link>
+              {/* Into its canvas. With a mouse it shows on the row you're on; on touch it's always there. */}
               <Link
                 href={canvas ? `/canvas?c=${encodeURIComponent(canvas.id)}` : `/canvas?new=1&s=${encodeURIComponent(s)}`}
                 prefetch={false}
-                title={canvas ? fill(H.openCanvasTitle, { s }) : fill(H.newCanvasFor, { s })}
-                aria-label={canvas ? fill(H.openCanvasTitle, { s }) : fill(H.newCanvasFor, { s })}
-                className="mt-1.5 inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] text-muted hover:bg-panel-2 hover:text-fg sm:h-9"
+                title={canvasLabel}
+                aria-label={canvasLabel}
+                className="mt-2 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-muted transition-opacity duration-150 hover:bg-panel-2 hover:text-fg focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100 pointer-fine:opacity-0 sm:mt-1.5 sm:h-9 sm:w-9"
               >
-                <CanvasIcon size={15} />
-                <span className="hidden sm:inline">{H.openCanvas}</span>
+                <CanvasIcon size={16} />
               </Link>
             </li>
           );
@@ -201,9 +219,11 @@ export default function Companies({ canvasFor }: { canvasFor: (symbol: string) =
       ) : (
         missing > 0 && <p className="mt-2 text-xs text-muted">{fill(t.ux.partial, { n: missing, total: symbols.length })}</p>
       )}
-      {q.source && <Provenance source={q.source} asOf={asOf} stale={q.items.some((i) => i.stale)} className="mt-2" />}
-      {/* The followed list is saved to your account: say where it is right now. */}
-      {followed.length > 0 && <SyncNote className="mt-1 block text-xs" />}
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {q.source && <Provenance source={q.source} asOf={asOf} stale={q.items.some((i) => i.stale)} />}
+        {/* The followed list is saved to your account: say where it is right now. */}
+        {followed.length > 0 && <SyncNote className="text-xs" />}
+      </div>
       {open.length === 0 && <p className="mt-3 max-w-[64ch] text-xs text-muted">{H.addHolding}</p>}
     </>
   );

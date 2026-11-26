@@ -14,7 +14,8 @@ export default function StockChart({ symbol, exchange }: { symbol: string; excha
   const studies = useChartStudies();
   const tv = tvSymbol(symbol, exchange);
   return (
-    <Panel title={t.chart.priceTitle} action={<ChartStudiesMenu />}>
+    // Phones: edge to edge, so the chart gets the whole width instead of losing it to a card.
+    <Panel title={t.chart.priceTitle} action={<ChartStudiesMenu />} className="max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:px-4">
       <TradingViewWidget
         widget="advanced-chart"
         heightClass="h-[min(64vh,600px)] min-h-[400px]"
