@@ -410,7 +410,7 @@ function Workspace({ stored, all, select, startNew }: { stored: CanvasDoc; all: 
     return g;
   }, [doc.widgets]);
   const defaultSymbol = focusedWidget?.symbol ?? groups[1] ?? doc.widgets.find((w) => w.symbol)?.symbol ?? "AAPL";
-  const defaultLink: LinkGroup = focusedWidget && focusedWidget.kind !== "note" ? focusedWidget.link : groups[1] ? 1 : 0;
+  const defaultLink: LinkGroup = focusedWidget ? focusedWidget.link : groups[1] ? 1 : 0;
 
   return (
     <div className="flex h-full flex-col">

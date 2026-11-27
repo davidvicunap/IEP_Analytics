@@ -5,13 +5,11 @@ import { pickFilings, settled, type SnapshotPayload } from "./snapshotShared";
 
 const f = (form: string, filed: string, items: string[] = []): Filing => ({ accn: `${form}-${filed}`, form, filed, reportDate: null, primaryDocument: "d.htm", description: "", items, inlineXbrl: false });
 
-describe("watchlist snapshot", () => {
-  it("picks the newest periodic report and the newest filing about the business", () => {
+describe("hub row summary", () => {
+  it("picks the newest periodic report, skipping amendments", () => {
     const filings = [f("4", "2026-11-09"), f("SC 13G/A", "2026-11-08"), f("8-K", "2026-11-05", ["2.02", "9.01"]), f("10-K/A", "2026-11-04"), f("10-Q", "2026-10-30"), f("10-K", "2026-02-01")];
-    const { report, latest } = pickFilings(filings);
-    expect(report).toMatchObject({ form: "10-Q", filed: "2026-10-30" }); // amendment skipped
-    expect(latest).toMatchObject({ form: "8-K", filed: "2026-11-05", items: ["2.02", "9.01"] }); // insider and ownership forms skipped
-    expect(pickFilings([f("4", "2026-01-01")])).toMatchObject({ report: null, latest: null, recent: [] });
+    expect(pickFilings(filings).report).toMatchObject({ form: "10-Q", filed: "2026-10-30" });
+    expect(pickFilings([f("4", "2026-01-01")])).toMatchObject({ report: null, recent: [] });
   });
 
   it("lists the last week's filings about the business and estimates the next results", () => {
@@ -28,17 +26,10 @@ describe("watchlist snapshot", () => {
     expect(pickFilings([f("10-Q", "2026-11-12")], "2026-11-19").nextResults).toBeNull();
   });
 
-  it("is only cacheable once every part answered and no insider filings are left to read", () => {
-    const base: SnapshotPayload = {
-      symbol: "X",
-      cik: 1,
-      quality: { ok: true, data: { passed: 1, failed: 0, na: 0, level: "high", fiscal: null } },
-      filings: { ok: true, data: { report: null, latest: null, recent: [], nextResults: null } },
-      insiders: { ok: true, data: { from: "", to: "", bought: 0, sold: 0, buyers: 0, sellers: 0, pending: 0, checkedAt: "" } },
-    };
+  it("is cacheable once the filings answered", () => {
+    const base: SnapshotPayload = { symbol: "X", cik: 1, filings: { ok: true, data: { report: null, recent: [], nextResults: null } } };
     expect(settled(base)).toBe(true);
-    expect(settled({ ...base, quality: { ok: false, error: "upstream" } })).toBe(false);
-    expect(settled({ ...base, insiders: { ok: true, data: { from: "", to: "", bought: 0, sold: 0, buyers: 0, sellers: 0, pending: 3, checkedAt: "" } } })).toBe(false);
+    expect(settled({ ...base, filings: { ok: false, error: "upstream" } })).toBe(false);
   });
 });
 

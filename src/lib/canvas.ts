@@ -36,11 +36,16 @@ export interface Widget {
   h: number;
   /** Stacking order: higher is in front. */
   z: number;
-  symbol: string | null; // null only for notes
+  /** null only for a note saved before notes belonged to a company, in a canvas with no company. */
+  symbol: string | null;
   link: Link;
   interval?: Interval; // chart, technicals
   view?: ValuationView; // valuation
-  text?: string; // note
+  /**
+   * note: text typed before notes were saved to the company's notebook. Kept (and shown) as a
+   * draft until it's saved there or discarded; new notes never have it.
+   */
+  text?: string;
 }
 
 /** Screen = world × zoom + (x, y). */
@@ -102,7 +107,8 @@ function parseWidget(raw: unknown): Widget | null {
   const id = typeof r.id === "string" && /^[a-z0-9-]{1,40}$/.test(r.id) ? r.id : null;
   if (!id || !isKind(r.kind)) return null;
   const kind = r.kind;
-  const symbol = kind === "note" ? null : cleanSymbol(r.symbol);
+  // A note's company is optional only for notes saved before they had one (see parseCanvas).
+  const symbol = cleanSymbol(r.symbol);
   if (kind !== "note" && !symbol) return null;
   const w: Widget = {
     id,
@@ -113,11 +119,11 @@ function parseWidget(raw: unknown): Widget | null {
     h: snap(clamp(finite(r.h, DEFAULT_SIZE[kind].h), MIN_SIZE.h, 4000)),
     z: Math.round(clamp(finite(r.z, 0), 0, 1e6)),
     symbol,
-    link: kind === "note" ? 0 : ((LINKS as readonly number[]).includes(r.link as number) ? (r.link as Link) : 0),
+    link: symbol && (LINKS as readonly number[]).includes(r.link as number) ? (r.link as Link) : 0,
   };
   if (kind === "chart" || kind === "technicals") w.interval = (INTERVALS as readonly string[]).includes(r.interval as string) ? (r.interval as Interval) : "D";
   if (kind === "valuation") w.view = (VALUATION_VIEWS as readonly string[]).includes(r.view as string) ? (r.view as ValuationView) : "history";
-  if (kind === "note") w.text = typeof r.text === "string" ? r.text.slice(0, MAX_NOTE) : "";
+  if (kind === "note" && typeof r.text === "string" && r.text.trim()) w.text = r.text.slice(0, MAX_NOTE);
   return w;
 }
 
@@ -138,7 +144,17 @@ export function parseCanvas(raw: unknown): CanvasDoc | null {
     .filter((w): w is Widget => !!w && !seen.has(w.id) && (seen.add(w.id), true))
     .slice(0, MAX_WIDGETS);
   const updatedAt = typeof r.updatedAt === "string" && !Number.isNaN(Date.parse(r.updatedAt)) ? r.updatedAt : new Date(0).toISOString();
-  return { id, name, widgets, view: parseView(r.view), updatedAt };
+  return { id, name, widgets: adoptCompany(widgets), view: parseView(r.view), updatedAt };
+}
+
+/**
+ * Notes saved before they belonged to a company take the canvas's: its first linked group's, or
+ * else its first window's. A canvas with no company leaves them without one (the note says so).
+ */
+function adoptCompany(widgets: Widget[]): Widget[] {
+  const company = widgets.find((w) => w.link === 1 && w.symbol)?.symbol ?? widgets.find((w) => w.symbol)?.symbol ?? null;
+  if (!company) return widgets;
+  return widgets.map((w) => (w.kind === "note" && !w.symbol ? { ...w, symbol: company } : w));
 }
 
 export function parseCanvases(raw: unknown): CanvasDoc[] {
@@ -228,9 +244,9 @@ export type AddResult = { ok: true; doc: CanvasDoc; widget: Widget } | { ok: fal
 
 export function addWidget(doc: CanvasDoc, input: { id: string; kind: WidgetKind; symbol: string | null; link: Link; near: { x: number; y: number }; within?: Rect }, now: string): AddResult {
   if (doc.widgets.length >= MAX_WIDGETS) return { ok: false, reason: "full" };
-  const symbol = input.kind === "note" ? null : cleanSymbol(input.symbol);
-  if (input.kind !== "note" && !symbol) return { ok: false, reason: "symbol" };
-  const link: Link = input.kind === "note" ? 0 : input.link;
+  const symbol = cleanSymbol(input.symbol);
+  if (!symbol) return { ok: false, reason: "symbol" };
+  const link: Link = input.link;
   // Joining a group shows the group's company.
   const groupSymbol = link ? doc.widgets.find((w) => w.link === link)?.symbol : null;
   const size = DEFAULT_SIZE[input.kind];
@@ -280,10 +296,10 @@ export function duplicateWidget(doc: CanvasDoc, id: string, newId: string, now: 
 export function setWidgetSymbol(doc: CanvasDoc, id: string, raw: string, now: string): CanvasDoc {
   const symbol = cleanSymbol(raw);
   const target = doc.widgets.find((w) => w.id === id);
-  if (!symbol || !target || target.kind === "note") return doc;
+  if (!symbol || !target) return doc;
   return touch(
     doc,
-    doc.widgets.map((w) => (w.id === id || (target.link !== 0 && w.link === target.link && w.kind !== "note") ? { ...w, symbol } : w)),
+    doc.widgets.map((w) => (w.id === id || (target.link !== 0 && w.link === target.link) ? { ...w, symbol } : w)),
     now,
   );
 }
@@ -291,7 +307,7 @@ export function setWidgetSymbol(doc: CanvasDoc, id: string, raw: string, now: st
 /** Joins (or leaves, with 0) a link group; joining shows the group's company. */
 export function setWidgetLink(doc: CanvasDoc, id: string, link: Link, now: string): CanvasDoc {
   const target = doc.widgets.find((w) => w.id === id);
-  if (!target || target.kind === "note") return doc;
+  if (!target) return doc;
   const groupSymbol = link ? doc.widgets.find((w) => w.id !== id && w.link === link)?.symbol : null;
   return touch(
     doc,
@@ -353,7 +369,8 @@ const slot = (kind: WidgetKind, x: number, y: number, extra: Partial<Slot> = {})
 
 const LAYOUTS: Record<Exclude<Template, "blank">, Slot[]> = {
   // The chart first, its technical reading beside it, the news on the right; below, the business
-  // (statements and valuation), the highlights and your own plan and note.
+  // (statements and valuation), the highlights and your own plan and notes (both saved in the
+  // company's notebook).
   full: [
     slot("chart", 0, 0),
     slot("technicals", 776, 0),
@@ -387,6 +404,6 @@ const LAYOUTS: Record<Exclude<Template, "blank">, Slot[]> = {
 export function newCanvas(input: { id: string; name: string; template: Template; symbol: string; ids: () => string }, now: string): CanvasDoc {
   const symbol = cleanSymbol(input.symbol) ?? "AAPL";
   const slots = input.template === "blank" ? [] : LAYOUTS[input.template];
-  const widgets = slots.map((s, i) => parseWidget({ ...s, id: input.ids(), z: i + 1, symbol: s.kind === "note" ? null : symbol, link: s.kind === "note" ? 0 : 1 })!);
+  const widgets = slots.map((s, i) => parseWidget({ ...s, id: input.ids(), z: i + 1, symbol, link: 1 })!);
   return { id: input.id, name: cleanName(input.name) || "Canvas", widgets, view: { x: 24, y: 24, zoom: 1 }, updatedAt: now };
 }

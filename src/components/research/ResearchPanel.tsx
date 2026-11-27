@@ -7,8 +7,8 @@ import { fmtAsOf, fmtNum, fmtPrice } from "@/lib/format";
 import { fairValueHistory, rebaseForm, upside, type ResearchNote } from "@/lib/research";
 import { saveNote, useNote, type SaveIssue } from "@/lib/researchClient";
 import { useTrades } from "@/lib/tradesClient";
-import { TrashIcon } from "../icons";
 import PushSettings from "../PushSettings";
+import DatedNotes from "./DatedNotes";
 import ListingNotice from "./ListingNotice";
 import { IssueNote, Panel, Skeleton, StatusMessage, buttonClass } from "../ui";
 import { NumberField } from "../valuation/fields";
@@ -302,76 +302,6 @@ function PlanSummary({ form, lang }: { form: Form; price: number | null; lang: L
   const { entry, stop, target } = form;
   if (!(entry && stop && target && entry > stop && target > entry)) return null;
   return <p className="mt-3 text-sm text-muted">{fill(t.research.riskReward, { r: fmtNum((target - entry) / (entry - stop), lang, 1) })}</p>;
-}
-
-function DatedNotes({ symbol, note }: { symbol: string; note: ResearchNote }) {
-  const { t, lang } = useI18n();
-  const R = t.research;
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const id = useId();
-  const notes = note.log.filter((e) => e.kind === "note");
-  const run = async (input: { addNote?: string; removeNote?: string }) => {
-    setBusy(true);
-    setFailed(false);
-    const r = await saveNote(symbol, { ...input, baseUpdatedAt: note.updatedAt });
-    setBusy(false);
-    if (!r.ok) setFailed(true);
-    else if (input.addNote) setText("");
-  };
-  return (
-    <Panel title={R.log}>
-      <form
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim()) run({ addNote: text });
-        }}
-      >
-        <div className="flex-1">
-          <label htmlFor={id} className="control-label mb-1.5 block">
-            {R.noteLabel}
-          </label>
-          <input
-            id={id}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            maxLength={2000}
-            placeholder={R.notePlaceholder}
-            className="h-11 sm:h-9 w-full rounded-lg border border-line bg-panel px-3 text-sm placeholder:text-muted"
-          />
-        </div>
-        <button type="submit" disabled={busy || !text.trim()} className={buttonClass("secondary", true)}>
-          {R.addNote}
-        </button>
-      </form>
-      {failed && <StatusMessage tone="warn" className="mt-2">{R.saveFailed}</StatusMessage>}
-      {notes.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">{R.noNotes}</p>
-      ) : (
-        <ul className="mt-3 divide-y divide-line border-y border-line">
-          {notes.map((e) => (
-            <li key={e.id} className="flex items-start gap-3 py-2.5">
-              <time dateTime={e.at} className="num w-28 shrink-0 pt-0.5 text-xs text-muted">
-                {fmtAsOf(e.at, lang)}
-              </time>
-              <p className="flex-1 min-w-0 whitespace-pre-wrap break-words text-sm">{e.kind === "note" ? e.text : null}</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => run({ removeNote: e.id })}
-                className="-my-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted hover:bg-panel-2 hover:text-fg sm:-my-1.5 sm:h-9 sm:w-9"
-                aria-label={fill(R.deleteNote, { d: fmtAsOf(e.at, lang) })}
-              >
-                <TrashIcon size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
 }
 
 function FairValueHistory({ note, lang }: { note: ResearchNote; lang: Lang }) {
