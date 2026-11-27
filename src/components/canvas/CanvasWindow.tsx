@@ -111,7 +111,7 @@ function CanvasWindow({
     }
   };
 
-  const symbolLabel = w.kind === "note" ? null : w.symbol;
+  const symbolLabel = w.symbol;
   // The title bar keeps its size on screen whatever the canvas zoom (within 0.5×–2×), so its
   // buttons stay easy to hit; the content zooms with the canvas.
   const chrome = Math.min(2, Math.max(0.5, 1 / zoom));
@@ -134,62 +134,59 @@ function CanvasWindow({
           if (!(e.target as HTMLElement).closest("[data-nodrag]")) actions.maximize(w.id);
         }}
       >
-        {w.kind !== "note" && (
-          <div className="relative" data-nodrag>
-            <button
-              type="button"
-              aria-label={`${C.linkTitle}: ${C.links[w.link]}`}
-              title={C.linkTitle}
-              aria-expanded={menu === "link"}
-              onClick={() => setMenu(menu === "link" ? null : "link")}
-              className={iconBtn}
-            >
-              <LinkSwatch link={w.link} />
-            </button>
-            <Popover open={menu === "link"} onClose={() => setMenu(null)} label={C.linkTitle} className="left-0 w-56 p-1.5">
-              <p className="px-2 pb-1 pt-0.5 text-xs text-muted">{C.linkTitle}</p>
-              {LINKS.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  aria-pressed={w.link === l}
-                  onClick={() => {
-                    actions.link(w.id, l);
-                    setMenu(null);
-                  }}
-                  className={`flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm hover:bg-panel-2 sm:min-h-9 ${w.link === l ? "font-medium" : ""}`}
-                >
-                  <LinkSwatch link={l} />
-                  {C.links[l]}
-                </button>
-              ))}
-            </Popover>
-          </div>
-        )}
-        {symbolLabel && (
-          <div className="relative" data-nodrag>
-            <button
-              type="button"
-              title={C.changeSymbol}
-              aria-label={`${C.changeSymbol}: ${symbolLabel}`}
-              aria-expanded={menu === "symbol"}
-              onClick={() => setMenu(menu === "symbol" ? null : "symbol")}
-              className="num inline-flex h-11 items-center rounded-md px-2 text-[13px] font-semibold hover:bg-panel-2 sm:h-7"
-            >
-              {symbolLabel}
-            </button>
-            <Popover open={menu === "symbol"} onClose={() => setMenu(null)} label={C.changeSymbol} className="left-0 w-72 p-2">
-              <TickerSearch
-                autoFocus
-                label={C.changeSymbol}
-                onSelect={(s) => {
-                  actions.symbol(w.id, s);
+        <div className="relative" data-nodrag>
+          <button
+            type="button"
+            aria-label={`${C.linkTitle}: ${C.links[w.link]}`}
+            title={C.linkTitle}
+            aria-expanded={menu === "link"}
+            onClick={() => setMenu(menu === "link" ? null : "link")}
+            className={iconBtn}
+          >
+            <LinkSwatch link={w.link} />
+          </button>
+          <Popover open={menu === "link"} onClose={() => setMenu(null)} label={C.linkTitle} className="left-0 w-56 p-1.5">
+            <p className="px-2 pb-1 pt-0.5 text-xs text-muted">{C.linkTitle}</p>
+            {LINKS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={w.link === l}
+                onClick={() => {
+                  actions.link(w.id, l);
                   setMenu(null);
                 }}
-              />
-            </Popover>
-          </div>
-        )}
+                className={`flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm hover:bg-panel-2 sm:min-h-9 ${w.link === l ? "font-medium" : ""}`}
+              >
+                <LinkSwatch link={l} />
+                {C.links[l]}
+              </button>
+            ))}
+          </Popover>
+        </div>
+        {/* Every window has a company; a note from before notes had one asks for it. */}
+        <div className="relative" data-nodrag>
+          <button
+            type="button"
+            title={C.changeSymbol}
+            aria-label={symbolLabel ? `${C.changeSymbol}: ${symbolLabel}` : C.chooseCompany}
+            aria-expanded={menu === "symbol"}
+            onClick={() => setMenu(menu === "symbol" ? null : "symbol")}
+            className={`inline-flex h-11 items-center rounded-md px-2 text-[13px] hover:bg-panel-2 sm:h-7 ${symbolLabel ? "num font-semibold" : "text-muted underline decoration-dotted underline-offset-4"}`}
+          >
+            {symbolLabel ?? C.chooseCompany}
+          </button>
+          <Popover open={menu === "symbol"} onClose={() => setMenu(null)} label={C.changeSymbol} className="left-0 w-72 p-2">
+            <TickerSearch
+              autoFocus
+              label={C.changeSymbol}
+              onSelect={(s) => {
+                actions.symbol(w.id, s);
+                setMenu(null);
+              }}
+            />
+          </Popover>
+        </div>
         {/* The handle: drag it, or focus it and use the arrows. */}
         <button
           type="button"
@@ -250,7 +247,7 @@ function CanvasWindow({
           <CloseIcon size={16} />
         </button>
       </div>
-      <div className={`relative min-h-0 flex-1 ${EDGE_TO_EDGE.includes(w.kind) ? "overflow-hidden p-1.5" : w.kind === "note" ? "p-3" : "overflow-auto p-4"}`}>
+      <div className={`relative min-h-0 flex-1 ${EDGE_TO_EDGE.includes(w.kind) ? "overflow-hidden p-1.5" : "overflow-auto p-4"}`}>
         <InWindow.Provider value={true}>
           {mounted ? (
             <WidgetBody widget={w} onView={(v) => actions.view(w.id, v)} onText={(text) => actions.text(w.id, text)} onOpen={(k) => actions.open(w.id, k)} />

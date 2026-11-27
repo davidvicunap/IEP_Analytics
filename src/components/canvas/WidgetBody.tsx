@@ -4,17 +4,13 @@
 // required and shown); the app's own panels, which already carry their source and time, for the
 // company; and the user's plan and notes. Heavy panels load only when a window first needs them.
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import { fill, useI18n } from "@/lib/i18n";
-import { fmtDate, fmtNum, fmtPrice } from "@/lib/format";
-import { MAX_NOTE, type Interval, type ValuationView, type Widget, type WidgetKind } from "@/lib/canvas";
-import { useNotes, useTheses } from "@/lib/researchClient";
-import { useQuotes } from "@/lib/useQuotes";
+import type { Interval, ValuationView, Widget, WidgetKind } from "@/lib/canvas";
 import TradingViewWidget, { tvSymbol, useResolvedTheme } from "../TradingViewWidget";
 import { widgetStudies } from "@/lib/chartStudies";
 import { useChartStudies } from "@/lib/chartStudiesClient";
-import { Badge, IssueNote, Provenance, Skeleton } from "../ui";
+import { Skeleton } from "../ui";
+import { NotesWindow, PlanWindow } from "./NotebookWindows";
 
 const Loading = () => (
   <div className="space-y-3" aria-hidden="true">
@@ -123,124 +119,12 @@ export default function WidgetBody({
     case "valuation":
       return <ValuationBody symbol={s} view={w.view ?? "history"} onView={onView} />;
     case "plan":
-      return <PlanCard symbol={s} />;
+      return <PlanWindow symbol={s} />;
     case "note":
-      return <NoteBody text={w.text ?? ""} onText={onText} />;
+      return <NotesWindow symbol={w.symbol} draft={w.text ?? ""} onDraft={onText} />;
   }
 }
 
 function ValuationBody({ symbol, view, onView }: { symbol: string; view: ValuationView; onView: (v: ValuationView) => void }) {
   return <ValuationPanel symbol={symbol} view={view} onView={onView} />;
-}
-
-/** Your notebook for this company, read-only: thesis, levels against today's price, status. */
-function PlanCard({ symbol }: { symbol: string }) {
-  const { t, lang } = useI18n();
-  const C = t.canvas;
-  const notes = useNotes();
-  const theses = useTheses();
-  const q = useQuotes([symbol]);
-  const item = q.items[0];
-  const price = item?.quote?.price ?? null;
-  if (notes.state.status === "error") return <IssueNote issue={notes.state.issue} onRetry={notes.retry} />;
-  const list = notes.state.status === "ok" ? notes.state.data : notes.state.status === "loading" ? (notes.state.previous?.data ?? null) : null;
-  if (!list) return <Loading />;
-  const note = list.find((n) => n.symbol === symbol);
-  const href = `/stock/${encodeURIComponent(symbol)}?tab=research`;
-  const empty = !note || (!note.thesis.trim() && note.fairValue === null && note.entry === null && note.stop === null && note.target === null);
-  if (empty) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted">{fill(C.planNone, { s: symbol })}</p>
-        <Link href={`${href}&plan=1`} prefetch={false} className="link inline-flex min-h-11 items-center text-sm font-medium sm:min-h-0">
-          {C.planWrite}
-        </Link>
-      </div>
-    );
-  }
-  const status = theses.state.status === "ok" ? (theses.state.data.items.find((i) => i.symbol === symbol)?.status ?? null) : null;
-  const tone = status === "atRisk" ? "bad" : status === "review" ? "warn" : status === "onTrack" ? "good" : "neutral";
-  const levels: [string, number | null][] = [
-    [C.planFair, note.fairValue],
-    [C.planEntry, note.entry],
-    [C.planStop, note.stop],
-    [C.planTarget, note.target],
-  ];
-  const gap = (v: number) => (price ? `${v >= price ? "+" : "−"}${fmtNum((Math.abs(v - price) / price) * 100, lang, 1)}%` : null);
-  return (
-    <div className="space-y-4">
-      {status && <Badge tone={tone}>{t.thesis.status[status]}</Badge>}
-      {note.thesis.trim() && <p className="max-w-[68ch] text-[15px] leading-relaxed">{note.thesis}</p>}
-      <dl className="num grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-        {levels.map(([label, v]) => (
-          <div key={label}>
-            <dt className="text-xs text-muted">{label}</dt>
-            <dd className="font-medium">
-              {v === null ? "—" : fmtPrice(v, lang)}
-              {v !== null && gap(v) && <span className="ml-1.5 text-xs font-normal text-muted">{fill(C.planDistance, { p: gap(v)! })}</span>}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      {note.reviewBy && (
-        <p className="num text-xs text-muted">
-          {C.planReview} {fmtDate(note.reviewBy, lang)}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href={href} prefetch={false} className="link inline-flex min-h-11 items-center text-sm font-medium sm:min-h-0">
-          {C.planEdit}
-        </Link>
-        {q.source && item?.quote && <Provenance source={q.source} asOf={item.fetchedAt ?? undefined} stale={item.stale} />}
-      </div>
-    </div>
-  );
-}
-
-/** Free text, saved a moment after you stop typing. */
-function NoteBody({ text, onText }: { text: string; onText: (text: string) => void }) {
-  const { t } = useI18n();
-  const C = t.canvas;
-  const [value, setValue] = useState(text);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef(onText);
-  latest.current = onText;
-  // A change from elsewhere (another tab, the account) shows up unless you're typing.
-  useEffect(() => {
-    if (!timer.current) setValue(text);
-  }, [text]);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-  const change = (v: string) => {
-    setValue(v);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      latest.current(v);
-    }, 400);
-  };
-  return (
-    <div className="flex h-full flex-col gap-1.5">
-      <textarea
-        aria-label={C.noteLabel}
-        value={value}
-        maxLength={MAX_NOTE}
-        onChange={(e) => change(e.target.value)}
-        onBlur={() => {
-          if (timer.current) {
-            clearTimeout(timer.current);
-            timer.current = null;
-            latest.current(value);
-          }
-        }}
-        placeholder={C.notePlaceholder}
-        className="min-h-0 w-full flex-1 resize-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted"
-      />
-      <p className="num text-right text-[11px] text-muted">{fill(C.noteLeft, { n: MAX_NOTE - value.length })}</p>
-    </div>
-  );
 }

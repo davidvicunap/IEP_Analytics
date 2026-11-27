@@ -450,9 +450,7 @@ await test("your companies: each row says the next thing to know (a new filing, 
   const snap = (symbol, o) => ({
     symbol,
     cik: 1,
-    quality: { ok: false, error: "not_found" },
-    filings: { ok: true, data: { report: null, latest: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
-    insiders: { ok: false, error: "not_found" },
+    filings: { ok: true, data: { report: null, recent: o.recent ?? [], nextResults: o.next ? { date: o.next, basedOn: day(-355) } : null } },
   });
   await p.route(/\/api\/sec\/snapshot\//, (r) => {
     const s = decodeURIComponent(r.request().url().split("/snapshot/")[1]);
@@ -1239,7 +1237,7 @@ await test("holdings on the hub: each held stock is a row, a split restated, a r
   await p.context().close();
 });
 
-await test("trading canvas: a template, linked windows, a note moved by keyboard and by drag, close and undo, maximize, saved across reloads; a sheet on phones", async () => {
+await test("trading canvas: a template, linked windows, notes and a plan written on the canvas land in the company's notebook, a window moved by keyboard and by drag, close and undo, maximize, saved across reloads; a sheet on phones", async () => {
   const p = await page({ lang: "en" });
   await p.route(/\/api\/search\?q=/, (r) => {
     const q = new URL(r.request().url()).searchParams.get("q").toUpperCase();
@@ -1262,20 +1260,25 @@ await test("trading canvas: a template, linked windows, a note moved by keyboard
   await windows.first().getByRole("button", { name: /Change this window's company: MSFT/ }).click();
   await searchInside(windows.first(), "NVDA");
   await p.waitForFunction(() => [...document.querySelectorAll("[data-window] button")].filter((b) => /company: NVDA$/.test(b.getAttribute("aria-label") ?? "")).length === 5);
-  // A note, from the menu.
+  // Notes, from the menu: they follow the group's company and are saved in its notebook.
   await p.getByRole("button", { name: "Add window" }).click();
-  await p.getByRole("dialog", { name: "Add a window" }).getByRole("button", { name: /^Note/ }).click();
-  const note = p.locator("[data-window]").filter({ has: p.getByLabel("Note text") });
-  await note.getByLabel("Note text").fill("Breakout above the 200-day average.");
+  await p.getByRole("dialog", { name: "Add a window" }).getByRole("button", { name: /^Notes/ }).click();
+  const note = p.locator("[data-window]").filter({ has: p.getByLabel("New note") });
+  await note.getByRole("button", { name: /company: NVDA$/ }).waitFor();
+  await note.getByText("No notes yet.").waitFor();
+  await note.getByLabel("New note").fill("Breakout above the 200-day average.");
+  await note.getByRole("button", { name: "Add note" }).click();
+  await note.getByRole("listitem").getByText("Breakout above the 200-day average.").waitFor();
+  assert((await note.getByLabel("New note").inputValue()) === "", "the box empties once saved");
   // Moved with the keyboard from its title…
   const left = async () => Number((await note.getAttribute("style")).match(/left: (-?\d+)px/)[1]);
   const x0 = await left();
-  await note.getByRole("button", { name: /^Note\. Move the window/ }).focus();
+  await note.getByRole("button", { name: /^Notes\. Move the window/ }).focus();
   await p.keyboard.press("ArrowRight");
   await p.keyboard.press("ArrowRight");
   assert((await left()) === x0 + 16, `keyboard move ${x0} → ${await left()}`);
   // …and by dragging its title bar (the canvas zoom scales the distance).
-  const handle = note.getByRole("button", { name: /^Note\. Move the window/ });
+  const handle = note.getByRole("button", { name: /^Notes\. Move the window/ });
   const box = await handle.boundingBox();
   await p.mouse.move(box.x + 20, box.y + box.height / 2);
   await p.mouse.down();
@@ -1287,7 +1290,7 @@ await test("trading canvas: a template, linked windows, a note moved by keyboard
   await p.getByText("Window closed.").waitFor();
   assert((await windows.count()) === 5, "note not closed");
   await p.getByRole("button", { name: "Undo" }).click();
-  await p.getByLabel("Note text").waitFor();
+  await p.getByLabel("New note").waitFor();
   // Maximize and back with Escape.
   await note.getByRole("button", { name: "Maximize" }).click();
   await note.getByRole("button", { name: "Restore" }).waitFor();
@@ -1303,8 +1306,23 @@ await test("trading canvas: a template, linked windows, a note moved by keyboard
   await p.reload();
   await p.getByRole("button", { name: /Switch canvas: MSFT: Technical desk/ }).waitFor();
   assert((await p.locator("[data-window]").count()) === 6, "windows after reload");
-  assert((await p.getByLabel("Note text").inputValue()) === "Breakout above the 200-day average.", "note text");
-  assert((await p.locator("[data-window] button[aria-label$='company: NVDA']").count()) === 5, "linked symbol after reload");
+  await p.locator("[data-window]").getByRole("listitem").getByText("Breakout above the 200-day average.").waitFor();
+  assert((await p.locator("[data-window] button[aria-label$='company: NVDA']").count()) === 6, "linked symbol after reload (the notes too)");
+  // The plan, written in its window: an empty notebook opens on the form.
+  await p.getByRole("button", { name: "Add window" }).click();
+  await p.getByRole("dialog", { name: "Add a window" }).getByRole("button", { name: /^My plan/ }).click();
+  const plan = p.locator("[data-window]").filter({ has: p.getByRole("button", { name: /^My plan\. Move the window/ }) });
+  await plan.getByText("No plan for NVDA yet.").waitFor();
+  await plan.getByLabel("Thesis").fill("Data-center demand keeps growing.");
+  await plan.getByLabel("Fair value").fill("150");
+  await plan.getByRole("button", { name: "Save" }).click();
+  await plan.getByRole("button", { name: "Edit" }).waitFor();
+  await plan.getByText("Data-center demand keeps growing.").waitFor();
+  await axe(p);
+  // Both are in the company's notebook, on its page.
+  await p.goto(base + "/stock/NVDA?tab=research");
+  await p.getByTestId("fair-value-line").getByText("Your fair value: $150.00").waitFor();
+  await p.getByText("Breakout above the 200-day average.").waitFor();
   assert(p.errors.length === 0, p.errors.join(" | "));
   await p.context().close();
 

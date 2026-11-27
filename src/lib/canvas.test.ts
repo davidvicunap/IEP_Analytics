@@ -55,8 +55,27 @@ describe("what a canvas may hold", () => {
     const a = c.widgets[0];
     expect([a.x, a.y, a.w, a.h, a.symbol, a.interval]).toEqual([16, 8, 240, 4000, "AAPL", "D"]);
     const note = c.widgets[1];
-    expect([note.symbol, note.link, note.text!.length]).toEqual([null, 0, 600]);
+    expect([note.symbol, note.link, note.text!.length]).toEqual(["KO", 2, 600]);
     expect(c.widgets[2].view).toBe("history");
+  });
+
+  it("notes saved before they had a company take the canvas's; their text stays as a draft", () => {
+    const [c, alone] = parseCanvases([
+      {
+        id: "c-1",
+        name: "x",
+        widgets: [
+          { id: "n", kind: "note", symbol: null, link: 0, text: "Gross margin trending up." },
+          { id: "m", kind: "note", symbol: null, link: 0, text: "   " },
+          { id: "a", kind: "news", symbol: "MSFT", link: 0 },
+          { id: "b", kind: "chart", symbol: "NVDA", link: 1 },
+        ],
+      },
+      { id: "c-2", name: "y", widgets: [{ id: "n", kind: "note", symbol: null, text: "only a note" }] },
+    ]);
+    expect(c.widgets[0]).toMatchObject({ symbol: "NVDA", link: 0, text: "Gross margin trending up." }); // the first linked group's company
+    expect(c.widgets[1].text).toBeUndefined(); // nothing to keep
+    expect(alone.widgets[0]).toMatchObject({ symbol: null, link: 0, text: "only a note" });
   });
 
   it("a device's canvases join the account's without duplicates", () => {
@@ -85,13 +104,14 @@ describe("adding windows", () => {
 
   it("refuses a window without a company, and more than the limit", () => {
     expect(addWidget(blank(), { id: "x", kind: "chart", symbol: "??", link: 0, near: { x: 0, y: 0 } }, now)).toEqual({ ok: false, reason: "symbol" });
-    expect(addWidget(blank(), { id: "x", kind: "note", symbol: null, link: 1, near: { x: 0, y: 0 } }, now).ok).toBe(true);
+    expect(addWidget(blank(), { id: "x", kind: "note", symbol: null, link: 1, near: { x: 0, y: 0 } }, now)).toEqual({ ok: false, reason: "symbol" }); // notes belong to a company too
+    expect(addWidget(blank(), { id: "x", kind: "note", symbol: "ko", link: 1, near: { x: 0, y: 0 } }, now)).toMatchObject({ ok: true, widget: { symbol: "KO", link: 1 } });
     let doc = blank();
     for (let i = 0; i < MAX_WIDGETS; i++) {
-      const r = addWidget(doc, { id: ids(), kind: "note", symbol: null, link: 0, near: { x: 0, y: 0 } }, now);
+      const r = addWidget(doc, { id: ids(), kind: "note", symbol: "KO", link: 0, near: { x: 0, y: 0 } }, now);
       if (r.ok) doc = r.doc;
     }
-    expect(addWidget(doc, { id: "x", kind: "note", symbol: null, link: 0, near: { x: 0, y: 0 } }, now)).toEqual({ ok: false, reason: "full" });
+    expect(addWidget(doc, { id: "x", kind: "note", symbol: "KO", link: 0, near: { x: 0, y: 0 } }, now)).toEqual({ ok: false, reason: "full" });
   });
 
   it("a free spot keeps a gutter from its neighbours", () => {
@@ -119,7 +139,7 @@ describe("linked windows", () => {
   it("windows in a group follow one company; others keep theirs", () => {
     let doc = newCanvas({ id: "c", name: "x", template: "full", symbol: "aapl", ids }, now);
     const linked = doc.widgets.filter((w) => w.link === 1);
-    expect(linked.length).toBe(doc.widgets.length - 1); // all but the note
+    expect(linked.length).toBe(doc.widgets.length); // the note too: it's the company's notebook
     const chart = doc.widgets.find((w) => w.kind === "chart")!;
     doc = setWidgetLink(doc, doc.widgets.find((w) => w.kind === "news")!.id, 0, now);
     doc = setWidgetSymbol(doc, chart.id, "nvda", now);
